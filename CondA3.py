@@ -42,6 +42,9 @@ writeStartDistance = 0
 
 firstTrial = ""
 
+global penalty
+penalty = ""
+
 timeFeedbackIsGiven = 4
 
 global EnvironmentIsRunning  # True if there is a display
@@ -128,7 +131,7 @@ digitWindowVisible = True
 
 radiusAroundTarget = 100
 
-standardDeviationOfNoise = 6
+standardDeviationOfNoise = -1
 
 stepSizeOfTrackerScreenUpdate = 0.005  # how many seconds does it take for a screen update?
 
@@ -1372,6 +1375,7 @@ def updateIntermediateScore():
     global writeMeanDistance
     global writeEndDistance
     global writeStartDistance
+    global penalty
 
     intMaxTrackerDistance = max(trackerdistanceArray)
     if intMaxTrackerDistance > radiusAroundTarget:
@@ -1394,15 +1398,15 @@ def updateIntermediateScore():
 
     if outsideRadius:
 
-        if penalty == loose500:
+        if penalty == "lose500":
             # loose 500
             visitScore = (((visitDigits + 10) + (visitIncorrectDigits - 5)) - 500)
 
-        if penalty == looseAll:
+        if penalty == "loseAll":
             # loose all
             visitScore = 0 * ((visitDigits + 10) + (visitIncorrectDigits - 5))
 
-        if penalty == looseHalf:
+        if penalty == "loseHalf":
             # loose half
             visitScore = 0.5 * ((visitDigits * 10) + (visitIncorrectDigits * -5))  # penalty for exit is to lose half points
     else:
@@ -1585,51 +1589,51 @@ def readInputAndCreateOutputFiles():
     global summaryOutputFile
     global firstTrial
 
-    subjNr = input("Please enter the subject number here: ")
+    subjNrStr = input("Please enter the subject number here: ")
+    subjNr = int(subjNrStr)
 
-    # individualLines = f.read().split('\n') ## read by lines
-    # parts=list(map(lambda x: x.split(','), individualLines) )     #split all elements
+    f = open('participantConditions.csv','r')
+    individualLines = f.read().split('\n') ## read by lines
+    lines = list(map(lambda x: x.split(';'), individualLines) )     #split all elements
+    subjectLine = []
+    for line in lines:
+        if line[0] == subjNrStr:
+            subjectLine = line[1:]
+    if not subjectLine:
+        raise Exception("Invalid subject number")
 
-    # subjectData = []
+    conditions = subjectLine
+    print(conditions)
+    f.close()
 
-    # if subjNr <100:
-    #    subjectData = parts[eval(subjNr)-1]                      #only read the line of the relevant subject
-    # elif subjNr <200:
-    #    subjectData = parts[eval(subjNr)-101]                      #only read the line of the relevant subject
-    # subjectData = parts[eval(subjNr)-201]                      #only read the line of the relevant subject
-    # conditions = subjectData[1:len(subjectData)]
-    # print(conditions)
-    # f.close()
-
-    conditions = "lB3"
     firstTrial = input("First trial? (yes/no) ")
 
     ##enter 'yes' if first 'no' if not
 
-    fileName = "participant" + subjNr + "data.csv"
+    fileName = "participant" + subjNrStr + "data.csv"
 
     if not os.path.exists(fileName):
         outputFile = open(fileName, 'w')  # contains the user data
     else:
-        fileName = "participant" + subjNr + "_" + str(random.randint(100000000, 999999999)) + "data.csv"
+        fileName = "participant" + subjNrStr + "_" + str(random.randint(100000000, 999999999)) + "data.csv"
         outputFile = open(fileName, 'w')  # contains the user data
 
-    outputText = "SubjectNr CurrentTime LocalTime BlockNumber TrialNumber partOfExperiment TrackingTaskPresent DigitTaskPresent TrackerWindowVisible DigitWindowVisible TrackingWindowVisitCounter DigitWindowVisitCounter RadiusAroundTarget standardDeviationOfNoise CursorDistanceX CursorDistanceY CursorDistanceDirect CursorCoordinatesX CursorCoordinatesY TrackerTargetCoordinatesX TrackerTargetCoordinatesY cursorMotionX cursorMotionY userNumber goalNumber numberCompleted LengthOfUserNumber LengthofGoalNumber Eventmessage1 Eventmessage2 \n"
+    outputText = "SubjectNr;CurrentTime;LocalTime;BlockNumber;TrialNumber;partOfExperiment;TrackingTaskPresent;DigitTaskPresent;TrackerWindowVisible;DigitWindowVisible;TrackingWindowVisitCounter;DigitWindowVisitCounter;RadiusAroundTarget;standardDeviationOfNoise;CursorDistanceX;CursorDistanceY;CursorDistanceDirect;CursorCoordinatesX;CursorCoordinatesY;TrackerTargetCoordinatesX;TrackerTargetCoordinatesY;cursorMotionX;cursorMotionY;userNumber;goalNumber;numberCompleted;LengthOfUserNumber;LengthofGoalNumber;Eventmessage1;Eventmessage2" + "\n"
     outputFile.write(outputText)
 
     ########################Second Output File######################################
 
     print("Summary file line 0")
 
-    summaryFileName = "participant" + subjNr + "SummaryData.csv"
+    summaryFileName = "participant" + subjNrStr + "SummaryData.csv"
 
     if not os.path.exists(summaryFileName):
         summaryOutputFile = open(summaryFileName, 'w')  # contains the user data
     else:
-        summaryFileName = "participant" + subjNr + "_" + str(random.randint(100000000, 999999999)) + "SummaryData.csv"
+        summaryFileName = "participant" + subjNrStr + "_" + str(random.randint(100000000, 999999999)) + "SummaryData.csv"
         summaryOutputFile = open(summaryFileName, 'w')  # contains the user data
 
-    summaryOutputText = "SubjectNr BlockNumber TrialNumber partOfExperiment standardDeviationOfNoise visitTime visitCorrectDigits visitIncorrectDigits visitScore outsideRadius maxDistance meanDistance endDistance startDistance \n"
+    summaryOutputText = "SubjectNr;BlockNumber;TrialNumber;partOfExperiment;standardDeviationOfNoise;visitTime;visitCorrectDigits;visitIncorrectDigits;visitScore;outsideRadius;maxDistance;meanDistance;endDistance;startDistance;" + "\n"
 
     print("Summary file line 3")
     print(summaryOutputText)
@@ -1688,8 +1692,6 @@ def main():
             "Welcome to the tracking + typing experiment!\n\n\nYou will first start practicing the three types of trials.", 10)
 
     numbersAvailableForGoalNumber = "123123123"
-    standardDeviationOfNoise = 4
-    radiusAroundTarget = 120
 
     if firstTrial == "yes":
         # do practice trials
@@ -1700,7 +1702,6 @@ def main():
 
     for pos in range(0, len(conditions)):
         currentCondition = conditions[pos]
-        messageNoise = ""
 
         # set of digits is 1-9 (9) or 1-3 (3)
         if currentCondition.find("9") > -1:
@@ -1716,10 +1717,12 @@ def main():
             # radiusAroundTarget = 200
             # radiusAroundTarget = 150
             radiusAroundTarget = 120
+        else:
+            raise Exception("Invalid radius")
 
         # noise values are h (high), m (medium) or l (low)
         if currentCondition.find("h") > -1:
-            standardDeviationOfNoise = 7  # previously: 7 
+            standardDeviationOfNoise = 5
             messageNoise = "HIGH"
         elif currentCondition.find("m") > -1:
             standardDeviationOfNoise = 5
@@ -1727,6 +1730,17 @@ def main():
         elif currentCondition.find("l") > -1:
             standardDeviationOfNoise = 3
             messageNoise = "LOW"
+        else:
+            raise Exception("Invalid noise")
+
+        if currentCondition.find("a") > -1:
+            penalty = "loseAll"
+        elif currentCondition.find("h") > -1:
+            penalty = "loseHalf"
+        elif currentCondition.find("n") > -1:
+            penalty = "lose500"
+        else:
+            raise Exception("Invalid penalty")
 
         message = "NEW BLOCK\n\n\n\nDuring the upcoming trials:\n\n\nYour cursor drifts at " + messageNoise + " speed"
 
