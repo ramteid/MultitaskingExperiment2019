@@ -115,6 +115,8 @@ digitTaskPresent = True
 
 scalingCursorMotion = 5  # how many pixels does the cursor move when joystick is at full angle (value of 1 or -1).
 
+global currentCondition
+currentCondition = ""
 global blockNumber
 blockNumber = 0
 
@@ -1672,6 +1674,8 @@ def main():
     global timeOfCompleteStartOfExperiment
     global baseratePayment
     global firstTrial
+    global penalty
+    global currentCondition
 
     readInputAndCreateOutputFiles()
 
@@ -1703,47 +1707,57 @@ def main():
     for pos in range(0, len(conditions)):
         currentCondition = conditions[pos]
 
-        # set of digits is 1-9 (9) or 1-3 (3)
-        if currentCondition.find("9") > -1:
-            numbersAvailableForGoalNumber = "123456789"
-        else:
-            # numbersAvailableForGoalNumber = "123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123"
-            numbersAvailableForGoalNumber = "123123123"
-
-        # radius is S (small) or B (big)
-        if currentCondition.find("S") > -1:  # small radius
-            radiusAroundTarget = 80
-        elif currentCondition.find("B") > -1:  # big radius
-            # radiusAroundTarget = 200
-            # radiusAroundTarget = 150
-            radiusAroundTarget = 120
-        else:
-            raise Exception("Invalid radius")
+        if len(currentCondition) != 4:
+            raise Exception("Current Condition" + currentCondition + " has invalid length " + len(currentCondition))
 
         # noise values are h (high), m (medium) or l (low)
-        if currentCondition.find("h") > -1:
+        if currentCondition[0] == "h":
             standardDeviationOfNoise = 5
-            messageNoise = "HIGH"
-        elif currentCondition.find("m") > -1:
+            noiseMsg = "hoher"
+        elif currentCondition[0] == "m":
             standardDeviationOfNoise = 5
-            messageNoise = "MEDIUM"
-        elif currentCondition.find("l") > -1:
+            noiseMsg = "mittlerer"
+        elif currentCondition[0] == "l":
             standardDeviationOfNoise = 3
-            messageNoise = "LOW"
+            noiseMsg = "niedriger"
         else:
-            raise Exception("Invalid noise")
+            raise Exception("Invalid noise " + currentCondition[0])
 
-        if currentCondition.find("a") > -1:
+        # radius is S (small) or B (big)
+        if currentCondition[1] == "S":  # small radius
+            radiusAroundTarget = 80
+        elif currentCondition[1] == "B":
+            radiusAroundTarget = 120
+        else:
+            raise Exception("Invalid radius " + currentCondition[1])
+
+        # set of digits is 1-9 (9) or 1-3 (3)
+        if currentCondition[2] == "9":
+            numbersAvailableForGoalNumber = "123456789"
+        elif currentCondition[2] == "3":
+            numbersAvailableForGoalNumber = "123123123"
+        else:
+            raise Exception("Invalid number " + currentCondition[2])
+
+        # define penalty
+        if currentCondition[3] == "a":
             penalty = "loseAll"
-        elif currentCondition.find("h") > -1:
+            penaltyMsg = "alle"
+        elif currentCondition[3] == "h":
             penalty = "loseHalf"
-        elif currentCondition.find("n") > -1:
+            penaltyMsg = "die Hälfte deiner"
+        elif currentCondition[3] == "n":
             penalty = "lose500"
+            penaltyMsg = "500"
         else:
-            raise Exception("Invalid penalty")
+            raise Exception("Invalid penalty " + currentCondition[3])
 
-        message = "NEW BLOCK\n\n\n\nDuring the upcoming trials:\n\n\nYour cursor drifts at " + messageNoise + " speed"
+        # message = "NEW BLOCK\n\n\n\nDuring the upcoming trials:\n\n\nYour cursor drifts at " + messageNoise + " speed"
+        # GiveMessageOnScreen(message, 10)
 
+        message = "Neuer Block: der Cursor bewegt sich mit " + noiseMsg + " Geschwindigkeit. Für jede korrekt " \
+                  "eingegebene Ziffer bekommst du 10 Punkte. Bei jeder falsch eingetippten Ziffer gibt es 5 Punkte " \
+                  "Abzug. Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
         GiveMessageOnScreen(message, 10)
 
         runSingleTaskTrackingTrials(False)
