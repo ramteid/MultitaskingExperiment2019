@@ -59,7 +59,7 @@ cursorMotion = (0, 0)  # the motion of the joystick
 trackerdistanceArray = []
 digitPressTimes = []
 startTime = 0
-timeFeedbackIsShown = 5
+timeFeedbackIsShown = 4
 
 startedClosingThreads = False
 
@@ -99,11 +99,11 @@ CursorCoordinates = (
 
 fontsizeGoalAndUserNumber = 30
 
-maxTrialTimeDual = 30  # maximum time for dual-task trials 
+maxTrialTimeDual = 120  # maximum time for dual-task trials 
 maxTrialTimeSingleTracking = 10  # maximum time for single-task tracking
 maxTrialTimeSingleTyping = 20  # maximum time for single-task typing
 
-numberOfDualTaskTrials = 40
+numberOfDualTaskTrials = 3
 numberOfSingleTaskTrackingTrials = 2
 numberOfSingleTaskTypingTrials = 2
 
@@ -643,7 +643,7 @@ def GiveCountdownMessageOnScreen(timeMessageIsOnScreen):
         topCornerOfMessageArea = (int(ExperimentWindowSize[0] * 2 / 5), int(topLeftCornerOfDigitTaskWindow[1] + 10))
         screen.blit(messageAreaObject, topCornerOfMessageArea)
 
-        message = "Get Ready!\n\n       " + str(timeMessageIsOnScreen - i)
+        message = "Mach dich bereit!\n\n       " + str(timeMessageIsOnScreen - i)
 
         fontsize = fontsizeGoalAndUserNumber
         color = (0, 0, 0)
@@ -681,7 +681,7 @@ def ShowStartExperimentScreen():
     color = (0, 0, 0)
     location = (175, 175)
 
-    message = "Experimenter Please Press Here"
+    message = "Experimentalleiter bitte hier drücken."
     printTextOverMultipleLines(message, fontsize, color, location)
 
     pygame.display.flip()
@@ -848,16 +848,16 @@ def reportUserScore():
         feedbackScore = score
         # feedbackText = feedbackText + "\n\n" + str(score) + "\n\n" + str(trackerScore) + "  pixels \n\n" + str(maxTrackerDistance) + "  pixels" + "\n\n" +str(digitScore) + "  seconds"
         if score > 0:
-            feedbackText = "+" + str(feedbackScore) + " points"
+            feedbackText = "+" + str(feedbackScore) + " Punkte"
         else:
-            feedbackText = str(feedbackScore) + " points"
+            feedbackText = str(feedbackScore) + " Punkte"
 
         scoresForPayment.append(score)
         scoresOnThisBlock.append(score)  # store score, so average performance can be reported
         scoreForLogging = score
 
     elif partOfExperiment == "singleTaskTracking":
-        feedbackText = "Your maximum distance: \n"
+        feedbackText = "Deine maximale Distanz: \n"
         if trackingTaskPresent:
             maxTrackerDistance = max(trackerdistanceArray)
             # round values
@@ -870,7 +870,7 @@ def reportUserScore():
             scoreForLogging = maxTrackerDistance
 
     elif partOfExperiment == "singleTaskTyping":
-        feedbackText = "You made: \n"
+        feedbackText = "Anzahl Fehler: \n"
         if digitTaskPresent:
             #    digitScore = maxTrialTimeSingleTyping * 1.5
             # else:
@@ -878,7 +878,7 @@ def reportUserScore():
             digitErrors = incorrectDigits
             # round values
             digitScore = scipy.special.round(digitScore * 10) / 10
-            feedbackText = feedbackText + "\n\n" + str(digitErrors) + "  errors"
+            feedbackText = feedbackText + "\n\n" + str(digitErrors) + "  Fehler"
 
             # scoresOnThisBlock.append(digitScore)
             scoresOnThisBlock.append(
@@ -906,7 +906,7 @@ def reportUserScore():
         topCornerOfMessageArea = (50, 50)
         screen.blit(messageAreaObject, topCornerOfMessageArea)  # make area 50 pixels away from edges
 
-        feedbackText2 = "Your average performance over the last five trials:\n\n"
+        feedbackText2 = "Deine durchschnittliche Punktzahl der letzten 4 Durchgänge:\n\n"
         meanscore = scipy.special.round(scipy.mean(
             scoresOnThisBlock[-2:]) * 100) / 100  # report meanscore 
         feedbackText2 = feedbackText2 + str(meanscore)
@@ -916,7 +916,7 @@ def reportUserScore():
             feedbackText2 = feedbackText2 + " errors"
         elif partOfExperiment == "dualTask":
             feedbackText2 = "Block " + str(int(len(
-                scoresOnThisBlock) / 5)) + " of 8 complete. Your average performance over the last five trials:\n\n" + str(
+                scoresOnThisBlock) / 3)) + " von 6 vollständig. Deine durchschnittliche Leistung der letzten 4 Durchgänge:\n\n" + str(
                 meanscore) + " points"
 
         fontsize = fontsizeGoalAndUserNumber
@@ -1004,14 +1004,14 @@ def runSingleTaskTypingTrials(booleanThisIsAPracticeTrial):
 
     if booleanThisIsAPracticeTrial:
         partOfExperiment = "practiceTyping"
-        GiveMessageOnScreen("Typing only\n\nIn these trials you only perform the typing task.\nType in the digits that "
-                            "are shown on the screen as fast as possible.\n\nIf you make a mistake, the string of digits "
-                            "won't progress \n(In future trials, you would also lose points)", 15)
+        GiveMessageOnScreen("Nur Tippen\n\nIn diesen Durchgängen führst du nur die Tippaufgabe aus.\nKopiere die Ziffern, die dir auf dem Bildschirm "
+                            "angezeigt werden so schnell wie möglich.\n\nWenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt. "
+                            "\n(In zukünftigen Durchgängen, würdest du dadurch Punkte verlieren)", 15)
         numberOfTrials = 2
     else:
         partOfExperiment = "singleTaskTyping"
 
-        GiveMessageOnScreen("Typing only\n\nType as fast as possible", 5)
+        GiveMessageOnScreen("Nur Tippen\n\nKopiere die Ziffern so schnell wie möglich", 5)
 
     for i in range(0, numberOfTrials):
         incorrectDigits = 0
@@ -1099,14 +1099,14 @@ def runSingleTaskTrackingTrials(booleanThisIsAPracticeTrial):
     if booleanThisIsAPracticeTrial:
         partOfExperiment = "practiceTracking"
         GiveMessageOnScreen(
-            "Tracking only\n\nIn these trials you only perform the tracking task.\nYou can test how the joystick works, and see how the cursor moves around.\nThe cursor moves around freely untill you move it.",
+            "Nur Tracking\n\nIn diesen Durchgängen führst du nur die Tracking Aufgabe aus.\nDu kannst ausprobieren, wie der Joystick funktioniert und sehen, wie der Cursor umher wandert.\nDer Cursor bewegt sich so lange frei herum, bis du ihn bewegst.",
             15)
         numberOfTrials = 2
     else:
         partOfExperiment = "singleTaskTracking"
 
         GiveMessageOnScreen(
-            "Tracking only\n\nUse these trials to estimate the speed of the cursor, \nbut keep the cursor inside the shield",
+            "Nur Tracking\n\nNutze die Durchgänge, um die Geschwindigkeit des Cursors einschätzen zu können, \naber halte den Cursor innerhalb des Kreises",
             5)
 
     for i in range(0, numberOfTrials):
@@ -1350,7 +1350,7 @@ def openTrackerWindow():
     # print("motion " + str(cursorMotion[0]) +  " " + str(cursorMotion[1]))
 
     if partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask":
-        intermediateMessage = str(visitScore) + " Points"
+        intermediateMessage = str(visitScore) + " Punkte"
 
         fontsize = fontsizeGoalAndUserNumber
         color = (0, 0, 0)
@@ -1474,24 +1474,18 @@ def runDualTaskTrials(booleanThisIsAPracticeTrial):
     numberOfTrials = numberOfDualTaskTrials
 
     if booleanThisIsAPracticeTrial:
-        maxTrialTimeDual = 30
+        maxTrialTimeDual = 120
         partOfExperiment = "practiceDualTask"
         GiveMessageOnScreen(
-            "Tracking + Typing\n\nYou will now practice performing both tasks at the same time.\nBy default you will start with viewing the typing task.\nPress the trigger on the joystick to control the tracking task.\nRelease the trigger to control the typing task.\nYou can only perform one task at a time.",
-            15)
-        GiveMessageOnScreen(
-            "Your objective is to:\nType the number in as fast as possible (in future trials: this way you gain points),\nbut keep the cursor inside the shield (or else, you lose points)\nTyping errors also make you lose points",
-            10)
+            "Tracking + Tippen\n\nDu führst jetzt beide Aufgaben gleichzeitig aus.\nDie Ziffernaufgabe wird dir immer zuerst angezeigt.\nDrücke den Schalter unter deinem Zeigefinger am Joystick, um die Trackingaufgabe zu kontrollieren.\nLasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\nDu kannst immer nur eine Aufgabe bearbeiten.",15)
+        GiveMessageOnScreen("Dein Ziel:\nKopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\naber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte)\nFehler beim Tippen führen auch zu einem Punktverlust",10)
+        
         numberOfTrials = 2
     else:
-        maxTrialTimeDual = 30
+        maxTrialTimeDual = 120
         partOfExperiment = "dualTask"
-        GiveMessageOnScreen(
-            "Tracking + Typing\n\nType the number in as fast as possible (this way you gain points),\nbut keep the cursor inside the shield (or else, you lose points).\nTyping errors also make you lose points\n\nImportant: Your performance on these trials will add to your score.",
-            18)
-        GiveMessageOnScreen(
-            "The cursor will move at the same speed as before.\nThe shield is the same size\n\nTo open the tracker window, keep the trigger pressed.\nTo open the digit window, release the trigger.\nYou can only work on one task at a time",
-            15)
+        GiveMessageOnScreen("Tracking + Tippen\n\nKopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\naber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte).\nFehler beim Tippen führen auch zu einem Punktverlust.\n\nWichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl." ,18)
+        GiveMessageOnScreen("Der Cursor bewegt sich mit derselben Geschwindigkeit wie zuvor.\nDer Kreis hat dieselbe Größe\n\nDrücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\nUm wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\nDu kannst immer nur eine Aufgabe bearbeiten." ,15)
 
     for i in range(0, numberOfTrials):
 
@@ -1692,8 +1686,7 @@ def main():
     ShowStartExperimentScreen()
 
     if firstTrial == "yes":
-        GiveMessageOnScreen(
-            "Welcome to the tracking + typing experiment!\n\n\nYou will first start practicing the three types of trials.", 10)
+        GiveMessageOnScreen("Willkommen zum Experiment!\n\n\nWir beginnen mit 3 Probedurchläufen.",10)
 
     numbersAvailableForGoalNumber = "123123123"
 
@@ -1702,7 +1695,7 @@ def main():
         runSingleTaskTrackingTrials(True)
         runSingleTaskTypingTrials(True)
         runDualTaskTrials(True)
-        GiveMessageOnScreen("Now we will test your performance on these tasks. Try to earn as many points as possible", 10)
+        GiveMessageOnScreen("Jetzt testen wir deine Leistung in diesen Aufgaben. Versuche so viele Punkte wie möglich zu gewinnen", 10)
 
     for pos in range(0, len(conditions)):
         currentCondition = conditions[pos]
@@ -1764,7 +1757,7 @@ def main():
         runSingleTaskTypingTrials(False)
         runDualTaskTrials(False)
 
-        message = "So far, you've scored: " + str(calculatePayrate() - baseratePayment) + " points"
+        message = "Bisher hast du: " + str(calculatePayrate() - baseratePayment) + " Punkte"
         GiveMessageOnScreen(message, 8)
 
         # if (pos != (len(conditions)-1)):
@@ -1776,7 +1769,7 @@ def main():
 
         #        GiveMessageOnScreen("10 seconds left",10)
 
-    GiveMessageOnScreen("This is the end of the task.", 5)
+    GiveMessageOnScreen("Dies ist das Ende der Studie.", 5)
 
     payment = calculatePayrate()
     print(payment)
