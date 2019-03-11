@@ -230,8 +230,6 @@ def writeDataToParticipantDataFile(Eventmessage1, message2):
     global standardDeviationOfNoise
     global timeOfCompleteStartOfExperiment  # time at which experiment started
 
-    outputCursorCoordinates = CursorCoordinates
-    outputTrackerTargetCoordinates = TrackerTargetCoordinates
     outputuserNumber = userNumber
     outputgoalNumber = goalNumber
 
@@ -247,16 +245,16 @@ def writeDataToParticipantDataFile(Eventmessage1, message2):
         outputcursorMotion = (-987654321, -987654321)
         outputCursorDistance = (-987654321, -987654321, -987654321)  # (horiz, vert, straight line)
     else:
-        outputCursorCoordinates = (scipy.special.round(outputCursorCoordinates[0] * 100) / 100,
-                                   scipy.special.round(outputCursorCoordinates[1] * 100) / 100)
-        outputTrackerTargetCoordinates = (scipy.special.round(outputTrackerTargetCoordinates[0] * 100) / 100,
-                                          scipy.special.round(outputTrackerTargetCoordinates[1] * 100) / 100)
+        outputCursorCoordinates = (scipy.special.round(CursorCoordinates[0] * 100) / 100,
+                                   scipy.special.round(CursorCoordinates[1] * 100) / 100)
+        outputTrackerTargetCoordinates = (scipy.special.round(TrackerTargetCoordinates[0] * 100) / 100,
+                                          scipy.special.round(TrackerTargetCoordinates[1] * 100) / 100)
 
         outputcursorMotion = (
             scipy.special.round(cursorMotion[0] * 1000) / 1000, scipy.special.round(cursorMotion[1] * 1000) / 1000)
 
-        distanceXY = (abs(outputTrackerTargetCoordinates[0] - outputCursorCoordinates[0]),
-                      abs(outputTrackerTargetCoordinates[1] - outputCursorCoordinates[1]))
+        distanceXY = (abs(TrackerTargetCoordinates[0] - CursorCoordinates[0]),
+                      abs(TrackerTargetCoordinates[1] - CursorCoordinates[1]))
 
         distanceDirect = math.sqrt((distanceXY[0]) ** 2 + (distanceXY[1]) ** 2)
         distanceDirect = scipy.special.round(distanceDirect * 100) / 100
