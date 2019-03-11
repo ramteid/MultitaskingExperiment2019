@@ -18,9 +18,12 @@ import math
 import os
 import random
 import time
+import traceback
+
 import pygame
 import scipy
 import scipy.special
+import datetime
 
 ######initialize global variables
 
@@ -39,8 +42,6 @@ writeMaxDistance = 0
 writeMeanDistance = 0
 writeEndDistance = 0
 writeStartDistance = 0
-
-firstTrial = ""
 
 global penalty
 penalty = ""
@@ -183,17 +184,26 @@ def writeSummaryDataToFile():
     global writeEndDistance
     global writeStartDistance
 
-    summaryOutputText = str(subjNr) + " " + str(blockNumber) + " " + str(
-        trialNumber) + " " + partOfExperiment + " " + str(standardDeviationOfNoise) + " " + str(visitTime) + " " + str(
-        visitDigits) + " " + str(visitIncorrectDigits) + " " + str(visitScore) + " " + str(outsideRadius) + " " + str(
-        writeMaxDistance) + " " + str(writeMeanDistance) + " " + str(writeEndDistance) + " " + str(
-        writeStartDistance) + "\n"
+    summaryOutputText = \
+        str(subjNr) + ";" + \
+        str(blockNumber) + ";" + \
+        str(trialNumber) + ";" + \
+        partOfExperiment + ";" + \
+        str(standardDeviationOfNoise) + ";" + \
+        str(visitTime) + ";" + \
+        str(visitDigits) + ";" + \
+        str(visitIncorrectDigits) + ";" + \
+        str(visitScore) + ";" + \
+        str(outsideRadius) + ";" + \
+        str(writeMaxDistance) + ";" + \
+        str(writeMeanDistance) + ";" + \
+        str(writeEndDistance) + ";" + \
+        str(writeStartDistance) + "\n"
 
     summaryOutputFile.write(summaryOutputText)
-    print(summaryOutputText)
 
 
-def writeDataToFile(Eventmessage1, message2):
+def writeDataToParticipantDataFile(Eventmessage1, message2):
     print("FUNCTION: " + getFunctionName())
     global outputFile
     global subjNr
@@ -265,28 +275,42 @@ def writeDataToFile(Eventmessage1, message2):
     if outputuserNumber == "":
         outputuserNumber = -10
 
-    if partOfExperiment != "dualTask":
-        pass
-
-    ###still add the current condition
-
-    outputText = str(subjNr) + " " + str(currentTime) + " " + str(localTime) + " " + str(blockNumber) + " " + str(
-        trialNumber) + " " + partOfExperiment + " " + str(trackingTaskPresent) + " " + str(
-        digitTaskPresent) + " " + str(trackerWindowVisible) + " " + str(digitWindowVisible) + " " + str(
-        trackingWindowVisitCounter) + " " + str(digitWindowVisitCounter) + " " + str(radiusAroundTarget) + " " + str(
-        standardDeviationOfNoise) + " " + str(outputCursorDistance[0]) + " " + str(outputCursorDistance[1]) + " " + str(
-        outputCursorDistance[2]) + " " + str(outputCursorCoordinates[0]) + " " + str(
-        outputCursorCoordinates[1]) + " " + str(outputTrackerTargetCoordinates[0]) + " " + str(
-        outputTrackerTargetCoordinates[1]) + " " + str(outputcursorMotion[0]) + " " + str(
-        outputcursorMotion[1]) + " " + str(outputuserNumber) + " " + str(outputgoalNumber) + " " + str(
-        numberCompleted) + " " + str(outputLengthOfUserNumber) + " " + str(outputLengthofGoalNumber) + " " + str(
-        Eventmessage1) + " " + str(message2) + "\n"
+    outputText = \
+        str(subjNr) + ";" + \
+        str(currentTime) + ";" + \
+        str(localTime) + ";" + \
+        str(blockNumber) + ";" + \
+        str(trialNumber) + ";" + \
+        partOfExperiment + ";" + \
+        str(trackingTaskPresent) + ";" + \
+        str(digitTaskPresent) + ";" + \
+        str(trackerWindowVisible) + ";" + \
+        str(digitWindowVisible) + ";" + \
+        str(trackingWindowVisitCounter) + ";" + \
+        str(digitWindowVisitCounter) + ";" + \
+        str(radiusAroundTarget) + ";" + \
+        str(standardDeviationOfNoise) + ";" + \
+        str(outputCursorDistance[0]) + ";" + \
+        str(outputCursorDistance[1]) + ";" + \
+        str(outputCursorDistance[2]) + ";" + \
+        str(outputCursorCoordinates[0]) + ";" + \
+        str(outputCursorCoordinates[1]) + ";" + \
+        str(outputTrackerTargetCoordinates[0]) + ";" + \
+        str(outputTrackerTargetCoordinates[1]) + ";" + \
+        str(outputcursorMotion[0]) + ";" + \
+        str(outputcursorMotion[1]) + ";" + \
+        str(outputuserNumber) + ";" + \
+        str(outputgoalNumber) + ";" + \
+        str(numberCompleted) + ";" + \
+        str(outputLengthOfUserNumber) + ";" + \
+        str(outputLengthofGoalNumber) + ";" + \
+        str(Eventmessage1) + ";" + \
+        str(message2) + "\n"
 
     outputFile.write(outputText)
 
 
 def checkKeyPresses():
-    print("FUNCTION: " + getFunctionName())
     global TrackerTargetCoordinates
     global CursorCoordinates
     global trackerdistanceArray
@@ -320,18 +344,17 @@ def checkKeyPresses():
         elif event.type == pygame.JOYBUTTONUP:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("closeTracking")
-                writeDataToFile("ButtonRelease", "none")
+                writeDataToParticipantDataFile("ButtonRelease", "none")
         elif event.type == pygame.JOYBUTTONDOWN:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("openTracking")
-                writeDataToFile("ButtonPress", "none")
+                writeDataToParticipantDataFile("ButtonPress", "none")
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mousePressed = True
             pos = pygame.mouse.get_pos()
-            print(pos)
             posString = str(pos[0]) + "_" + str(pos[1])
-            writeDataToFile("MousePress", posString)
+            writeDataToParticipantDataFile("MousePress", posString)
 
         elif event.type == pygame.KEYDOWN:
             keycode = event.key
@@ -359,6 +382,9 @@ def checkKeyPresses():
                     localValue = "9"
                 elif keycode == pygame.K_BACKSPACE or keycode == pygame.K_MINUS or keycode == pygame.K_KP_ENTER or keycode == pygame.K_KP_MINUS or keycode == pygame.K_KP_PLUS or keycode == pygame.K_KP_MULTIPLY:
                     localValue = "-"
+                elif keycode == pygame.K_F4:
+                    quit_app()
+                    return
 
                 if localValue != "" and digitWindowVisible:  # only process keypresses if the digit task is present
                     digitPressTimes.append(time.time())
@@ -371,15 +397,15 @@ def checkKeyPresses():
                                 newpart = ''.join(random.sample(numbersAvailableForGoalNumber, 1))
 
                             goalNumber = goalNumber + newpart
-                            writeDataToFile("keypress", localValue)
+                            writeDataToParticipantDataFile("keypress", localValue)
                             visitDigits = visitDigits + 1
                             correctDigits = correctDigits + 1
                         else:
-                            writeDataToFile("wrongKeypress", localValue)
+                            writeDataToParticipantDataFile("wrongKeypress", localValue)
                             incorrectDigits = incorrectDigits + 1
                             visitIncorrectDigits = visitIncorrectDigits + 1
                     else:
-                        writeDataToFile("stringTypedTooLong", localValue)
+                        writeDataToParticipantDataFile("stringTypedTooLong", localValue)
 
                     # now update screen
                     # first cover up old message
@@ -415,7 +441,6 @@ def checkKeyPresses():
 
 
 def updateTrackerScreen(sleepTime):
-    print("FUNCTION: " + getFunctionName())
     global screen
     global TrackerTargetCoordinates
     global CursorCoordinates
@@ -563,22 +588,11 @@ def updateTrackerScreen(sleepTime):
     # always update coordinates
     CursorCoordinates = (x, y)
 
-    writeDataToFile("none", "none")
+    writeDataToParticipantDataFile("none", "none")
 
     # store distance between cursor and target in array of scores
-
-    distance = math.sqrt((abs(CursorCoordinates[0] - TrackerTargetCoordinates[0])) ** 2 + (
-        abs(CursorCoordinates[1] - TrackerTargetCoordinates[1])) ** 2)
-
-    # if(distance >= radiusAroundTarget):
-    # print("crossed", (time.time()-startTime))
-
+    distance = math.sqrt((abs(CursorCoordinates[0] - TrackerTargetCoordinates[0])) ** 2 + (abs(CursorCoordinates[1] - TrackerTargetCoordinates[1])) ** 2)
     trackerdistanceArray.append(distance)
-
-
-def updateDigitScreen():
-    print("FUNCTION: " + getFunctionName())
-    return
 
 
 def printTextOverMultipleLines(text, fontsize, color, location):
@@ -697,17 +711,8 @@ def calculatePayrate():
     print("FUNCTION: " + getFunctionName())
     global scoresForPayment
     global baseratePayment
-    global maxPayment
 
-    # return scipy.sum(scipy.multiply(scoresForPayment,0.05))
-    earnings = baseratePayment + scipy.sum(scoresForPayment)
-    print("earnings")
-    print(earnings)
-    # earnings = earnings * 100 
-    # if (earnings < baseratePayment):
-    #    earnings = baseratePayment
-
-    return earnings
+    return baseratePayment + scipy.sum(scoresForPayment)
 
 
 def reportUserScore():
@@ -741,112 +746,9 @@ def reportUserScore():
     scoreForLogging = "none"  # score that's logged
 
     if partOfExperiment == "dualTask":
-        # feedbackText = "Your score: \n"
-
-        # calculate all Values
-        ##        trackerScore = scipy.mean(trackerdistanceArray)
-        ##
-        ##        #round values
-        ##        trackerScore = scipy.special.round(trackerScore*10)/10
-        ##        maxTrackerDistance = scipy.special.round(maxTrackerDistance*10)/10
-        ##
-        ##
-        ##        digitScore = 0
-        ##        if (len(digitPressTimes) < (len(goalNumber) + 1)):     #give a penalty if not all digits have been typed in
-        ##            digitScore = maxTrialTimeDual * 1.5
-        ##        else:
-        ##            digitScore = digitPressTimes[-1] - digitPressTimes[0]
-        ##
-        ##        #round values
-        ##        digitScore = scipy.special.round(digitScore*10)/10
-
-        # maxPossibleDistance = math.sqrt((abs(TrackingTaskWindowSize[0]))**2 + (abs(TrackingTaskWindowSize[1]))**2)  #the maximum distance of tracker target is if the cursor and target align on two corners on a diagonal
-        # maxAllowedAverageTrackingDistance = 75
-        # maxAllowedTime = maxTrialTime
-
-        ##        #if (focus == "Tracking"):
-        ##       score = 100 * (0.45 * (maxPossibleDistance - maxTrackerDistance)/maxPossibleDistance + 0.45 * (maxAllowedAverageTrackingDistance - trackerScore)/maxAllowedAverageTrackingDistance + 0.1 * (maxTrialTime - digitScore)/maxTrialTime)
-        ##       score = scipy.special.round(score*100)/100
-        ##
-        ##        #elif (focus == "Typing"):
-        ##        maxAllowedTime = 0.25 * maxTrialTime
-        ##        score = 100 * (0.05 * (maxPossibleDistance - maxTrackerDistance)/maxPossibleDistance + 0.05 * (maxAllowedAverageTrackingDistance - trackerScore)/maxAllowedAverageTrackingDistance + 0.9 * (maxTrialTime - digitScore)/maxTrialTime)
-        ##        score = scipy.special.round(score*100)/100
-        ##
-        ##        #else:
-        ##        #    print("Wrong focus!!")
-        ##
-        ##        interkeypressScore = 0
-        ##
-        ############################################################
-        ############################################################
-        #        interkeypressScore = 10
-        #
-        #        if (goalNumber != userNumber):
-        #            interkeypressScore = 10
-        #        else:   #if too many digits were typed (or errors made), penalized
-        #            interkeypressScore = (digitPressTimes[-1] - digitPressTimes[0])/lengthOfGoalNumber
-
-        #        score = 0
-
-        #        maxTrackerDistance = max(trackerdistanceArray)
-        #        penaltyA = 0
-        #        if (maxTrackerDistance > radiusAroundTarget):   #note: trackerDistanceArray is updated every 20 milliseconds!!
-        #            copiedTrackerScores = trackerdistanceArray
-        #            copiedTrackerScores.sort()
-        #            listOfOutliers = copiedTrackerScores[bisect_right(copiedTrackerScores,radiusAroundTarget):]   #receive a new list of items bigger than a certain value
-        #            #penalty = len(listOfOutliers) * -0.0005  #25 samples is 0.5 seconds
-        #            #penalty = -0.1*math.exp(min(1000,len(listOfOutliers))/20-3)   #min function is used to prevent number overflow
-        #            #penalty = max(-0.25,penalty)
-        #            #penaltyA = -0.1*math.exp(min(1000,len(listOfOutliers))/36.067-0.6931472)  #min function is used to prevent number overflow;
-        #                                                                                    #function passes -0.1 at t=.5 sec and -0.2 at t=1 sec
-        #            #penaltyA = -0.1*math.exp(min(1000,len(listOfOutliers))/36.067-1.5)+0.02294  #min function is used to prevent number overflow;
-        #                                                                                    #less steep penalty function than previous one used
-        #
-        #            penaltyA = -0.1*math.exp(min(1000,len(listOfOutliers))/18.033688-0.6931472)  #min function is used to prevent number overflow;
-        #                                                                                    #function passes -0.1 at t=.25 sec and -0.2 at t=0.5 sec
-        #            #print(penalty)
-        #
-        #            #penalty: at 0.5 sec -1.5 cent, at 1 sec -6 cents, at 1.2 sec -10 cents, at (about) 1.5 sec -20 cents
-        #            #penalty = -10
-        #
-        #
-        #        penaltyB = 0
-        #        if (len(digitPressTimes)>(lengthOfGoalNumber + 1)):
-        #            penaltyB = (len(digitPressTimes) - (lengthOfGoalNumber + 1))*-0.01  #lose 1 cent for every incorrect keypress
-        #
-        #
-        #        #score = scipy.special.round((0.15* math.exp(-4.6209812*interkeypressScore + 1.1552453) + penaltyA + penaltyB) *1000)/1000
-        #       score = scipy.special.round((0.15* math.exp(-0.0854888*interkeypressScore + 0.0170978) + penaltyA + penaltyB) *1000)/1000
-
-        ################################################################
-        ################################################################
-
-        # print(str(penaltyB) + " " + str(len(digitPressTimes)) + " "  + str(lengthOfGoalNumber + 1))
-
-        # =15*EXP(-0.0854888*(A27/20)+0.0170978)
-
-        # if (score < -0.20):
-
-        # maxTrackerDistance = max(trackerdistanceArray)
-
-        # if (maxTrackerDistance > radiusAroundTarget): 
-        #   score = 0
-        # else:
-        #    gain = correctDigits * 0.1 
-        #    digitPenalty = incorrectDigits * -0.01 
-        #    score = gain + digitPenalty 
-        #    print "correct digits:"
-        #    print correctDigits
-        #    print "incorrect digits:"
-        #    print incorrectDigits
-        #    print "gain:"
-        #    print gain
-
         score = duringTrialScore  # use score generated by updateIntermediateScore()
 
         feedbackScore = score
-        # feedbackText = feedbackText + "\n\n" + str(score) + "\n\n" + str(trackerScore) + "  pixels \n\n" + str(maxTrackerDistance) + "  pixels" + "\n\n" +str(digitScore) + "  seconds"
         if score > 0:
             feedbackText = "+" + str(feedbackScore) + " Punkte"
         else:
@@ -862,11 +764,8 @@ def reportUserScore():
             maxTrackerDistance = max(trackerdistanceArray)
             # round values
             maxTrackerDistance = scipy.special.round(maxTrackerDistance * 10) / 10
-
             feedbackText = feedbackText + "\n\n" + str(maxTrackerDistance) + "  pixels"
-
             scoresOnThisBlock.append(maxTrackerDistance)
-
             scoreForLogging = maxTrackerDistance
 
     elif partOfExperiment == "singleTaskTyping":
@@ -881,19 +780,17 @@ def reportUserScore():
             feedbackText = feedbackText + "\n\n" + str(digitErrors) + "  Fehler"
 
             # scoresOnThisBlock.append(digitScore)
-            scoresOnThisBlock.append(
-                digitErrors)
+            scoresOnThisBlock.append(digitErrors)
             scoreForLogging = digitScore
 
     if feedbackText != "":
         fontsize = fontsizeGoalAndUserNumber
         color = (0, 0, 0)
         location = (topCornerOfMessageArea[0] + 50, topCornerOfMessageArea[1] + 50)
-
         printTextOverMultipleLines(feedbackText, fontsize, color, location)
 
     pygame.display.flip()
-    writeDataToFile("scoreGiven", str(scoreForLogging))
+    writeDataToParticipantDataFile("scoreGiven", str(scoreForLogging))
     time.sleep(timeFeedbackIsGiven)
 
     if len(scoresOnThisBlock) % 5 == 0:  # every fifth trial, report mean score
@@ -915,9 +812,11 @@ def reportUserScore():
         elif partOfExperiment == "singleTaskTyping":
             feedbackText2 = feedbackText2 + " errors"
         elif partOfExperiment == "dualTask":
-            feedbackText2 = "Block " + str(int(len(
-                scoresOnThisBlock) / 3)) + " von 6 vollständig. Deine durchschnittliche Leistung der letzten 4 Durchgänge:\n\n" + str(
-                meanscore) + " points"
+            feedbackText2 = "Block " \
+                            + str(int(len(scoresOnThisBlock) / 3)) \
+                            + " von 6 vollständig. Deine durchschnittliche Leistung der letzten 4 Durchgänge:\n\n" \
+                            + str(meanscore) \
+                            + " points"
 
         fontsize = fontsizeGoalAndUserNumber
         color = (0, 0, 0)
@@ -925,7 +824,7 @@ def reportUserScore():
 
         printTextOverMultipleLines(feedbackText2, fontsize, color, location)
         pygame.display.flip()
-        writeDataToFile("avscoreGiven", str(meanscore))
+        writeDataToParticipantDataFile("avscoreGiven", str(meanscore))
         time.sleep(20)
 
 
@@ -975,7 +874,7 @@ def generateGoalNumber():
         goalNumber = goalNumber + newpart
 
 
-def runSingleTaskTypingTrials(booleanThisIsAPracticeTrial):
+def runSingleTaskTypingTrials(practiceTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeSingleTyping
@@ -1002,16 +901,18 @@ def runSingleTaskTypingTrials(booleanThisIsAPracticeTrial):
     scoresOnThisBlock = []
     numberOfTrials = numberOfSingleTaskTypingTrials
 
-    if booleanThisIsAPracticeTrial:
+    if practiceTrial:
         partOfExperiment = "practiceTyping"
-        GiveMessageOnScreen("Nur Tippen\n\nIn diesen Durchgängen führst du nur die Tippaufgabe aus.\nKopiere die Ziffern, die dir auf dem Bildschirm "
-                            "angezeigt werden so schnell wie möglich.\n\nWenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt. "
-                            "\n(In zukünftigen Durchgängen, würdest du dadurch Punkte verlieren)", 15)
+        GiveMessageOnScreen("Nur Tippen\n\nIn diesen Durchgängen führst du nur die Tippaufgabe aus.\n"
+                            "Kopiere die Ziffern, die dir auf dem Bildschirm angezeigt werden so schnell wie möglich.\n\n"
+                            "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n"
+                            "(In zukünftigen Durchgängen würdest du dadurch Punkte verlieren)", 15)
         numberOfTrials = 2
     else:
         partOfExperiment = "singleTaskTyping"
 
-        GiveMessageOnScreen("Nur Tippen\n\nKopiere die Ziffern so schnell wie möglich", 5)
+        GiveMessageOnScreen("Nur Tippen\n\n"
+                            "Kopiere die Ziffern so schnell wie möglich", 5)
 
     for i in range(0, numberOfTrials):
         incorrectDigits = 0
@@ -1045,7 +946,7 @@ def runSingleTaskTypingTrials(booleanThisIsAPracticeTrial):
             else:
                 closeDigitWindow()
 
-        writeDataToFile("trialStart", "none")
+        writeDataToParticipantDataFile("trialStart", "none")
 
         # display all updates (made using blit) on the screen
         pygame.display.flip()
@@ -1057,18 +958,18 @@ def runSingleTaskTypingTrials(booleanThisIsAPracticeTrial):
             time.sleep(0.02)
 
         if (time.time() - startTime) >= maxTrialTimeSingleTyping:
-            writeDataToFile("trialStopTooMuchTime", "none")
+            writeDataToParticipantDataFile("trialStopTooMuchTime", "none")
         elif not EnvironmentIsRunning:
-            writeDataToFile("trialStopEnvironmentStopped", "none")
+            writeDataToParticipantDataFile("trialStopEnvironmentStopped", "none")
         else:
-            writeDataToFile("trialStop", "none")
+            writeDataToParticipantDataFile("trialStop", "none")
 
-        if not booleanThisIsAPracticeTrial:
+        if not practiceTrial:
             # now give feedback
             reportUserScore()
 
 
-def runSingleTaskTrackingTrials(booleanThisIsAPracticeTrial):
+def runSingleTaskTrackingTrials(practiceTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeSingleTracking
@@ -1096,17 +997,21 @@ def runSingleTaskTrackingTrials(booleanThisIsAPracticeTrial):
 
     numberOfTrials = numberOfSingleTaskTrackingTrials
 
-    if booleanThisIsAPracticeTrial:
+    if practiceTrial:
         partOfExperiment = "practiceTracking"
         GiveMessageOnScreen(
-            "Nur Tracking\n\nIn diesen Durchgängen führst du nur die Tracking Aufgabe aus.\nDu kannst ausprobieren, wie der Joystick funktioniert und sehen, wie der Cursor umher wandert.\nDer Cursor bewegt sich so lange frei herum, bis du ihn bewegst.",
+            "Nur Tracking\n\n"
+            "In diesen Durchgängen führst du nur die Tracking Aufgabe aus.\n"
+            "Du kannst ausprobieren, wie der Joystick funktioniert und sehen, wie der Cursor umher wandert.\n"
+            "Der Cursor bewegt sich so lange frei herum, bis du ihn bewegst.",
             15)
         numberOfTrials = 2
     else:
         partOfExperiment = "singleTaskTracking"
-
         GiveMessageOnScreen(
-            "Nur Tracking\n\nNutze die Durchgänge, um die Geschwindigkeit des Cursors einschätzen zu können, \naber halte den Cursor innerhalb des Kreises",
+            "Nur Tracking\n\n"
+            "Nutze die Durchgänge, um die Geschwindigkeit des Cursors einschätzen zu können, \n"
+            "aber halte den Cursor innerhalb des Kreises",
             5)
 
     for i in range(0, numberOfTrials):
@@ -1115,7 +1020,6 @@ def runSingleTaskTrackingTrials(booleanThisIsAPracticeTrial):
         pygame.event.clear()  ###clear all events
         trackerWindowVisible = True
         digitWindowVisible = False
-
         trackingTaskPresent = True
         digitTaskPresent = False
 
@@ -1145,7 +1049,7 @@ def runSingleTaskTrackingTrials(booleanThisIsAPracticeTrial):
 
             trackerdistanceArray = []
 
-        writeDataToFile("trialStart", "none")
+        writeDataToParticipantDataFile("trialStart", "none")
 
         # display all updates (made using blit) on the screen
         pygame.display.flip()
@@ -1157,19 +1061,14 @@ def runSingleTaskTrackingTrials(booleanThisIsAPracticeTrial):
                 updateTrackerScreen(0.02)
 
             pygame.display.flip()
-            # time.sleep(0.02)
 
         if not EnvironmentIsRunning:
-            writeDataToFile("trialStopEnvironmentStopped", "none")
+            writeDataToParticipantDataFile("trialEnvironmentRunning", "none")
         else:
-            writeDataToFile("trialStop", "none")
-
-        # now give feedback
-        # reportUserScore()
+            writeDataToParticipantDataFile("trialEnvironmentStopped", "none")
 
 
 def drawowncircle(image, colour, origin, radius, width=0):
-    print("FUNCTION: " + getFunctionName())
     # based on recommendation on pygame website
     if width == 0:
         pygame.draw.circle(image, colour, origin, int(radius))
@@ -1193,7 +1092,6 @@ def closeDigitWindow():
     global outsideRadius
 
     # draw background
-
     bg = pygame.Surface(TrackingTaskWindowSize).convert()
     bg.fill(coverUpColor)
 
@@ -1227,23 +1125,6 @@ def openDigitWindow():
     bg = pygame.Surface(DigitTaskWindowSize).convert()
     bg.fill((255, 255, 255))
     screen.blit(bg, topLeftCornerOfDigitTaskWindow)  # make area about 30 away from centre
-
-    ##    #then post new message
-    ##    f = pygame.font.Font(None, fontsizeGoalAndUserNumber)
-    ##    GoalNumberMessage = f.render(goalNumber, True, (0, 0, 0))
-    ##    #blockAtNewLocation = pygame.Surface(UserNumberMessage.get_rect()).convert()
-    ##    screen.blit(GoalNumberMessage, topLeftCornerOfGoalNumber)
-    ##
-    ##    color = (0,0,0) #default color: black. Make red if error made
-    ##    if (len(userNumber)>0):
-    ##        if (len(userNumber)>len(goalNumber)):
-    ##            color = (255,0,0)
-    ##        elif (goalNumber[0:len(userNumber)] != userNumber):
-    ##            color = (255,0,0)
-    ##
-    ##    f2 = pygame.font.Font(None, fontsizeGoalAndUserNumber)
-    ##    UserNumberMessage = f2.render(userNumber, True, color)
-    ##    screen.blit(UserNumberMessage, topLeftCornerOfUserNumber)
 
     f = pygame.font.Font(None, fontsizeGoalAndUserNumber)
     goalNumberMessage = f.render(goalNumber[len(userNumber):(len(userNumber) + 27)], True,
@@ -1315,13 +1196,11 @@ def openTrackerWindow():
                   radiusAroundTarget, 0)
 
     # draw edges think
+    # Draws a circular shape on the Surface. The pos argument is the center of the circle, and radius is the size.
+    #  The width argument is the thickness to draw the outer edge. If width is zero then the circle will be filled.
     drawowncircle(bg, radiusOuterColor,
                   (int(TrackingTaskWindowSize[0] / 2), int(TrackingTaskWindowSize[1] / 2)),
                   radiusAroundTarget, 5)
-
-    # Draws a circular shape on the Surface. The pos argument is the center of the circle, and radius is the size. The width argument is the thickness to draw the outer edge. If width is zero then the circle will be filled.
-
-    # screen.blit(circle)
 
     screen.blit(bg, topLeftCornerOfTrackingTaskWindow)  # make area about 30 away from centre
 
@@ -1347,7 +1226,6 @@ def openTrackerWindow():
     # get the cursor angle
     measuredMotion = (joystickObject.get_axis(0), joystickObject.get_axis(1))
     cursorMotion = (measuredMotion[0], measuredMotion[1])
-    # print("motion " + str(cursorMotion[0]) +  " " + str(cursorMotion[1]))
 
     if partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask":
         intermediateMessage = str(visitScore) + " Punkte"
@@ -1402,11 +1280,11 @@ def updateIntermediateScore():
 
         if penalty == "lose500":
             # loose 500
-            visitScore = (((visitDigits + 10) + (visitIncorrectDigits - 5)) - 500)
+            visitScore = ((visitDigits + 10) + (visitIncorrectDigits - 5)) - 500
 
         if penalty == "loseAll":
             # loose all
-            visitScore = 0 * ((visitDigits + 10) + (visitIncorrectDigits - 5))
+            visitScore = 0
 
         if penalty == "loseHalf":
             # loose half
@@ -1418,20 +1296,13 @@ def updateIntermediateScore():
     # duringtrial score is used in reportUserScore
     duringTrialScore = duringTrialScore + visitScore
 
-    # print "Running of function:"
-    # print intermediateScoreVisit
-    # print "Visit Score:"
-    # print visitScore
-    # print "Cumulative Trial Score:"
-    # print duringTrialScore
-
     visitTime = visitEndTime - visitStartTime
-    print(visitTime)
+    print("visitTime:" + str(visitTime))
     writeSummaryDataToFile()
     outsideRadius = False
 
 
-def runDualTaskTrials(booleanThisIsAPracticeTrial):
+def runDualTaskTrials(practiceTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeDual
@@ -1473,19 +1344,35 @@ def runDualTaskTrials(booleanThisIsAPracticeTrial):
 
     numberOfTrials = numberOfDualTaskTrials
 
-    if booleanThisIsAPracticeTrial:
+    if practiceTrial:
         maxTrialTimeDual = 120
         partOfExperiment = "practiceDualTask"
         GiveMessageOnScreen(
-            "Tracking + Tippen\n\nDu führst jetzt beide Aufgaben gleichzeitig aus.\nDie Ziffernaufgabe wird dir immer zuerst angezeigt.\nDrücke den Schalter unter deinem Zeigefinger am Joystick, um die Trackingaufgabe zu kontrollieren.\nLasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\nDu kannst immer nur eine Aufgabe bearbeiten.",15)
-        GiveMessageOnScreen("Dein Ziel:\nKopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\naber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte)\nFehler beim Tippen führen auch zu einem Punktverlust",10)
+            "Tracking + Tippen\n\n"
+            "Du führst jetzt beide Aufgaben gleichzeitig aus.\n"
+            "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n"
+            "Drücke den Schalter unter deinem Zeigefinger am Joystick, um die Trackingaufgabe zu kontrollieren.\n"
+            "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n"
+            "Du kannst immer nur eine Aufgabe bearbeiten.",15)
+        GiveMessageOnScreen("Dein Ziel:\n"
+                            "Kopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\n"
+                            "aber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte)\n"
+                            "Fehler beim Tippen führen auch zu einem Punktverlust",10)
         
         numberOfTrials = 2
     else:
         maxTrialTimeDual = 120
         partOfExperiment = "dualTask"
-        GiveMessageOnScreen("Tracking + Tippen\n\nKopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\naber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte).\nFehler beim Tippen führen auch zu einem Punktverlust.\n\nWichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl." ,18)
-        GiveMessageOnScreen("Der Cursor bewegt sich mit derselben Geschwindigkeit wie zuvor.\nDer Kreis hat dieselbe Größe\n\nDrücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\nUm wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\nDu kannst immer nur eine Aufgabe bearbeiten." ,15)
+        GiveMessageOnScreen("Tracking + Tippen\n\n"
+                            "Kopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\n"
+                            "aber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte).\n"
+                            "Fehler beim Tippen führen auch zu einem Punktverlust.\n\n"
+                            "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl." ,18)
+        GiveMessageOnScreen("Der Cursor bewegt sich mit derselben Geschwindigkeit wie zuvor.\n"
+                            "Der Kreis hat dieselbe Größe\n\n"
+                            "Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
+                            "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
+                            "Du kannst immer nur eine Aufgabe bearbeiten." ,15)
 
     for i in range(0, numberOfTrials):
 
@@ -1495,11 +1382,8 @@ def runDualTaskTrials(booleanThisIsAPracticeTrial):
         visitDigits = 0
         visitIncorrectDigits = 0
 
-        # incorrectDigits = 0 # reset digit counters so that only counter for dualtask is passed to reportuserscore
-        # correctDigits = 0 # ditto
-
         GiveCountdownMessageOnScreen(3)
-        pygame.event.clear()  ###clear all events
+        pygame.event.clear()  # clear all events
 
         trackerWindowVisible = False
         digitWindowVisible = True
@@ -1544,7 +1428,7 @@ def runDualTaskTrials(booleanThisIsAPracticeTrial):
             else:
                 closeDigitWindow()
 
-        writeDataToFile("trialStart", "none")
+        writeDataToParticipantDataFile("trialStart", "none")
 
         # display all updates (made using blit) on the screen
         pygame.display.flip()
@@ -1556,37 +1440,31 @@ def runDualTaskTrials(booleanThisIsAPracticeTrial):
                 updateTrackerScreen(0.02)
 
             pygame.display.flip()
-            # time.sleep(0.02)
 
         visitEndTime = time.time()
         updateIntermediateScore()
 
         if (time.time() - startTime) >= maxTrialTimeDual:
-            writeDataToFile("trialStopTooMuchTime", "none")
+            writeDataToParticipantDataFile("trialStopTooMuchTime", "none")
         elif not EnvironmentIsRunning:
-            writeDataToFile("trialStopEnvironmentStopped", "none")
+            writeDataToParticipantDataFile("trialStopEnvironmentStopped", "none")
         else:
-            writeDataToFile("trialStop", "none")
+            writeDataToParticipantDataFile("trialStop", "none")
 
-        if not booleanThisIsAPracticeTrial:
+        if not practiceTrial:
             # now give feedback
             reportUserScore()
 
 
-def readInputAndCreateOutputFiles():
+def readInputAndCreateOutputFiles(subjNrStr):
     print("FUNCTION: " + getFunctionName())
     """
     Read the participant file / set the participant condition.
     Initialize the output files
     """
-    global subjNr
     global conditions
     global outputFile
     global summaryOutputFile
-    global firstTrial
-
-    subjNrStr = input("Please enter the subject number here: ")
-    subjNr = int(subjNrStr)
 
     f = open('participantConditions.csv','r')
     individualLines = f.read().split('\n') ## read by lines
@@ -1594,50 +1472,73 @@ def readInputAndCreateOutputFiles():
     subjectLine = []
     for line in lines:
         if line[0] == subjNrStr:
-            subjectLine = line[1:]
+            if not subjectLine:
+                subjectLine = line[1:]
+            else:
+                raise Exception("Duplicate subject number")
     if not subjectLine:
         raise Exception("Invalid subject number")
 
     conditions = subjectLine
-    print(conditions)
     f.close()
 
-    firstTrial = input("First trial? (yes/no) ")
+    timestamp = time.strftime("%Y-%m-%d_%H-%M")
 
-    ##enter 'yes' if first 'no' if not
-
-    fileName = "participant" + subjNrStr + "data.csv"
-
-    if not os.path.exists(fileName):
-        outputFile = open(fileName, 'w')  # contains the user data
-    else:
-        fileName = "participant" + subjNrStr + "_" + str(random.randint(100000000, 999999999)) + "data.csv"
-        outputFile = open(fileName, 'w')  # contains the user data
-
-    outputText = "SubjectNr;CurrentTime;LocalTime;BlockNumber;TrialNumber;partOfExperiment;TrackingTaskPresent;DigitTaskPresent;TrackerWindowVisible;DigitWindowVisible;TrackingWindowVisitCounter;DigitWindowVisitCounter;RadiusAroundTarget;standardDeviationOfNoise;CursorDistanceX;CursorDistanceY;CursorDistanceDirect;CursorCoordinatesX;CursorCoordinatesY;TrackerTargetCoordinatesX;TrackerTargetCoordinatesY;cursorMotionX;cursorMotionY;userNumber;goalNumber;numberCompleted;LengthOfUserNumber;LengthofGoalNumber;Eventmessage1;Eventmessage2" + "\n"
+    fileName = "participant_" + subjNrStr + "_data_"  + timestamp + ".csv"
+    outputFile = open(fileName, 'w')  # contains the user data
+    outputText = "SubjectNr;" \
+                 "CurrentTime;" \
+                 "LocalTime;" \
+                 "BlockNumber;" \
+                 "TrialNumber;" \
+                 "partOfExperiment;" \
+                 "TrackingTaskPresent;" \
+                 "DigitTaskPresent;" \
+                 "TrackerWindowVisible;" \
+                 "DigitWindowVisible;" \
+                 "TrackingWindowVisitCounter;" \
+                 "DigitWindowVisitCounter;" \
+                 "RadiusAroundTarget;" \
+                 "standardDeviationOfNoise;" \
+                 "CursorDistanceX;" \
+                 "CursorDistanceY;" \
+                 "CursorDistanceDirect;" \
+                 "CursorCoordinatesX;" \
+                 "CursorCoordinatesY;" \
+                 "TrackerTargetCoordinatesX;" \
+                 "TrackerTargetCoordinatesY;" \
+                 "cursorMotionX;" \
+                 "cursorMotionY;" \
+                 "userNumber;" \
+                 "goalNumber;" \
+                 "numberCompleted;" \
+                 "LengthOfUserNumber;" \
+                 "LengthofGoalNumber;" \
+                 "Eventmessage1;" \
+                 "Eventmessage2" + "\n"
     outputFile.write(outputText)
 
     ########################Second Output File######################################
 
-    print("Summary file line 0")
-
-    summaryFileName = "participant" + subjNrStr + "SummaryData.csv"
-
-    if not os.path.exists(summaryFileName):
-        summaryOutputFile = open(summaryFileName, 'w')  # contains the user data
-    else:
-        summaryFileName = "participant" + subjNrStr + "_" + str(random.randint(100000000, 999999999)) + "SummaryData.csv"
-        summaryOutputFile = open(summaryFileName, 'w')  # contains the user data
-
-    summaryOutputText = "SubjectNr;BlockNumber;TrialNumber;partOfExperiment;standardDeviationOfNoise;visitTime;visitCorrectDigits;visitIncorrectDigits;visitScore;outsideRadius;maxDistance;meanDistance;endDistance;startDistance;" + "\n"
-
-    print("Summary file line 3")
-    print(summaryOutputText)
+    summaryFileName = "participant" + subjNrStr + "_summary_" + timestamp + ".csv"
+    summaryOutputFile = open(summaryFileName, 'w')  # contains the user data
+    summaryOutputText = \
+        "SubjectNr;"\
+        "BlockNumber;"\
+        "TrialNumber;"\
+        "partOfExperiment;"\
+        "standardDeviationOfNoise;"\
+        "visitTime;"\
+        "visitCorrectDigits;"\
+        "visitIncorrectDigits;"\
+        "visitScore;"\
+        "outsideRadius;"\
+        "maxDistance;"\
+        "meanDistance;"\
+        "endDistance;"\
+        "startDistance;" + "\n"
 
     summaryOutputFile.write(summaryOutputText)
-
-    print("Summary file line 4")
-    print(summaryFileName)
 
 
 def main():
@@ -1667,11 +1568,15 @@ def main():
     global standardDeviationOfNoise
     global timeOfCompleteStartOfExperiment
     global baseratePayment
-    global firstTrial
     global penalty
     global currentCondition
+    global subjNr
 
-    readInputAndCreateOutputFiles()
+    subjNrStr = input("Please enter the subject number here: ")
+    subjNr = int(subjNrStr)
+    firstTrial = input("First trial? (yes/no) ")
+
+    readInputAndCreateOutputFiles(subjNrStr)
 
     scoresForPayment = []
     scoresOnThisBlock = []
@@ -1685,21 +1590,10 @@ def main():
 
     ShowStartExperimentScreen()
 
-    if firstTrial == "yes":
-        GiveMessageOnScreen("Willkommen zum Experiment!\n\n\nWir beginnen mit 3 Probedurchläufen.",10)
-
-    numbersAvailableForGoalNumber = "123123123"
-
-    if firstTrial == "yes":
-        # do practice trials
-        runSingleTaskTrackingTrials(True)
-        runSingleTaskTypingTrials(True)
-        runDualTaskTrials(True)
-        GiveMessageOnScreen("Jetzt testen wir deine Leistung in diesen Aufgaben. Versuche so viele Punkte wie möglich zu gewinnen", 10)
-
+    # verify all conditions before the experiment starts
+    conditionsVerified = []
     for pos in range(0, len(conditions)):
         currentCondition = conditions[pos]
-
         if len(currentCondition) != 4:
             raise Exception("Current Condition" + currentCondition + " has invalid length " + len(currentCondition))
 
@@ -1745,12 +1639,40 @@ def main():
         else:
             raise Exception("Invalid penalty " + currentCondition[3])
 
-        # message = "NEW BLOCK\n\n\n\nDuring the upcoming trials:\n\n\nYour cursor drifts at " + messageNoise + " speed"
-        # GiveMessageOnScreen(message, 10)
+        conditionsVerified.append({
+            "standardDeviationOfNoise": standardDeviationOfNoise,
+            "noiseMsg": noiseMsg,
+            "radiusAroundTarget": radiusAroundTarget,
+            "numbersAvailableForGoalNumber": numbersAvailableForGoalNumber,
+            "penalty": penalty,
+            "penaltyMsg": penaltyMsg
+        })
 
-        message = "Neuer Block: der Cursor bewegt sich mit " + noiseMsg + " Geschwindigkeit. Für jede korrekt " \
-                  "eingegebene Ziffer bekommst du 10 Punkte. Bei jeder falsch eingetippten Ziffer gibt es 5 Punkte " \
-                  "Abzug. Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
+    if firstTrial == "yes":
+        GiveMessageOnScreen("Willkommen zum Experiment!\n\n\n"
+                            "Wir beginnen mit 3 Probedurchläufen.",10)
+        numbersAvailableForGoalNumber = "123123123"
+        # do practice trials
+        runSingleTaskTrackingTrials(True)
+        runSingleTaskTypingTrials(True)
+        runDualTaskTrials(True)
+        GiveMessageOnScreen("Jetzt testen wir deine Leistung in diesen Aufgaben. \n"
+                            "Versuche so viele Punkte wie möglich zu gewinnen", 10)
+
+    # main experiment loop with verified conditions
+    for condition in conditionsVerified:
+        # set global and local variables
+        standardDeviationOfNoise = condition["standardDeviationOfNoise"]
+        noiseMsg = condition["noiseMsg"]
+        radiusAroundTarget = condition["radiusAroundTarget"]
+        numbersAvailableForGoalNumber = condition["numbersAvailableForGoalNumber"]
+        penalty = condition["penalty"]
+        penaltyMsg = condition["penaltyMsg"]
+
+        message = "Neuer Block: der Cursor bewegt sich mit " + noiseMsg + " Geschwindigkeit. \n" \
+                  "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
+                  "Bei jeder falsch eingetippten Ziffer gibt es 5 Punkte Abzug. \n" \
+                  "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
         GiveMessageOnScreen(message, 10)
 
         runSingleTaskTrackingTrials(False)
@@ -1760,19 +1682,7 @@ def main():
         message = "Bisher hast du: " + str(calculatePayrate() - baseratePayment) + " Punkte"
         GiveMessageOnScreen(message, 8)
 
-        # if (pos != (len(conditions)-1)):
-        #    if (pos%2 == 0):
-        #        GiveMessageOnScreen("You now have a short break of 30 seconds.\nPlease stay seated",20)
-        #        GiveMessageOnScreen("10 seconds left",10)
-        #    else:
-        #        GiveMessageOnScreen("You now have a short break of 30 seconds.\nPlease stay seated",20) 
-
-        #        GiveMessageOnScreen("10 seconds left",10)
-
     GiveMessageOnScreen("Dies ist das Ende der Studie.", 5)
-
-    payment = calculatePayrate()
-    print(payment)
 
     quit_app()
 
@@ -1784,10 +1694,8 @@ def quit_app():
     global summaryOutputFile
 
     EnvironmentIsRunning = False
-
     pygame.display.quit()
     pygame.quit()
-
     outputFile.close()
     summaryOutputFile.close()
 
@@ -1797,4 +1705,12 @@ def getFunctionName():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        stack = traceback.format_exc()
+        with open("Log_Exceptions.txt", "a") as log:
+            log.write(f"{datetime.datetime.now()} {str(e)}   {str(stack)} \n")
+            print(str(e))
+            print(str(stack))
+
