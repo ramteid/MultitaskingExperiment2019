@@ -1,3 +1,4 @@
+# coding=utf-8
 #############################
 #############################
 #############################
@@ -32,13 +33,8 @@ outsideRadius = False
 visitDigits = 0
 visitIncorrectDigitsNum = 0
 visitScore = 0
-visitTime = 0
 visitEndTime = 0
 visitStartTime = 0
-writeMaxDistance = 0
-writeMeanDistance = 0
-writeEndDistance = 0
-writeStartDistance = 0
 
 global penalty
 penalty = ""
@@ -143,41 +139,17 @@ mousePressed = False  # used at beginning of experiment: mouse needs to be click
 timeOfCompleteStartOfExperiment = 0  # this value is needed because otherwise one of the time output numbers becomes too large to have enough precision
 
 
-def writeSummaryDataFile():
+def writeSummaryDataFile(visitTime, outsideRadius, writeMaxDistance, writeMeanDistance, writeEndDistance, writeStartDistance):
     print("FUNCTION: " + getFunctionName())
     global summaryOutputFile
     global subjNr
-    global numberCompleted
-    global startTime  # stores time at which trial starts
-    global digitPressTimes  # stores the intervals between keypresses
-    global goalNumber
-    global numberCompleted
-    global enteredDigitsStr
-    global trackingTaskPresent
-    global digitTaskPresent
     global partOfExperiment
     global blockNumber
     global trialNumber
-    global TrackerTargetCoordinates
-    global CursorCoordinates
-    global cursorMotion
-    global startTime  # stores time at which trial started
-    global trackerWindowVisible
-    global digitWindowVisible
-    global radiusAroundTarget
-    global trackingWindowVisitCounter
-    global digitWindowVisitCounter
     global standardDeviationOfNoise
-    global timeOfCompleteStartOfExperiment  # time at which experiment started
     global visitScore
     global visitDigits
     global visitIncorrectDigitsNum
-    global visitTime
-    global outsideRadius
-    global writeMaxDistance
-    global writeMeanDistance
-    global writeEndDistance
-    global writeStartDistance
 
     summaryOutputText = \
         str(subjNr) + ";" + \
@@ -762,8 +734,7 @@ def reportUserScore():
         screen.blit(messageAreaObject, topCornerOfMessageArea)  # make area 50 pixels away from edges
 
         feedbackText2 = "Deine durchschnittliche Punktzahl der letzten 4 Durchgänge:\n\n"
-        meanscore = scipy.special.round(scipy.mean(
-            scoresOnThisBlock[-2:]) * 100) / 100  # report meanscore 
+        meanscore = scipy.special.round(scipy.mean(scoresOnThisBlock[-2:]) * 100) / 100  # report meanscore
         feedbackText2 = feedbackText2 + str(meanscore)
         if partOfExperiment == "singleTaskTracking":
             feedbackText2 = feedbackText2 + " pixels"
@@ -845,13 +816,33 @@ def drawowncircle(image, colour, origin, radius, width=0):
         image.blit(circle, [origin[0] - (circle.get_width() / 2), origin[1] - (circle.get_height() / 2)])
 
 
+def switchWindows(message):
+    print("FUNCTION: " + getFunctionName())
+    global digitWindowVisible
+
+    if message == "openTracking" and (
+            partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask"):  # switching is only done in dual-task
+        if trackingTaskPresent:
+            openTrackerWindow()
+
+        if digitWindowVisible and digitTaskPresent:
+            closeDigitWindow()
+
+    elif message == "closeTracking" and (
+            partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask"):  # switching is only done in dual-task
+        if trackingTaskPresent:
+            closeTrackerWindow()
+
+        if (not digitWindowVisible) and digitTaskPresent:
+            openDigitWindow()
+
+
 def closeDigitWindow():
     print("FUNCTION: " + getFunctionName())
     global screen
     global digitWindowVisible
     global radiusAroundTarget
     global trackerdistanceArray
-    global outsideRadius
 
     # draw background
     bg = pygame.Surface(TrackingTaskWindowSize).convert()
@@ -907,28 +898,6 @@ def closeTrackerWindow():
     trackerWindowVisible = False
 
 
-def switchWindows(message):
-    print("FUNCTION: " + getFunctionName())
-    global trackerWindowVisible
-    global digitWindowVisible
-
-    if message == "openTracking" and (
-            partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask"):  # switching is only done in dual-task
-        if trackingTaskPresent:
-            openTrackerWindow()
-
-        if digitWindowVisible and digitTaskPresent:
-            closeDigitWindow()
-
-    elif message == "closeTracking" and (
-            partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask"):  # switching is only done in dual-task
-        if trackingTaskPresent:
-            closeTrackerWindow()
-
-        if (not digitWindowVisible) and digitTaskPresent:
-            openDigitWindow()
-
-
 def openTrackerWindow():
     print("FUNCTION: " + getFunctionName())
     global screen
@@ -970,19 +939,6 @@ def openTrackerWindow():
     blockAtNewLocation = pygame.Surface(CursorSize).convert()
     blockAtNewLocation.fill(CursorColor)
     screen.blit(blockAtNewLocation, newLocation)  # blit puts something new on the screen  (should not contain too much info!!)
-
-    ##    #add a target cross:
-    ##    crossSurfaceHorizontal = pygame.Surface((TrackerTargetSize[0],4)).convert()
-    ##    crossSurfaceHorizontal.fill(TrackerTargetColor)
-    ##    crossLocation = (TrackerTargetCoordinates[0]-TrackerTargetSize[0]/2,TrackerTargetCoordinates[1]-2)
-    ##    screen.blit(crossSurfaceHorizontal,crossLocation)
-    ##
-    ##
-    ##    crossSurfaceVertical = pygame.Surface((4,TrackerTargetSize[1])).convert()
-    ##    crossSurfaceVertical.fill(TrackerTargetColor)
-    ##    crossLocation = (TrackerTargetCoordinates[0]-2,TrackerTargetCoordinates[1]-TrackerTargetSize[1]/2)
-    ##    screen.blit(crossSurfaceVertical,crossLocation)
-
     trackerWindowVisible = True
 
     # get the cursor angle
@@ -991,11 +947,9 @@ def openTrackerWindow():
 
     if partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask":
         intermediateMessage = str(visitScore) + " Punkte"
-
         fontsize = fontsizeGoalAndUserNumber
         color = (0, 0, 0)
         location = (900, 65)
-
         printTextOverMultipleLines(intermediateMessage, fontsize, color, location)
 
 
@@ -1008,33 +962,23 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     global trackerdistanceArray
     global radiusAroundTarget
     global visitScore  # Score for one visit to the digit window
-    global visitTime
     global visitStartTime
     global visitEndTime
     global CursorColor
-    global writeMaxDistance
-    global writeMeanDistance
-    global writeEndDistance
-    global writeStartDistance
     global penalty
-
-    intMaxTrackerDistance = max(trackerdistanceArray)
-    if intMaxTrackerDistance > radiusAroundTarget:
-        # print "Left Target"
-        outsideRadius = True
-
-        ###code for changing cursor color
-        CursorColor = (255, 0, 0)  # red
-    else:
-        CursorColor = (0, 0, 255)  # blue
 
     writeMaxDistance = max(trackerdistanceArray)
     writeMeanDistance = (sum(trackerdistanceArray) / len(trackerdistanceArray))
     writeEndDistance = trackerdistanceArray[-1]
     writeStartDistance = trackerdistanceArray[0]
 
-    trackerdistanceArray = []
+    if writeMaxDistance > radiusAroundTarget:
+        outsideRadius = True
+        CursorColor = (255, 0, 0)  # red
+    else:
+        CursorColor = (0, 0, 255)  # blue
 
+    trackerdistanceArray = []
     if outsideRadius:
         if penalty == "lose500":
             # loose 500
@@ -1055,12 +999,11 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     duringTrialScore = duringTrialScore + visitScore
 
     visitTime = visitEndTime - visitStartTime
-    print("visitTime:" + str(visitTime))
-    writeSummaryDataFile()
+    writeSummaryDataFile(visitTime, outsideRadius, writeMaxDistance, writeMeanDistance, writeStartDistance, writeEndDistance)
     outsideRadius = False
 
 
-def runSingleTaskTypingTrials(practiceTrial):
+def runSingleTaskTypingTrials(isPracticeTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeSingleTyping
@@ -1084,7 +1027,7 @@ def runSingleTaskTypingTrials(practiceTrial):
     blockNumber = blockNumber + 1
     numberOfTrials = numberOfSingleTaskTypingTrials
 
-    if practiceTrial:
+    if isPracticeTrial:
         partOfExperiment = "practiceTyping"
         numberOfTrials = 2
         GiveMessageOnScreen("Nur Tippen\n\n"
@@ -1146,12 +1089,12 @@ def runSingleTaskTypingTrials(practiceTrial):
         else:
             writeParticipantDataFile("trialStop", "none")
 
-        if not practiceTrial:
+        if not isPracticeTrial:
             # now give feedback
             reportUserScore()
 
 
-def runSingleTaskTrackingTrials(practiceTrial):
+def runSingleTaskTrackingTrials(isPracticeTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeSingleTracking
@@ -1176,7 +1119,7 @@ def runSingleTaskTrackingTrials(practiceTrial):
     blockNumber = blockNumber + 1
     numberOfTrials = numberOfSingleTaskTrackingTrials
 
-    if practiceTrial:
+    if isPracticeTrial:
         partOfExperiment = "practiceTracking"
         GiveMessageOnScreen(
             "Nur Tracking\n\n"
@@ -1246,7 +1189,7 @@ def runSingleTaskTrackingTrials(practiceTrial):
             writeParticipantDataFile("trialEnvironmentStopped", "none")
 
 
-def runDualTaskTrials(practiceTrial):
+def runDualTaskTrials(isPracticeTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeDual
@@ -1283,7 +1226,7 @@ def runDualTaskTrials(practiceTrial):
 
     numberOfTrials = numberOfDualTaskTrials
 
-    if practiceTrial:
+    if isPracticeTrial:
         maxTrialTimeDual = 120
         partOfExperiment = "practiceDualTask"
         GiveMessageOnScreen(
@@ -1387,7 +1330,7 @@ def runDualTaskTrials(practiceTrial):
         else:
             writeParticipantDataFile("trialStop", "none")
 
-        if not practiceTrial:
+        if not isPracticeTrial:
             # now give feedback
             reportUserScore()
 
@@ -1511,6 +1454,8 @@ def main():
     subjNr = int(subjNrStr)
     firstTrial = input("First trial? (yes/no) ")
 
+    showPrecedingPenaltyInfo = input("Show penalty and noise information before the experiment starts? (yes/no) ")
+
     readInputAndCreateOutputFiles(subjNrStr)
 
     scoresForPayment = []
@@ -1594,6 +1539,7 @@ def main():
 
     # main experiment loop with verified conditions
     for condition in conditionsVerified:
+        print("condition: " + str(condition))
         # set global and local variables
         standardDeviationOfNoise = condition["standardDeviationOfNoise"]
         noiseMsg = condition["noiseMsg"]
@@ -1602,10 +1548,17 @@ def main():
         penalty = condition["penalty"]
         penaltyMsg = condition["penaltyMsg"]
 
-        message = "Neuer Block: der Cursor bewegt sich mit " + noiseMsg + " Geschwindigkeit. \n" \
-                  "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
-                  "Bei jeder falsch eingetippten Ziffer gibt es 5 Punkte Abzug. \n" \
-                  "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
+        if showPrecedingPenaltyInfo == "yes":
+            message = "NEUER BLOCK: \n\n\n" \
+                      "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
+                      "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
+                      "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
+                      "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
+        else:
+            message = "NEUER BLOCK: \n\n\n" \
+                      "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
+                      "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
+                      "Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
         GiveMessageOnScreen(message, 10)
 
         runSingleTaskTrackingTrials(False)
