@@ -671,7 +671,7 @@ def reportUserScore():
     elif partOfExperiment == "singleTaskTracking":
         feedbackText = "Deine maximale Distanz: \n"
         if trackingTaskPresent:
-            maxTrackerDistance = max(trackerdistanceArray)
+            maxTrackerDistance = max(trackerdistanceArray) if len(trackerdistanceArray) > 0 else 0
             # round values
             maxTrackerDistance = scipy.special.round(maxTrackerDistance * 10) / 10
             feedbackText = feedbackText + "\n\n" + str(maxTrackerDistance) + "  pixels"
@@ -921,7 +921,7 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     global CursorColor
     global penalty
 
-    writeMaxDistance = max(trackerdistanceArray)
+    writeMaxDistance = max(trackerdistanceArray) if len(trackerdistanceArray) > 0 else 0
     writeMeanDistance = (sum(trackerdistanceArray) / len(trackerdistanceArray))
     writeEndDistance = trackerdistanceArray[-1]
     writeStartDistance = trackerdistanceArray[0]
