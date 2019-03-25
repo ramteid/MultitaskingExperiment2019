@@ -694,7 +694,7 @@ def reportUserScore():
     writeParticipantDataFile("scoreGiven", str(scoreForLogging))
     time.sleep(timeFeedbackIsGiven)
 
-    if len(scoresOnThisBlock) % 5 == 0:  # every fifth trial, report mean score
+    if len(scoresOnThisBlock) % 5 == 0 and len(scoresOnThisBlock) > 0:  # every fifth trial, report mean score
         # prepare background
         completebg = pygame.Surface(ExperimentWindowSize).convert()
         completebg.fill(backgroundColorEntireScreen)
