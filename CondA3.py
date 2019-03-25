@@ -521,7 +521,6 @@ def printTextOverMultipleLines(text, fontsize, color, location):
     global screen
 
     splittedText = text.split("\n")
-
     lineDistance = (pygame.font.Font(None, fontsize)).get_linesize()
     PositionX = location[0]
     PositionY = location[1]
@@ -529,9 +528,6 @@ def printTextOverMultipleLines(text, fontsize, color, location):
     for lines in splittedText:
         f = pygame.font.Font(None, fontsize)
         feedbackmessage = f.render(lines, True, color)
-        # feedbackrect = feedbackmessage.get_rect()
-
-        # feedbackrect.center = pygame.Rect(PositionX,PositionY,120,120).center      #x-loc, y-loc, xlength,ylength
         screen.blit(feedbackmessage, (PositionX, PositionY))
         PositionY = PositionY + lineDistance
 
@@ -922,9 +918,18 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     global penalty
 
     writeMaxDistance = max(trackerdistanceArray) if len(trackerdistanceArray) > 0 else 0
-    writeMeanDistance = (sum(trackerdistanceArray) / len(trackerdistanceArray))
-    writeEndDistance = trackerdistanceArray[-1]
-    writeStartDistance = trackerdistanceArray[0]
+
+    if len(trackerdistanceArray) == 0:
+        writeMeanDistance = 0
+    else:
+        writeMeanDistance = sum(trackerdistanceArray) / len(trackerdistanceArray)
+
+    if len(trackerdistanceArray) > 0:
+        writeEndDistance = trackerdistanceArray[-1]
+        writeStartDistance = trackerdistanceArray[0]
+    else:
+        writeEndDistance = 0
+        writeStartDistance = 0
 
     if writeMaxDistance > radiusAroundTarget:
         outsideRadius = True
