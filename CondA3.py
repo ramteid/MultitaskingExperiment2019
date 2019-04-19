@@ -1349,7 +1349,7 @@ def readInputAndCreateOutputFiles(subjNrStr):
                         "MaxDistance;"\
                         "MeanDistance;"\
                         "EndDistance;"\
-                        "StartDistance;" + "\n"
+                        "StartDistance" + "\n"
     summaryOutputFile.write(summaryOutputText)
 
 
