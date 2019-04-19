@@ -50,7 +50,6 @@ global summaryOutputFile
 global conditions
 conditions = ()
 cursorMotion = (0, 0)  # the motion of the joystick
-trackerdistanceArray = []
 digitPressTimes = []
 startTime = 0
 timeFeedbackIsShown = 4
@@ -79,8 +78,6 @@ enteredDigitsStr = ""
 lengthOfGoalNumber = 27
 
 numbersAvailableForGoalNumber = "123456789"
-TrackerTargetCoordinates = (topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] / 2,
-                            topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] / 2)
 CursorCoordinates = (TrackingTaskWindowSize[0] / 2 - (CursorSize[0] / 2), TrackingTaskWindowSize[1] / 2 - (CursorSize[0] / 2))
 
 fontsizeGoalAndUserNumber = 30
@@ -117,7 +114,7 @@ trackerWindowVisible = True
 global digitWindowVisible
 digitWindowVisible = True
 
-radiusAroundTarget = 100
+radiusCircle = 100
 standardDeviationOfNoise = -1
 stepSizeOfTrackerScreenUpdate = 0.005  # how many seconds does it take for a screen update?
 scoresForPayment = []
@@ -126,7 +123,7 @@ maxPayment = 15  # what do we pay maximum?
 timeOfCompleteStartOfExperiment = 0  # this value is needed because otherwise one of the time output numbers becomes too large to have enough precision
 
 
-def writeSummaryDataFile(visitTime, outsideRadius1, writeMaxDistance, writeMeanDistance, writeEndDistance, writeStartDistance):
+def writeSummaryDataFile(visitTime, outsideRadius1):
     print("FUNCTION: " + getFunctionName())
     global summaryOutputFile
     global subjNr
@@ -148,11 +145,7 @@ def writeSummaryDataFile(visitTime, outsideRadius1, writeMaxDistance, writeMeanD
         str(visitDigits) + ";" + \
         str(visitIncorrectDigitsNum) + ";" + \
         str(visitScore) + ";" + \
-        str(outsideRadius1) + ";" + \
-        str(writeMaxDistance) + ";" + \
-        str(writeMeanDistance) + ";" + \
-        str(writeEndDistance) + ";" + \
-        str(writeStartDistance) + "\n"
+        str(outsideRadius1) + "\n"
 
     summaryOutputFile.write(summaryOutputText)
 
@@ -171,13 +164,12 @@ def writeParticipantDataFile(Eventmessage1, message2):
     global partOfExperiment
     global blockNumber
     global trialNumber
-    global TrackerTargetCoordinates
     global CursorCoordinates
     global cursorMotion
     global startTime  # stores time at which trial started
     global trackerWindowVisible
     global digitWindowVisible
-    global radiusAroundTarget
+    global radiusCircle
     global trackingWindowEntryCounter
     global digitWindowEntryCounter
     global standardDeviationOfNoise
@@ -194,23 +186,12 @@ def writeParticipantDataFile(Eventmessage1, message2):
 
     if not trackingTaskPresent:
         outputCursorCoordinates = (-987654321, -987654321)  # keep it in number format to make later analysis easier :-)
-        outputTrackerTargetCoordinates = (-987654321, -987654321)
         outputcursorMotion = (-987654321, -987654321)
-        # (horiz, vert, straight line)
-        cursorDistanceX = -987654321
-        cursorDistanceY = -987654321
-        cursorDistanceDirect = -987654321
     else:
         outputCursorCoordinates = (scipy.special.round(CursorCoordinates[0] * 100) / 100,
                                    scipy.special.round(CursorCoordinates[1] * 100) / 100)
-        outputTrackerTargetCoordinates = (scipy.special.round(TrackerTargetCoordinates[0] * 100) / 100,
-                                          scipy.special.round(TrackerTargetCoordinates[1] * 100) / 100)
 
         outputcursorMotion = (scipy.special.round(cursorMotion[0] * 1000) / 1000, scipy.special.round(cursorMotion[1] * 1000) / 1000)
-
-        cursorDistanceX = abs(TrackerTargetCoordinates[0] - CursorCoordinates[0])
-        cursorDistanceY = abs(TrackerTargetCoordinates[1] - CursorCoordinates[1])
-        cursorDistanceDirect = scipy.special.round(math.sqrt(cursorDistanceX ** 2 + cursorDistanceY ** 2) * 100) / 100
 
     if not digitTaskPresent:
         outputuserNumber = -10
@@ -237,15 +218,10 @@ def writeParticipantDataFile(Eventmessage1, message2):
         str(digitWindowVisible) + ";" + \
         str(trackingWindowEntryCounter) + ";" + \
         str(digitWindowEntryCounter) + ";" + \
-        str(radiusAroundTarget) + ";" + \
+        str(radiusCircle) + ";" + \
         str(standardDeviationOfNoise) + ";" + \
-        str(cursorDistanceX) + ";" + \
-        str(cursorDistanceY) + ";" + \
-        str(cursorDistanceDirect) + ";" + \
         str(outputCursorCoordinates[0]) + ";" + \
         str(outputCursorCoordinates[1]) + ";" + \
-        str(outputTrackerTargetCoordinates[0]) + ";" + \
-        str(outputTrackerTargetCoordinates[1]) + ";" + \
         str(outputcursorMotion[0]) + ";" + \
         str(outputcursorMotion[1]) + ";" + \
         str(outputuserNumber) + ";" + \
@@ -382,9 +358,7 @@ def switchWindows(message):
 
 def updateTrackerScreen(sleepTime):
     global screen
-    global TrackerTargetCoordinates
     global CursorCoordinates
-    global trackerdistanceArray
     global numberCompleted
     global startTime
     global maxTrialTimeDual
@@ -440,31 +414,8 @@ def updateTrackerScreen(sleepTime):
                     blockMaskingOldLocation = pygame.Surface(CursorSize).convert()
                     blockMaskingOldLocation.fill(backgroundColorTrackerScreen)
                     screen.blit(blockMaskingOldLocation, oldLocation)
-                    local_distance = math.sqrt((abs(oldLocation[0] - TrackerTargetCoordinates[0])) ** 2 + (abs(oldLocation[1] - TrackerTargetCoordinates[1])) ** 2)
 
-                    # if cursor used to be within radius from target, redraw circle
-                    if local_distance < (radiusAroundTarget + CursorSize[0] * 2):
-                        sizeOfLocalScreen = (int(radiusAroundTarget * 2.5), int(radiusAroundTarget * 2.5))
-                        localScreen = pygame.Surface(sizeOfLocalScreen).convert()
-                        localScreen.fill(backgroundColorTrackerScreen)
-
-                        # draw a filled circle
-                        drawCircle(localScreen, radiusInnerColor,
-                                   (int(sizeOfLocalScreen[0] / 2), int(sizeOfLocalScreen[1] / 2)),
-                                   radiusAroundTarget,
-                                   0)
-                        # draw edges
-                        drawCircle(localScreen, radiusOuterColor,
-                                   (int(sizeOfLocalScreen[0] / 2), int(sizeOfLocalScreen[1] / 2)),
-                                   radiusAroundTarget,
-                                   5)
-
-                        # make area about 30 away from centre
-                        screen.blit(localScreen,
-                                    ((topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] / 2 - sizeOfLocalScreen[0] / 2),
-                                     (topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] / 2 - sizeOfLocalScreen[1] / 2)))
-
-                    # always redraw target
+                    # always redraw cursor
                     newLocation = (x - CursorSize[0] / 2, y - CursorSize[1] / 2)
                     blockAtNewLocation = pygame.Surface(CursorSize).convert()
                     blockAtNewLocation.fill(CursorColor)
@@ -504,10 +455,6 @@ def updateTrackerScreen(sleepTime):
     # always update coordinates
     CursorCoordinates = (x, y)
     writeParticipantDataFile("none", "none")
-
-    # store distance between cursor and target in array of scores
-    distance = math.sqrt((abs(CursorCoordinates[0] - TrackerTargetCoordinates[0])) ** 2 + (abs(CursorCoordinates[1] - TrackerTargetCoordinates[1])) ** 2)
-    trackerdistanceArray.append(distance)
 
 
 def printTextOverMultipleLines(text, fontsize, color, location):
@@ -613,7 +560,6 @@ def ShowStartExperimentScreen():
 def reportUserScore():
     print("FUNCTION: " + getFunctionName())
     global screen
-    global trackerdistanceArray  # an array in which rms distance between target and cursor is stored
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global trackingTaskPresent
@@ -650,16 +596,6 @@ def reportUserScore():
         scoresForPayment.append(score)
         scoresOnThisBlock.append(score)  # store score, so average performance can be reported
         scoreForLogging = score
-
-    elif partOfExperiment == "singleTaskTracking":
-        feedbackText = "Deine maximale Distanz: \n"
-        if trackingTaskPresent:
-            maxTrackerDistance = max(trackerdistanceArray) if len(trackerdistanceArray) > 0 else 0
-            # round values
-            maxTrackerDistance = scipy.special.round(maxTrackerDistance * 10) / 10
-            feedbackText += "\n\n" + str(maxTrackerDistance) + " pixel"
-            scoresOnThisBlock.append(maxTrackerDistance)
-            scoreForLogging = maxTrackerDistance
 
     elif partOfExperiment == "singleTaskTyping":
         feedbackText = "Anzahl Fehler: \n"
@@ -779,8 +715,7 @@ def closeDigitWindow():
     print("FUNCTION: " + getFunctionName())
     global screen
     global digitWindowVisible
-    global radiusAroundTarget
-    global trackerdistanceArray
+    global radiusCircle
 
     # draw background
     bg = pygame.Surface(TrackingTaskWindowSize).convert()
@@ -798,14 +733,12 @@ def openDigitWindow():
     global outsideRadius
     global visitDigits
     global visitIncorrectDigitsNum
-    global trackerdistanceArray
     global visitStartTime
 
     visitStartTime = time.time()
     print("start time:")
     print(visitStartTime)
 
-    trackerdistanceArray = []
     outsideRadius = False
     visitDigits = 0
     visitIncorrectDigitsNum = 0
@@ -863,13 +796,13 @@ def openTrackerWindow():
     # draw a filled circle
     drawCircle(bg, radiusInnerColor,
                (int(TrackingTaskWindowSize[0] / 2), int(TrackingTaskWindowSize[1] / 2)),
-               radiusAroundTarget, 0)
+               radiusCircle, 0)
 
     # Draws a circular shape on the Surface. The pos argument is the center of the circle, and radius is the size.
     #  The width argument is the thickness to draw the outer edge. If width is zero then the circle will be filled.
     drawCircle(bg, radiusOuterColor,
                (int(TrackingTaskWindowSize[0] / 2), int(TrackingTaskWindowSize[1] / 2)),
-               radiusAroundTarget, 5)
+               radiusCircle, 5)
 
     screen.blit(bg, topLeftCornerOfTrackingTaskWindow)  # make area about 30 away from centre
 
@@ -897,35 +830,13 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     global outsideRadius  # boolean - did the cursor leave the circle
     global visitDigits  # number of correctly typed digits
     global visitIncorrectDigitsNum  # number of incorrectly typed digits
-    global trackerdistanceArray
-    global radiusAroundTarget
+    global radiusCircle
     global visitScore  # Score for one visit to the digit window
     global visitStartTime
     global visitEndTime
     global CursorColor
     global penalty
 
-    writeMaxDistance = max(trackerdistanceArray) if len(trackerdistanceArray) > 0 else 0
-
-    if len(trackerdistanceArray) == 0:
-        writeMeanDistance = 0
-    else:
-        writeMeanDistance = sum(trackerdistanceArray) / len(trackerdistanceArray)
-
-    if len(trackerdistanceArray) > 0:
-        writeEndDistance = trackerdistanceArray[-1]
-        writeStartDistance = trackerdistanceArray[0]
-    else:
-        writeEndDistance = 0
-        writeStartDistance = 0
-
-    if writeMaxDistance > radiusAroundTarget:
-        outsideRadius = True
-        CursorColor = (255, 0, 0)  # red
-    else:
-        CursorColor = (0, 0, 255)  # blue
-
-    trackerdistanceArray = []
     if outsideRadius:
         if penalty == "lose500":
             # loose 500
@@ -946,7 +857,7 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     duringTrialScore = duringTrialScore + visitScore
 
     visitTime = visitEndTime - visitStartTime
-    writeSummaryDataFile(visitTime, outsideRadius, writeMaxDistance, writeMeanDistance, writeStartDistance, writeEndDistance)
+    writeSummaryDataFile(visitTime, outsideRadius)
     outsideRadius = False
 
 
@@ -1045,9 +956,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global screen
     global maxTrialTimeSingleTracking
     global numberCompleted
-    global trackerdistanceArray  # an array in which rms distance between target and cursor is stored
     global startTime  # stores time at which trial starts
-    global TrackerTargetCoordinates
     global CursorCoordinates
     global trackingTaskPresent
     global digitTaskPresent
@@ -1105,15 +1014,10 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             joystickObject = pygame.joystick.Joystick(0)
             joystickObject.init()
 
-            # initially, cursor starts at same location as target
-            CursorCoordinates = TrackerTargetCoordinates
-
             if trackerWindowVisible:
                 openTrackerWindow()
             else:
                 closeTrackerWindow()
-
-            trackerdistanceArray = []
 
         writeParticipantDataFile("trialStart", "none")
 
@@ -1139,11 +1043,9 @@ def runDualTaskTrials(isPracticeTrial):
     global screen
     global maxTrialTimeDual
     global numberCompleted
-    global trackerdistanceArray  # an array in which rms distance between target and cursor is stored
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global enteredDigitsStr
-    global TrackerTargetCoordinates
     global CursorCoordinates
     global trackingTaskPresent
     global digitTaskPresent
@@ -1226,13 +1128,10 @@ def runDualTaskTrials(isPracticeTrial):
             pygame.joystick.init()
             joystickObject = pygame.joystick.Joystick(0)
             joystickObject.init()
-            # initially, cursor starts at same location as target
-            CursorCoordinates = TrackerTargetCoordinates
             if trackerWindowVisible:
                 openTrackerWindow()
             else:
                 closeTrackerWindow()
-            trackerdistanceArray = []
 
         if digitTaskPresent:
             generateGoalNumber()
@@ -1312,15 +1211,10 @@ def readInputAndCreateOutputFiles(subjNrStr):
                  "DigitWindowVisible;" \
                  "TrackingWindowEntryCounter;" \
                  "DigitWindowEntryCounter;" \
-                 "RadiusAroundTarget;" \
+                 "RadiusCircle;" \
                  "StandardDeviationOfNoise;" \
-                 "CursorDistanceX;" \
-                 "CursorDistanceY;" \
-                 "CursorDistanceDirect;" \
                  "CursorCoordinatesX;" \
                  "CursorCoordinatesY;" \
-                 "TrackerTargetCoordinatesX;" \
-                 "TrackerTargetCoordinatesY;" \
                  "CursorMotionX;" \
                  "CursorMotionY;" \
                  "UserNumber;" \
@@ -1345,11 +1239,7 @@ def readInputAndCreateOutputFiles(subjNrStr):
                         "VisitCorrectDigits;"\
                         "VisitIncorrectDigitsNum;"\
                         "VisitScore;"\
-                        "OutsideRadius;"\
-                        "MaxDistance;"\
-                        "MeanDistance;"\
-                        "EndDistance;"\
-                        "StartDistance" + "\n"
+                        "OutsideRadius" + "\n"
     summaryOutputFile.write(summaryOutputText)
 
 
@@ -1357,7 +1247,7 @@ def main():
     global screen
     global environmentIsRunning  # variable that states that there is a main window
     global conditions
-    global radiusAroundTarget
+    global radiusCircle
     global numbersAvailableForGoalNumber
     global scoresForPayment
     global standardDeviationOfNoise
@@ -1403,9 +1293,9 @@ def main():
 
         # radius is S (small) or B (big)
         if currentCondition[1] == "S":  # small radius
-            radiusAroundTarget = 80
+            radiusCircle = 80
         elif currentCondition[1] == "B":
-            radiusAroundTarget = 120
+            radiusCircle = 120
         else:
             raise Exception("Invalid radius " + currentCondition[1])
 
@@ -1433,7 +1323,7 @@ def main():
         conditionsVerified.append({
             "standardDeviationOfNoise": standardDeviationOfNoise,
             "noiseMsg": noiseMsg,
-            "radiusAroundTarget": radiusAroundTarget,
+            "radiusCircle": radiusCircle,
             "numbersAvailableForGoalNumber": numbersAvailableForGoalNumber,
             "penalty": penalty,
             "penaltyMsg": penaltyMsg
@@ -1456,7 +1346,7 @@ def main():
         # set global and local variables
         standardDeviationOfNoise = condition["standardDeviationOfNoise"]
         noiseMsg = condition["noiseMsg"]
-        radiusAroundTarget = condition["radiusAroundTarget"]
+        radiusCircle = condition["radiusCircle"]
         numbersAvailableForGoalNumber = condition["numbersAvailableForGoalNumber"]
         penalty = condition["penalty"]
         penaltyMsg = condition["penaltyMsg"]
