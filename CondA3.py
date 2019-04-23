@@ -91,7 +91,7 @@ numberOfSingleTaskTrackingTrials = 2
 numberOfSingleTaskTypingTrials = 2
 
 trackingWindowEntryCounter = 0
-digitWindowEntryCounter = 0
+typingWindowEntryCounter = 0
 
 trackingTaskPresent = True
 typingTaskPresent = True
@@ -111,8 +111,8 @@ subjNr = 0
 
 global trackerWindowVisible
 trackerWindowVisible = True
-global digitWindowVisible
-digitWindowVisible = True
+global typingWindowVisible
+typingWindowVisible = True
 
 radiusCircle = 100
 standardDeviationOfNoise = -1
@@ -166,10 +166,10 @@ def writeParticipantDataFile(Eventmessage1, message2):
     global joystickAxis
     global startTime  # stores time at which trial started
     global trackerWindowVisible
-    global digitWindowVisible
+    global typingWindowVisible
     global radiusCircle
     global trackingWindowEntryCounter
-    global digitWindowEntryCounter
+    global typingWindowEntryCounter
     global standardDeviationOfNoise
     global timeOfCompleteStartOfExperiment  # time at which experiment started
 
@@ -211,9 +211,9 @@ def writeParticipantDataFile(Eventmessage1, message2):
         str(trackingTaskPresent) + ";" + \
         str(typingTaskPresent) + ";" + \
         str(trackerWindowVisible) + ";" + \
-        str(digitWindowVisible) + ";" + \
+        str(typingWindowVisible) + ";" + \
         str(trackingWindowEntryCounter) + ";" + \
-        str(digitWindowEntryCounter) + ";" + \
+        str(typingWindowEntryCounter) + ";" + \
         str(radiusCircle) + ";" + \
         str(standardDeviationOfNoise) + ";" + \
         str(outputCursorCoordinateX) + ";" + \
@@ -276,7 +276,7 @@ def checkKeyPressed():
 
         elif event.type == pygame.KEYDOWN:
             # only process keypresses if the digit task is present
-            if typingTaskPresent and digitWindowVisible:
+            if typingTaskPresent and typingWindowVisible:
                 if event.key == pygame.K_0 or event.key == pygame.K_KP0:
                     keyPressed = "0"
                 elif event.key == pygame.K_1 or event.key == pygame.K_KP1:
@@ -337,20 +337,20 @@ def checkKeyPressed():
 
 def switchWindows(message):
     print("FUNCTION: " + getFunctionName())
-    global digitWindowVisible
+    global typingWindowVisible
 
     # switching is only done in dual-task
     if experiment == "dualTask" or experiment == "practiceDualTask":
         if message == "openTracking":
             if trackingTaskPresent:
                 openTrackerWindow()
-            if digitWindowVisible and typingTaskPresent:
-                closeDigitWindow()
+            if typingWindowVisible and typingTaskPresent:
+                closeTypingWindow()
         elif message == "closeTracking":
             if trackingTaskPresent:
                 closeTrackerWindow()
-            if (not digitWindowVisible) and typingTaskPresent:
-                openDigitWindow()
+            if (not typingWindowVisible) and typingTaskPresent:
+                openTypingWindow()
 
 
 def updateTrackerScreen(sleepTime):
@@ -708,10 +708,10 @@ def drawCircle(image, colour, origin, radius, width=0):
         image.blit(circle, [origin[0] - (circle.get_width() / 2), origin[1] - (circle.get_height() / 2)])
 
 
-def closeDigitWindow():
+def closeTypingWindow():
     print("FUNCTION: " + getFunctionName())
     global screen
-    global digitWindowVisible
+    global typingWindowVisible
     global radiusCircle
 
     # draw background
@@ -719,14 +719,14 @@ def closeDigitWindow():
     bg.fill(coverUpColor)
 
     screen.blit(bg, topLeftCornerOfTypingTaskWindow)  # make area about 30 away from centre
-    digitWindowVisible = False
+    typingWindowVisible = False
 
 
-def openDigitWindow():
+def openTypingWindow():
     print("FUNCTION: " + getFunctionName())
     global screen
-    global digitWindowVisible
-    global digitWindowEntryCounter
+    global typingWindowVisible
+    global typingWindowEntryCounter
     global outsideRadius
     global visitDigits
     global visitIncorrectDigitsNum
@@ -740,7 +740,7 @@ def openDigitWindow():
     visitDigits = 0
     visitIncorrectDigitsNum = 0
 
-    digitWindowEntryCounter = digitWindowEntryCounter + 1
+    typingWindowEntryCounter = typingWindowEntryCounter + 1
 
     # draw background
     bg = pygame.Surface(typingTaskWindowSize).convert()
@@ -751,7 +751,7 @@ def openDigitWindow():
     typingTaskNumberMessage = f.render(generatedTypingTaskNumbers[len(enteredDigitsStr):(len(enteredDigitsStr) + 27)], True,
                                  (0, 0, 0))
     screen.blit(typingTaskNumberMessage, topLeftCornerOfTypingTaskNumber)
-    digitWindowVisible = True
+    typingWindowVisible = True
 
 
 def closeTrackerWindow():
@@ -874,9 +874,9 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global blockNumber
     global trialNumber
     global trackerWindowVisible
-    global digitWindowVisible
+    global typingWindowVisible
     global trackingWindowEntryCounter
-    global digitWindowEntryCounter
+    global typingWindowEntryCounter
     global incorrectDigits
 
     blockNumber += 1
@@ -901,13 +901,13 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
         trackerWindowVisible = False
-        digitWindowVisible = True
+        typingWindowVisible = True
 
         trackingTaskPresent = False
         typingTaskPresent = True
         trialNumber = trialNumber + 1
         trackingWindowEntryCounter = 0
-        digitWindowEntryCounter = 0
+        typingWindowEntryCounter = 0
 
         completebg = pygame.Surface(ExperimentWindowSize).convert()
         completebg.fill(backgroundColorEntireScreen)
@@ -920,10 +920,10 @@ def runSingleTaskTypingTrials(isPracticeTrial):
             enteredDigitsStr = ""
             digitPressTimes = [startTime]
 
-            if digitWindowVisible:
-                openDigitWindow()
+            if typingWindowVisible:
+                openTypingWindow()
             else:
-                closeDigitWindow()
+                closeTypingWindow()
 
         writeParticipantDataFile("trialStart", "none")
 
@@ -961,9 +961,9 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global blockNumber
     global trialNumber
     global trackerWindowVisible
-    global digitWindowVisible
+    global typingWindowVisible
     global trackingWindowEntryCounter
-    global digitWindowEntryCounter
+    global typingWindowEntryCounter
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTrackingTrials
@@ -989,7 +989,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  ###clear all events
         trackerWindowVisible = True
-        digitWindowVisible = False
+        typingWindowVisible = False
         trackingTaskPresent = True
         typingTaskPresent = False
 
@@ -1001,7 +1001,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         startTime = time.time()
 
         trackingWindowEntryCounter = 0
-        digitWindowEntryCounter = 0
+        typingWindowEntryCounter = 0
 
         if trackingTaskPresent:
             if not disableJoystick:
@@ -1050,10 +1050,10 @@ def runDualTaskTrials(isPracticeTrial):
     global blockNumber
     global trialNumber
     global trackerWindowVisible
-    global digitWindowVisible
+    global typingWindowVisible
     global availableTypingTaskNumbers
     global trackingWindowEntryCounter
-    global digitWindowEntryCounter
+    global typingWindowEntryCounter
     global incorrectDigits
     global duringTrialScore
     global outsideRadius
@@ -1104,12 +1104,12 @@ def runDualTaskTrials(isPracticeTrial):
         pygame.event.clear()  # clear all events
 
         trackerWindowVisible = False
-        digitWindowVisible = True
+        typingWindowVisible = True
         trackingTaskPresent = True
         typingTaskPresent = True
 
         trackingWindowEntryCounter = 0
-        digitWindowEntryCounter = 0
+        typingWindowEntryCounter = 0
         trialNumber = trialNumber + 1
 
         completebg = pygame.Surface(ExperimentWindowSize).convert()
@@ -1133,10 +1133,10 @@ def runDualTaskTrials(isPracticeTrial):
             generateTypingTaskNumber()
             enteredDigitsStr = ""
             digitPressTimes = [startTime]
-            if digitWindowVisible:
-                openDigitWindow()
+            if typingWindowVisible:
+                openTypingWindow()
             else:
-                closeDigitWindow()
+                closeTypingWindow()
 
         writeParticipantDataFile("trialStart", "none")
 
@@ -1203,9 +1203,9 @@ def readInputAndCreateOutputFiles(subjNrStr):
                  "TrackingTaskPresent;" \
                  "TypingTaskPresent;" \
                  "TrackerWindowVisible;" \
-                 "DigitWindowVisible;" \
+                 "TypingWindowVisible;" \
                  "TrackingWindowEntryCounter;" \
-                 "DigitWindowEntryCounter;" \
+                 "TypingWindowEntryCounter;" \
                  "RadiusCircle;" \
                  "StandardDeviationOfNoise;" \
                  "CursorCoordinatesX;" \
