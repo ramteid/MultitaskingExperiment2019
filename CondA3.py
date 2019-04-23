@@ -15,11 +15,9 @@
 #############################
 #############################
 import inspect
-import math
 import random
 import time
 import traceback
-
 import pygame
 import scipy
 import scipy.special
@@ -43,13 +41,13 @@ timeFeedbackIsGiven = 4
 
 global environmentIsRunning  # True if there is a display
 global joystickObject  # the joystick object (initialized at start of experiment)
-global partOfExperiment
-partOfExperiment = "singleTaskTracking"
+global experiment
+experiment = "singleTaskTracking"
 global outputFile
 global summaryOutputFile
 global conditions
 conditions = ()
-cursorMotion = (0, 0)  # the motion of the joystick
+joystickAxis = (0, 0)  # the motion of the joystick
 digitPressTimes = []
 startTime = 0
 timeFeedbackIsShown = 4
@@ -62,27 +60,28 @@ radiusOuterColor = (255, 0, 0)  # red
 CursorColor = (0, 0, 255)  # blue
 
 ExperimentWindowSize = (1280, 1024)  # eye-tracker screen: 1280*1024 pixels
-TrackingTaskWindowSize = digitTaskWindowSize = (450, 450)
+TrackingTaskWindowSize = typingTaskWindowSize = (450, 450)
 CursorSize = (20, 20)
 
-topLeftCornerOfDigitTaskWindow = (int(ExperimentWindowSize[0] - TrackingTaskWindowSize[0] - digitTaskWindowSize[0]) / 3, 50)
-topLeftCornerOfTrackingTaskWindow = (2 * topLeftCornerOfDigitTaskWindow[0] + digitTaskWindowSize[0], 50)
+topLeftCornerOfTypingTaskWindow = (
+int(ExperimentWindowSize[0] - TrackingTaskWindowSize[0] - typingTaskWindowSize[0]) / 3, 50)
+topLeftCornerOfTrackingTaskWindow = (2 * topLeftCornerOfTypingTaskWindow[0] + typingTaskWindowSize[0], 50)
 
-topLeftCornerOfGoalNumber = (digitTaskWindowSize[0] / 2 - 150 + topLeftCornerOfDigitTaskWindow[0],
-                             digitTaskWindowSize[1] / 2 - 20 + topLeftCornerOfDigitTaskWindow[1])
-topLeftCornerOfUserNumber = (digitTaskWindowSize[0] / 2 - 150 + topLeftCornerOfDigitTaskWindow[0],
-                             digitTaskWindowSize[1] / 2 + 20 + topLeftCornerOfDigitTaskWindow[1])
+topLeftCornerOfTypingTaskNumber = (typingTaskWindowSize[0] / 2 - 150 + topLeftCornerOfTypingTaskWindow[0],
+                             typingTaskWindowSize[1] / 2 - 20 + topLeftCornerOfTypingTaskWindow[1])
+topLeftCornerOfTypingTaskNumber = (typingTaskWindowSize[0] / 2 - 150 + topLeftCornerOfTypingTaskWindow[0],
+                                   typingTaskWindowSize[1] / 2 + 20 + topLeftCornerOfTypingTaskWindow[1])
 numberCompleted = False  # boolean: did user completely type in the number?
-goalNumber = "123456789"
+availableTypingTaskNumbers = "123456789"
+generatedTypingTaskNumbers = "123456789"
+typingTaskNumbersCount = 27
 enteredDigitsStr = ""
-lengthOfGoalNumber = 27
 
-numbersAvailableForGoalNumber = "123456789"
 CursorCoordinates = (TrackingTaskWindowSize[0] / 2 - (CursorSize[0] / 2), TrackingTaskWindowSize[1] / 2 - (CursorSize[0] / 2))
 
-fontsizeGoalAndUserNumber = 30
+fontsizeGoalAndTypingTaskNumber = 30
 
-maxTrialTimeDual = 120  # maximum time for dual-task trials 
+maxTrialTimeDual = 120  # maximum time for dual-task trials
 maxTrialTimeSingleTracking = 10  # maximum time for single-task tracking
 maxTrialTimeSingleTyping = 20  # maximum time for single-task typing
 
@@ -94,9 +93,9 @@ trackingWindowEntryCounter = 0
 digitWindowEntryCounter = 0
 
 trackingTaskPresent = True
-digitTaskPresent = True
+typingTaskPresent = True
 
-scalingCursorMotion = 5  # how many pixels does the cursor move when joystick is at full angle (value of 1 or -1).
+scalingJoystickAxis = 5  # how many pixels does the cursor move when joystick is at full angle (value of 1 or -1).
 
 global currentCondition
 currentCondition = ""
@@ -127,7 +126,7 @@ def writeSummaryDataFile(visitTime, outsideRadius1):
     print("FUNCTION: " + getFunctionName())
     global summaryOutputFile
     global subjNr
-    global partOfExperiment
+    global experiment
     global blockNumber
     global trialNumber
     global standardDeviationOfNoise
@@ -139,7 +138,7 @@ def writeSummaryDataFile(visitTime, outsideRadius1):
         str(subjNr) + ";" + \
         str(blockNumber) + ";" + \
         str(trialNumber) + ";" + \
-        partOfExperiment + ";" + \
+        experiment + ";" + \
         str(standardDeviationOfNoise) + ";" + \
         str(visitTime) + ";" + \
         str(visitDigits) + ";" + \
@@ -156,16 +155,16 @@ def writeParticipantDataFile(Eventmessage1, message2):
     global numberCompleted
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
-    global goalNumber
+    global generatedTypingTaskNumbers
     global numberCompleted
     global enteredDigitsStr
     global trackingTaskPresent
-    global digitTaskPresent
-    global partOfExperiment
+    global typingTaskPresent
+    global experiment
     global blockNumber
     global trialNumber
     global CursorCoordinates
-    global cursorMotion
+    global joystickAxis
     global startTime  # stores time at which trial started
     global trackerWindowVisible
     global digitWindowVisible
@@ -175,9 +174,6 @@ def writeParticipantDataFile(Eventmessage1, message2):
     global standardDeviationOfNoise
     global timeOfCompleteStartOfExperiment  # time at which experiment started
 
-    outputuserNumber = enteredDigitsStr
-    outputgoalNumber = goalNumber
-
     currentTime = time.time() - timeOfCompleteStartOfExperiment  # this is an absolute time, that always increases (necessary to syncronize with eye-tracker)
     currentTime = scipy.special.round(currentTime * 10000) / 10000
 
@@ -185,25 +181,26 @@ def writeParticipantDataFile(Eventmessage1, message2):
     trialTime = scipy.special.round(trialTime * 10000) / 10000
 
     if not trackingTaskPresent:
-        outputCursorCoordinates = (-987654321, -987654321)  # keep it in number format to make later analysis easier :-)
-        outputcursorMotion = (-987654321, -987654321)
+        outputCursorCoordinateX = "-"
+        outputCursorCoordinateY = "-"
+        outputJoystickAxisX = "-"
+        outputJoystickAxisY = "-"
     else:
-        outputCursorCoordinates = (scipy.special.round(CursorCoordinates[0] * 100) / 100,
-                                   scipy.special.round(CursorCoordinates[1] * 100) / 100)
+        outputCursorCoordinateX = scipy.special.round(CursorCoordinates[0] * 100) / 100
+        outputCursorCoordinateY = scipy.special.round(CursorCoordinates[1] * 100) / 100
+        outputJoystickAxisX = scipy.special.round(joystickAxis[0] * 1000) / 1000
+        outputJoystickAxisY = scipy.special.round(joystickAxis[1] * 1000) / 1000
 
-        outputcursorMotion = (scipy.special.round(cursorMotion[0] * 1000) / 1000, scipy.special.round(cursorMotion[1] * 1000) / 1000)
-
-    if not digitTaskPresent:
-        outputuserNumber = -10
-        outputgoalNumber = -10
-        outputLengthOfUserNumber = 0
-        outputLengthofGoalNumber = 0
+    if typingTaskPresent:
+        outputEnteredDigitsStr = enteredDigitsStr
+        outputTypingTaskNumberLength = len(enteredDigitsStr)
+        outputGeneratedTypingTaskNumbers = generatedTypingTaskNumbers
+        outputGeneratedTypingTaskNumbersLength = len(generatedTypingTaskNumbers)
     else:
-        outputLengthOfUserNumber = len(enteredDigitsStr)
-        outputLengthofGoalNumber = len(goalNumber)
-
-    if outputuserNumber == "":
-        outputuserNumber = -10
+        outputEnteredDigitsStr = "-"
+        outputTypingTaskNumberLength = "-"
+        outputGeneratedTypingTaskNumbers = "-"
+        outputGeneratedTypingTaskNumbersLength = "-"
 
     outputText = \
         str(subjNr) + ";" + \
@@ -211,24 +208,24 @@ def writeParticipantDataFile(Eventmessage1, message2):
         str(trialTime) + ";" + \
         str(blockNumber) + ";" + \
         str(trialNumber) + ";" + \
-        partOfExperiment + ";" + \
+        experiment + ";" + \
         str(trackingTaskPresent) + ";" + \
-        str(digitTaskPresent) + ";" + \
+        str(typingTaskPresent) + ";" + \
         str(trackerWindowVisible) + ";" + \
         str(digitWindowVisible) + ";" + \
         str(trackingWindowEntryCounter) + ";" + \
         str(digitWindowEntryCounter) + ";" + \
         str(radiusCircle) + ";" + \
         str(standardDeviationOfNoise) + ";" + \
-        str(outputCursorCoordinates[0]) + ";" + \
-        str(outputCursorCoordinates[1]) + ";" + \
-        str(outputcursorMotion[0]) + ";" + \
-        str(outputcursorMotion[1]) + ";" + \
-        str(outputuserNumber) + ";" + \
-        str(outputgoalNumber) + ";" + \
+        str(outputCursorCoordinateX) + ";" + \
+        str(outputCursorCoordinateY) + ";" + \
+        str(outputJoystickAxisX) + ";" + \
+        str(outputJoystickAxisY) + ";" + \
+        str(outputEnteredDigitsStr) + ";" + \
+        str(outputGeneratedTypingTaskNumbers) + ";" + \
         str(numberCompleted) + ";" + \
-        str(outputLengthOfUserNumber) + ";" + \
-        str(outputLengthofGoalNumber) + ";" + \
+        str(outputTypingTaskNumberLength) + ";" + \
+        str(outputGeneratedTypingTaskNumbersLength) + ";" + \
         str(Eventmessage1) + ";" + \
         str(message2) + "\n"
 
@@ -251,12 +248,12 @@ def checkMouseClicked():
 
 
 def checkKeyPressed():
-    global digitPressTimes # stores the intervals between keypresses
-    global goalNumber
+    global digitPressTimes  # stores the intervals between keypresses
+    global generatedTypingTaskNumbers
     global enteredDigitsStr
-    global joystickObject # the joystick object
-    global cursorMotion
-    global digitTaskWindowSize
+    global joystickObject  # the joystick object
+    global joystickAxis
+    global typingTaskWindowSize
     global incorrectDigits
     global visitDigits
     global visitIncorrectDigitsNum
@@ -268,8 +265,7 @@ def checkKeyPressed():
         elif event.type == pygame.JOYAXISMOTION:
             if trackingTaskPresent:
                 # values between -1 and 1. (-1,-1) top left corner, (1,-1) top right; (-1,1) bottom left, (1,1) bottom right
-                measuredMotion = (joystickObject.get_axis(0), joystickObject.get_axis(1))
-                cursorMotion = (measuredMotion[0], measuredMotion[1])
+                joystickAxis = (joystickObject.get_axis(0), joystickObject.get_axis(1))
         elif event.type == pygame.JOYBUTTONUP:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("closeTracking")
@@ -281,7 +277,7 @@ def checkKeyPressed():
 
         elif event.type == pygame.KEYDOWN:
             # only process keypresses if the digit task is present
-            if digitTaskPresent and digitWindowVisible:
+            if typingTaskPresent and digitWindowVisible:
                 if event.key == pygame.K_0 or event.key == pygame.K_KP0:
                     keyPressed = "0"
                 elif event.key == pygame.K_1 or event.key == pygame.K_KP1:
@@ -312,13 +308,13 @@ def checkKeyPressed():
                     return
 
                 digitPressTimes.append(time.time())
-                if len(enteredDigitsStr) < len(goalNumber):
-                    if keyPressed == goalNumber[len(enteredDigitsStr)]:
+                if len(enteredDigitsStr) < len(generatedTypingTaskNumbers):
+                    if keyPressed == generatedTypingTaskNumbers[len(enteredDigitsStr)]:
                         enteredDigitsStr = enteredDigitsStr + keyPressed
-                        newpart = ''.join(random.sample(numbersAvailableForGoalNumber, 1))
-                        while newpart == goalNumber[-1]:
-                            newpart = ''.join(random.sample(numbersAvailableForGoalNumber, 1))
-                        goalNumber = goalNumber + newpart
+                        newpart = ''.join(random.sample(availableTypingTaskNumbers, 1))
+                        while newpart == generatedTypingTaskNumbers[-1]:
+                            newpart = ''.join(random.sample(availableTypingTaskNumbers, 1))
+                        generatedTypingTaskNumbers = generatedTypingTaskNumbers + newpart
                         writeParticipantDataFile("keypress", keyPressed)
                         visitDigits = visitDigits + 1
                     else:
@@ -328,14 +324,16 @@ def checkKeyPressed():
                 else:
                     writeParticipantDataFile("stringTypedTooLong", keyPressed)
 
-                blockMaskingOldLocation = pygame.Surface((int(digitTaskWindowSize[0] - (topLeftCornerOfGoalNumber[0] - topLeftCornerOfDigitTaskWindow[0])), 100)).convert()
+                blockMaskingOldLocation = pygame.Surface((int(
+                    typingTaskWindowSize[0] - (topLeftCornerOfTypingTaskNumber[0] - topLeftCornerOfTypingTaskWindow[0])), 100)).convert()
                 blockMaskingOldLocation.fill(backgroundColorDigitScreen)
-                screen.blit(blockMaskingOldLocation, topLeftCornerOfGoalNumber)
+                screen.blit(blockMaskingOldLocation, topLeftCornerOfTypingTaskNumber)
 
                 # then post new message
-                f = pygame.font.Font(None, fontsizeGoalAndUserNumber)
-                goalNumberMessage = f.render(goalNumber[len(enteredDigitsStr):(len(enteredDigitsStr) + 27)], True, (0, 0, 0))
-                screen.blit(goalNumberMessage, topLeftCornerOfGoalNumber)
+                f = pygame.font.Font(None, fontsizeGoalAndTypingTaskNumber)
+                typingTaskNumberMessage = f.render(generatedTypingTaskNumbers[len(enteredDigitsStr):(len(enteredDigitsStr) + 27)], True,
+                                             (0, 0, 0))
+                screen.blit(typingTaskNumberMessage, topLeftCornerOfTypingTaskNumber)
 
 
 def switchWindows(message):
@@ -343,16 +341,16 @@ def switchWindows(message):
     global digitWindowVisible
 
     # switching is only done in dual-task
-    if partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask":
+    if experiment == "dualTask" or experiment == "practiceDualTask":
         if message == "openTracking":
             if trackingTaskPresent:
                 openTrackerWindow()
-            if digitWindowVisible and digitTaskPresent:
+            if digitWindowVisible and typingTaskPresent:
                 closeDigitWindow()
         elif message == "closeTracking":
             if trackingTaskPresent:
                 closeTrackerWindow()
-            if (not digitWindowVisible) and digitTaskPresent:
+            if (not digitWindowVisible) and typingTaskPresent:
                 openDigitWindow()
 
 
@@ -363,7 +361,7 @@ def updateTrackerScreen(sleepTime):
     global startTime
     global maxTrialTimeDual
     global maxTrialTimeSingleTyping
-    global cursorMotion
+    global joystickAxis
     global trackerWindowVisible
     global stepSizeOfTrackerScreenUpdate
 
@@ -375,14 +373,14 @@ def updateTrackerScreen(sleepTime):
     # only add noise if tracker is not moving
     motionThreshold = 0.08
     if not (trackerWindowVisible and
-            (cursorMotion[0] > motionThreshold or cursorMotion[0] < -1 * motionThreshold
-             or cursorMotion[1] > motionThreshold or cursorMotion[1] < -1 * motionThreshold)):
+            (joystickAxis[0] > motionThreshold or joystickAxis[0] < -1 * motionThreshold
+             or joystickAxis[1] > motionThreshold or joystickAxis[1] < -1 * motionThreshold)):
         final_x = x + random.gauss(0, standardDeviationOfNoise)
         final_y = y + random.gauss(0, standardDeviationOfNoise)
 
-    if trackerWindowVisible:  # only add cursormotion if the window is open (i.e., if the participant sees what way cursor moves!)
-        final_x += cursorMotion[0] * scalingCursorMotion
-        final_y += cursorMotion[1] * scalingCursorMotion
+    if trackerWindowVisible:  # only add joystickAxis if the window is open (i.e., if the participant sees what way cursor moves!)
+        final_x += joystickAxis[0] * scalingJoystickAxis
+        final_y += joystickAxis[1] * scalingJoystickAxis
 
     # now iterate through updates (but only do that if the window is open - if it's closed do it without mini-steps, so as to make computation faster)s
     nrUpdates = int(sleepTime / stepSizeOfTrackerScreenUpdate)
@@ -486,7 +484,7 @@ def GiveMessageOnScreen(message, timeMessageIsOnScreen):
     topCornerOfMessageArea = (50, 50)
     screen.blit(messageAreaObject, topCornerOfMessageArea)  # make area 50 pixels away from edges
 
-    fontsize = fontsizeGoalAndUserNumber
+    fontsize = fontsizeGoalAndTypingTaskNumber
     color = (0, 0, 0)
     location = (topCornerOfMessageArea[0] + 75, topCornerOfMessageArea[1] + 75)
 
@@ -510,12 +508,12 @@ def GiveCountdownMessageOnScreen(timeMessageIsOnScreen):
             (int(ExperimentWindowSize[0] / 5), int(ExperimentWindowSize[1] / 5))).convert()
         messageAreaObject.fill((255, 255, 255))
 
-        topCornerOfMessageArea = (int(ExperimentWindowSize[0] * 2 / 5), int(topLeftCornerOfDigitTaskWindow[1] + 10))
+        topCornerOfMessageArea = (int(ExperimentWindowSize[0] * 2 / 5), int(topLeftCornerOfTypingTaskWindow[1] + 10))
         screen.blit(messageAreaObject, topCornerOfMessageArea)
 
         message = "Mach dich bereit!\n\n       " + str(timeMessageIsOnScreen - i)
 
-        fontsize = fontsizeGoalAndUserNumber
+        fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
         location = (topCornerOfMessageArea[0] + 70, topCornerOfMessageArea[1] + 10)
 
@@ -544,7 +542,7 @@ def ShowStartExperimentScreen():
     buttonAreaObject.fill((150, 150, 150))
     screen.blit(buttonAreaObject, (150, 150))  # make area 50 pixels away from edges
 
-    fontsize = fontsizeGoalAndUserNumber
+    fontsize = fontsizeGoalAndTypingTaskNumber
     color = (0, 0, 0)
     location = (175, 175)
 
@@ -563,8 +561,8 @@ def reportUserScore():
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global trackingTaskPresent
-    global digitTaskPresent
-    global partOfExperiment
+    global typingTaskPresent
+    global experiment
     global scoresForPayment
     global incorrectDigits
     global duringTrialScore
@@ -582,9 +580,9 @@ def reportUserScore():
 
     feedbackText = ""
     scoreForLogging = "none"  # score that's logged
-    scoresOnThisBlock = [] # stores the scores on the current block. Can be used to report performance each 5th trial
+    scoresOnThisBlock = []  # stores the scores on the current block. Can be used to report performance each 5th trial
 
-    if partOfExperiment == "dualTask":
+    if experiment == "dualTask":
         score = duringTrialScore  # use score generated by updateIntermediateScore()
 
         feedbackScore = score
@@ -597,9 +595,9 @@ def reportUserScore():
         scoresOnThisBlock.append(score)  # store score, so average performance can be reported
         scoreForLogging = score
 
-    elif partOfExperiment == "singleTaskTyping":
+    elif experiment == "singleTaskTyping":
         feedbackText = "Anzahl Fehler: \n"
-        if digitTaskPresent:
+        if typingTaskPresent:
             digitScore = digitPressTimes[-1] - digitPressTimes[0]
             # round values
             digitScore = scipy.special.round(digitScore * 10) / 10
@@ -608,7 +606,7 @@ def reportUserScore():
             scoreForLogging = digitScore
 
     if feedbackText != "":
-        fontsize = fontsizeGoalAndUserNumber
+        fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
         location = (topCornerOfMessageArea[0] + 50, topCornerOfMessageArea[1] + 50)
         printTextOverMultipleLines(feedbackText, fontsize, color, location)
@@ -631,15 +629,16 @@ def reportUserScore():
         meanscore = scipy.special.round(scipy.mean(scoresOnThisBlock[-2:]) * 100) / 100  # report meanscore
         feedbackText2 = feedbackText2 + str(meanscore)
 
-        if partOfExperiment == "singleTaskTracking":
+        if experiment == "singleTaskTracking":
             feedbackText2 = feedbackText2 + " pixels"
-        elif partOfExperiment == "singleTaskTyping":
+        elif experiment == "singleTaskTyping":
             feedbackText2 = feedbackText2 + " errors"
-        elif partOfExperiment == "dualTask":
-            feedbackText2 = "Block " + str(int(len(scoresOnThisBlock) / 3)) + " von 6 vollständig. Deine durchschnittliche Leistung der letzten 4 Durchgänge:\n\n" \
+        elif experiment == "dualTask":
+            feedbackText2 = "Block " + str(int(len(
+                scoresOnThisBlock) / 3)) + " von 6 vollständig. Deine durchschnittliche Leistung der letzten 4 Durchgänge:\n\n" \
                             + str(meanscore) + " points"
 
-        fontsize = fontsizeGoalAndUserNumber
+        fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
         location = (topCornerOfMessageArea[0] + 50, topCornerOfMessageArea[1] + 50)
 
@@ -650,50 +649,50 @@ def reportUserScore():
         time.sleep(20)
 
 
-def generateGoalNumber():
+def generateTypingTaskNumber():
     print("FUNCTION: " + getFunctionName())
-    global goalNumber
-    global lengthOfGoalNumber
+    global generatedTypingTaskNumbers
+    global typingTaskNumbersCount
 
-    if lengthOfGoalNumber == 240:
-        goalNumber = ''.join(random.sample(numbersAvailableForGoalNumber, lengthOfGoalNumber))
-    elif lengthOfGoalNumber < 19:
-        goalNumber = ''.join(random.sample(numbersAvailableForGoalNumber, 9))
-        newpart = ''.join(random.sample(numbersAvailableForGoalNumber, 9))
+    if typingTaskNumbersCount == 240:
+        generatedTypingTaskNumbers = ''.join(random.sample(availableTypingTaskNumbers, typingTaskNumbersCount))
+    elif typingTaskNumbersCount < 19:
+        generatedTypingTaskNumbers = ''.join(random.sample(availableTypingTaskNumbers, 9))
+        newpart = ''.join(random.sample(availableTypingTaskNumbers, 9))
         # prevent situations with repeating digits
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
-        newpart = newpart[0:(lengthOfGoalNumber - 9)]
-        goalNumber = goalNumber + newpart
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
+        newpart = newpart[0:(typingTaskNumbersCount - 9)]
+        generatedTypingTaskNumbers = generatedTypingTaskNumbers + newpart
 
-    elif lengthOfGoalNumber == 27:  ### changed tp == 27
-        goalNumber = ''.join(random.sample(numbersAvailableForGoalNumber, 9))
-        newpart = ''.join(random.sample(numbersAvailableForGoalNumber, 9))
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
+    elif typingTaskNumbersCount == 27:  ### changed tp == 27
+        generatedTypingTaskNumbers = ''.join(random.sample(availableTypingTaskNumbers, 9))
+        newpart = ''.join(random.sample(availableTypingTaskNumbers, 9))
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
 
-        goalNumber = goalNumber + newpart
+        generatedTypingTaskNumbers = generatedTypingTaskNumbers + newpart
 
-        newpart = ''.join(random.sample(numbersAvailableForGoalNumber, 9))
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
-        if newpart[0] == goalNumber[-1]:
-            newpart = newpart[1:] + goalNumber[-1]
+        newpart = ''.join(random.sample(availableTypingTaskNumbers, 9))
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
+        if newpart[0] == generatedTypingTaskNumbers[-1]:
+            newpart = newpart[1:] + generatedTypingTaskNumbers[-1]
 
-        newpart = newpart[0:(lengthOfGoalNumber - 18)]
-        goalNumber = goalNumber + newpart
+        newpart = newpart[0:(typingTaskNumbersCount - 18)]
+        generatedTypingTaskNumbers = generatedTypingTaskNumbers + newpart
 
 
 def drawCircle(image, colour, origin, radius, width=0):
@@ -705,9 +704,11 @@ def drawCircle(image, colour, origin, radius, width=0):
             radius = 65534 / 5
         circle = pygame.Surface([radius * 2 + width, radius * 2 + width]).convert_alpha()
         circle.fill([0, 0, 0, 0])
-        pygame.draw.circle(circle, colour, (int(circle.get_width() / 2), int(circle.get_height() / 2)), int(radius + (width / 2)))
+        pygame.draw.circle(circle, colour, (int(circle.get_width() / 2), int(circle.get_height() / 2)),
+                           int(radius + (width / 2)))
         if int(radius - (width / 2)) > 0:
-            pygame.draw.circle(circle, [0, 0, 0, 0], (int(circle.get_width() / 2), int(circle.get_height() / 2)), abs(int(radius - (width / 2))))
+            pygame.draw.circle(circle, [0, 0, 0, 0], (int(circle.get_width() / 2), int(circle.get_height() / 2)),
+                               abs(int(radius - (width / 2))))
         image.blit(circle, [origin[0] - (circle.get_width() / 2), origin[1] - (circle.get_height() / 2)])
 
 
@@ -721,7 +722,7 @@ def closeDigitWindow():
     bg = pygame.Surface(TrackingTaskWindowSize).convert()
     bg.fill(coverUpColor)
 
-    screen.blit(bg, topLeftCornerOfDigitTaskWindow)  # make area about 30 away from centre
+    screen.blit(bg, topLeftCornerOfTypingTaskWindow)  # make area about 30 away from centre
     digitWindowVisible = False
 
 
@@ -746,14 +747,14 @@ def openDigitWindow():
     digitWindowEntryCounter = digitWindowEntryCounter + 1
 
     # draw background
-    bg = pygame.Surface(digitTaskWindowSize).convert()
+    bg = pygame.Surface(typingTaskWindowSize).convert()
     bg.fill((255, 255, 255))
-    screen.blit(bg, topLeftCornerOfDigitTaskWindow)  # make area about 30 away from centre
+    screen.blit(bg, topLeftCornerOfTypingTaskWindow)  # make area about 30 away from centre
 
-    f = pygame.font.Font(None, fontsizeGoalAndUserNumber)
-    goalNumberMessage = f.render(goalNumber[len(enteredDigitsStr):(len(enteredDigitsStr) + 27)], True,
+    f = pygame.font.Font(None, fontsizeGoalAndTypingTaskNumber)
+    typingTaskNumberMessage = f.render(generatedTypingTaskNumbers[len(enteredDigitsStr):(len(enteredDigitsStr) + 27)], True,
                                  (0, 0, 0))
-    screen.blit(goalNumberMessage, topLeftCornerOfGoalNumber)
+    screen.blit(typingTaskNumberMessage, topLeftCornerOfTypingTaskNumber)
     digitWindowVisible = True
 
 
@@ -774,7 +775,7 @@ def openTrackerWindow():
     global screen
     global trackerWindowVisible
     global trackingWindowEntryCounter
-    global cursorMotion
+    global joystickAxis
     global visitScore
     global visitEndTime
     global CursorColor
@@ -784,7 +785,7 @@ def openTrackerWindow():
     print("End Time:")
     print(visitEndTime)
 
-    if partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask":
+    if experiment == "dualTask" or experiment == "practiceDualTask":
         updateIntermediateScoreAndWriteSummaryDataFile()
 
     # draw background
@@ -814,11 +815,11 @@ def openTrackerWindow():
 
     # get the cursor angle
     measuredMotion = (joystickObject.get_axis(0), joystickObject.get_axis(1))
-    cursorMotion = (measuredMotion[0], measuredMotion[1])
+    joystickAxis = (measuredMotion[0], measuredMotion[1])
 
-    if partOfExperiment == "dualTask" or partOfExperiment == "practiceDualTask":
+    if experiment == "dualTask" or experiment == "practiceDualTask":
         intermediateMessage = str(visitScore) + " Punkte"
-        fontsize = fontsizeGoalAndUserNumber
+        fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
         location = (900, 65)
         printTextOverMultipleLines(intermediateMessage, fontsize, color, location)
@@ -848,9 +849,11 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
 
         if penalty == "loseHalf":
             # loose half
-            visitScore = 0.5 * ((visitDigits * 10) + (visitIncorrectDigitsNum * -5))  # penalty for exit is to lose half points
+            visitScore = 0.5 * (
+                        (visitDigits * 10) + (visitIncorrectDigitsNum * -5))  # penalty for exit is to lose half points
     else:
-        visitScore = (visitDigits * 10) + (visitIncorrectDigitsNum * -5)  # gain is 10 for correct digit and -5 for incorrect digit
+        visitScore = (visitDigits * 10) + (
+                    visitIncorrectDigitsNum * -5)  # gain is 10 for correct digit and -5 for incorrect digit
 
     # add the score for this digit task visit to the overall trial score
     # duringtrial score is used in reportUserScore
@@ -868,12 +871,12 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global numberCompleted
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
-    global goalNumber
+    global generatedTypingTaskNumbers
     global numberCompleted
     global enteredDigitsStr
     global trackingTaskPresent
-    global digitTaskPresent
-    global partOfExperiment
+    global typingTaskPresent
+    global experiment
     global blockNumber
     global trialNumber
     global trackerWindowVisible
@@ -886,7 +889,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     numberOfTrials = numberOfSingleTaskTypingTrials
 
     if isPracticeTrial:
-        partOfExperiment = "practiceTyping"
+        experiment = "practiceTyping"
         numberOfTrials = 2
         GiveMessageOnScreen("Nur Tippen\n\n"
                             "In diesen Durchgängen führst du nur die Tippaufgabe aus.\n"
@@ -894,7 +897,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
                             "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n"
                             "(In zukünftigen Durchgängen würdest du dadurch Punkte verlieren.)", 15)
     else:
-        partOfExperiment = "singleTaskTyping"
+        experiment = "singleTaskTyping"
         GiveMessageOnScreen("Nur Tippen\n\n"
                             "Kopiere die Ziffern so schnell wie möglich", 5)
 
@@ -907,7 +910,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         digitWindowVisible = True
 
         trackingTaskPresent = False
-        digitTaskPresent = True
+        typingTaskPresent = True
         trialNumber = trialNumber + 1
         trackingWindowEntryCounter = 0
         digitWindowEntryCounter = 0
@@ -918,8 +921,8 @@ def runSingleTaskTypingTrials(isPracticeTrial):
 
         startTime = time.time()
 
-        if digitTaskPresent:
-            generateGoalNumber()
+        if typingTaskPresent:
+            generateTypingTaskNumber()
             numberCompleted = False
             enteredDigitsStr = ""
             digitPressTimes = [startTime]
@@ -935,7 +938,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         pygame.display.flip()
 
         while not numberCompleted and ((time.time() - startTime) < maxTrialTimeSingleTyping) and environmentIsRunning:
-            checkKeyPressed()  # checks keypresses for both the trackingtask and the digittask and starts relevant display updates
+            checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
             pygame.display.flip()
             time.sleep(0.02)
 
@@ -959,10 +962,10 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global startTime  # stores time at which trial starts
     global CursorCoordinates
     global trackingTaskPresent
-    global digitTaskPresent
+    global typingTaskPresent
     global joystickObject
-    global cursorMotion
-    global partOfExperiment
+    global joystickAxis
+    global experiment
     global blockNumber
     global trialNumber
     global trackerWindowVisible
@@ -974,7 +977,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     numberOfTrials = numberOfSingleTaskTrackingTrials
 
     if isPracticeTrial:
-        partOfExperiment = "practiceTracking"
+        experiment = "practiceTracking"
         GiveMessageOnScreen(
             "Nur Tracking\n\n"
             "In diesen Durchgängen führst du nur die Tracking Aufgabe aus.\n"
@@ -983,7 +986,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             15)
         numberOfTrials = 2
     else:
-        partOfExperiment = "singleTaskTracking"
+        experiment = "singleTaskTracking"
         GiveMessageOnScreen(
             "Nur Tracking\n\n"
             "Nutze die Durchgänge, um die Geschwindigkeit des Cursors einschätzen zu können, \n"
@@ -996,7 +999,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         trackerWindowVisible = True
         digitWindowVisible = False
         trackingTaskPresent = True
-        digitTaskPresent = False
+        typingTaskPresent = False
 
         trialNumber = trialNumber + 1
         completebg = pygame.Surface(ExperimentWindowSize).convert()
@@ -1009,7 +1012,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         digitWindowEntryCounter = 0
 
         if trackingTaskPresent:
-            cursorMotion = (0, 0)
+            joystickAxis = (0, 0)
             pygame.joystick.init()
             joystickObject = pygame.joystick.Joystick(0)
             joystickObject.init()
@@ -1025,7 +1028,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         pygame.display.flip()
 
         while ((time.time() - startTime) < maxTrialTimeSingleTracking) and environmentIsRunning:
-            checkKeyPressed()  # checks keypresses for both the trackingtask and the digittask and starts relevant display updates
+            checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
 
             if trackingTaskPresent:
                 updateTrackerScreen(0.02)
@@ -1048,15 +1051,15 @@ def runDualTaskTrials(isPracticeTrial):
     global enteredDigitsStr
     global CursorCoordinates
     global trackingTaskPresent
-    global digitTaskPresent
+    global typingTaskPresent
     global joystickObject
-    global cursorMotion
-    global partOfExperiment
+    global joystickAxis
+    global experiment
     global blockNumber
     global trialNumber
     global trackerWindowVisible
     global digitWindowVisible
-    global numbersAvailableForGoalNumber
+    global availableTypingTaskNumbers
     global trackingWindowEntryCounter
     global digitWindowEntryCounter
     global incorrectDigits
@@ -1072,23 +1075,23 @@ def runDualTaskTrials(isPracticeTrial):
 
     if isPracticeTrial:
         maxTrialTimeDual = 120
-        partOfExperiment = "practiceDualTask"
+        experiment = "practiceDualTask"
         GiveMessageOnScreen(
             "Tracking + Tippen\n\n"
             "Du führst jetzt beide Aufgaben gleichzeitig aus.\n"
             "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n"
             "Drücke den Schalter unter deinem Zeigefinger am Joystick, um die Trackingaufgabe zu kontrollieren.\n"
             "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n"
-            "Du kannst immer nur eine Aufgabe bearbeiten.",15)
+            "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
         GiveMessageOnScreen("Dein Ziel:\n"
                             "Kopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\n"
                             "aber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte)\n"
-                            "Fehler beim Tippen führen auch zu einem Punktverlust",10)
-        
+                            "Fehler beim Tippen führen auch zu einem Punktverlust", 10)
+
         numberOfTrials = 2
     else:
         maxTrialTimeDual = 120
-        partOfExperiment = "dualTask"
+        experiment = "dualTask"
         GiveMessageOnScreen("Tracking + Tippen\n\n"
                             "Kopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\n"
                             "aber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte).\n"
@@ -1098,7 +1101,7 @@ def runDualTaskTrials(isPracticeTrial):
                             "Der Kreis hat dieselbe Größe\n\n"
                             "Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
                             "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
-                            "Du kannst immer nur eine Aufgabe bearbeiten." ,15)
+                            "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
 
     for i in range(0, numberOfTrials):
         duringTrialScore = 0
@@ -1111,7 +1114,7 @@ def runDualTaskTrials(isPracticeTrial):
         trackerWindowVisible = False
         digitWindowVisible = True
         trackingTaskPresent = True
-        digitTaskPresent = True
+        typingTaskPresent = True
 
         trackingWindowEntryCounter = 0
         digitWindowEntryCounter = 0
@@ -1124,7 +1127,7 @@ def runDualTaskTrials(isPracticeTrial):
         startTime = time.time()
 
         if trackingTaskPresent:
-            cursorMotion = (0, 0)
+            joystickAxis = (0, 0)
             pygame.joystick.init()
             joystickObject = pygame.joystick.Joystick(0)
             joystickObject.init()
@@ -1133,8 +1136,8 @@ def runDualTaskTrials(isPracticeTrial):
             else:
                 closeTrackerWindow()
 
-        if digitTaskPresent:
-            generateGoalNumber()
+        if typingTaskPresent:
+            generateTypingTaskNumber()
             numberCompleted = False
             enteredDigitsStr = ""
             digitPressTimes = [startTime]
@@ -1149,7 +1152,7 @@ def runDualTaskTrials(isPracticeTrial):
         pygame.display.flip()
 
         while (not numberCompleted) and ((time.time() - startTime) < maxTrialTimeDual) and environmentIsRunning:
-            checkKeyPressed()  # checks keypresses for both the trackingtask and the digittask and starts relevant display updates
+            checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
             if trackingTaskPresent:
                 updateTrackerScreen(0.02)
             pygame.display.flip()
@@ -1179,9 +1182,9 @@ def readInputAndCreateOutputFiles(subjNrStr):
     global outputFile
     global summaryOutputFile
 
-    f = open('participantConditions.csv','r')
-    individualLines = f.read().split('\n') ## read by lines
-    lines = list(map(lambda x: x.split(';'), individualLines) )     #split all elements
+    f = open('participantConditions.csv', 'r')
+    individualLines = f.read().split('\n')  ## read by lines
+    lines = list(map(lambda x: x.split(';'), individualLines))  # split all elements
     subjectLine = []
     for line in lines:
         if line[0] == subjNrStr:
@@ -1197,16 +1200,16 @@ def readInputAndCreateOutputFiles(subjNrStr):
 
     timestamp = time.strftime("%Y-%m-%d_%H-%M")
 
-    fileName = "participant_" + subjNrStr + "_data_"  + timestamp + ".csv"
+    fileName = "participant_" + subjNrStr + "_data_" + timestamp + ".csv"
     outputFile = open(fileName, 'w')  # contains the user data
     outputText = "SubjectNr;" \
                  "CurrentTime;" \
                  "TrialTime;" \
                  "BlockNumber;" \
                  "TrialNumber;" \
-                 "partOfExperiment;" \
+                 "Experiment;" \
                  "TrackingTaskPresent;" \
-                 "DigitTaskPresent;" \
+                 "TypingTaskPresent;" \
                  "TrackerWindowVisible;" \
                  "DigitWindowVisible;" \
                  "TrackingWindowEntryCounter;" \
@@ -1215,13 +1218,13 @@ def readInputAndCreateOutputFiles(subjNrStr):
                  "StandardDeviationOfNoise;" \
                  "CursorCoordinatesX;" \
                  "CursorCoordinatesY;" \
-                 "CursorMotionX;" \
-                 "CursorMotionY;" \
-                 "UserNumber;" \
-                 "GoalNumber;" \
+                 "JoystickAxisX;" \
+                 "JoystickAxisY;" \
+                 "EnteredDigits;" \
+                 "GeneratedTypingTaskNumbers;" \
                  "NumberCompleted;" \
-                 "LengthOfUserNumber;" \
-                 "LengthofGoalNumber;" \
+                 "EnteredDigitsLength;" \
+                 "GeneratedTypingTaskNumberLength;" \
                  "Eventmessage1;" \
                  "Eventmessage2" + "\n"
     outputFile.write(outputText)
@@ -1230,15 +1233,15 @@ def readInputAndCreateOutputFiles(subjNrStr):
 
     summaryFileName = "participant_" + subjNrStr + "_summary_" + timestamp + ".csv"
     summaryOutputFile = open(summaryFileName, 'w')  # contains the user data
-    summaryOutputText = "SubjectNr;"\
-                        "BlockNumber;"\
-                        "TrialNumber;"\
-                        "PartOfExperiment;"\
-                        "StandardDeviationOfNoise;"\
-                        "VisitTime;"\
-                        "VisitCorrectDigits;"\
-                        "VisitIncorrectDigitsNum;"\
-                        "VisitScore;"\
+    summaryOutputText = "SubjectNr;" \
+                        "BlockNumber;" \
+                        "TrialNumber;" \
+                        "Experiment;" \
+                        "StandardDeviationOfNoise;" \
+                        "VisitTime;" \
+                        "VisitCorrectDigits;" \
+                        "VisitIncorrectDigitsNum;" \
+                        "VisitScore;" \
                         "OutsideRadius" + "\n"
     summaryOutputFile.write(summaryOutputText)
 
@@ -1248,7 +1251,7 @@ def main():
     global environmentIsRunning  # variable that states that there is a main window
     global conditions
     global radiusCircle
-    global numbersAvailableForGoalNumber
+    global availableTypingTaskNumbers
     global scoresForPayment
     global standardDeviationOfNoise
     global timeOfCompleteStartOfExperiment
@@ -1301,9 +1304,9 @@ def main():
 
         # set of digits is 1-9 (9) or 1-3 (3)
         if currentCondition[2] == "9":
-            numbersAvailableForGoalNumber = "123456789"
+            availableTypingTaskNumbers = "123456789"
         elif currentCondition[2] == "3":
-            numbersAvailableForGoalNumber = "123123123"
+            availableTypingTaskNumbers = "123123123"
         else:
             raise Exception("Invalid number " + currentCondition[2])
 
@@ -1324,7 +1327,7 @@ def main():
             "standardDeviationOfNoise": standardDeviationOfNoise,
             "noiseMsg": noiseMsg,
             "radiusCircle": radiusCircle,
-            "numbersAvailableForGoalNumber": numbersAvailableForGoalNumber,
+            "availableTypingTaskNumbers": availableTypingTaskNumbers,
             "penalty": penalty,
             "penaltyMsg": penaltyMsg
         })
@@ -1332,7 +1335,7 @@ def main():
     if firstTrial == "yes":
         GiveMessageOnScreen("Willkommen zum Experiment!\n\n\n"
                             "Wir beginnen mit 3 Probedurchläufen.", 10)
-        numbersAvailableForGoalNumber = "123123123"
+        availableTypingTaskNumbers = "123123123"
         # do practice trials
         runSingleTaskTrackingTrials(True)
         runSingleTaskTypingTrials(True)
@@ -1347,21 +1350,21 @@ def main():
         standardDeviationOfNoise = condition["standardDeviationOfNoise"]
         noiseMsg = condition["noiseMsg"]
         radiusCircle = condition["radiusCircle"]
-        numbersAvailableForGoalNumber = condition["numbersAvailableForGoalNumber"]
+        availableTypingTaskNumbers = condition["availableTypingTaskNumbers"]
         penalty = condition["penalty"]
         penaltyMsg = condition["penaltyMsg"]
 
         if showPrecedingPenaltyInfo == "yes":
             message = "NEUER BLOCK: \n\n\n" \
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
-                      "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
-                      "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
-                      "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
+                                                                                              "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
+                                                                                              "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
+                                                                                              "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
         else:
             message = "NEUER BLOCK: \n\n\n" \
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
-                      "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
-                      "Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
+                                                                                              "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
+                                                                                              "Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
         GiveMessageOnScreen(message, 10)
 
         runSingleTaskTrackingTrials(False)
