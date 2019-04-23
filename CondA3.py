@@ -34,6 +34,8 @@ visitScore = 0
 visitEndTime = 0
 visitStartTime = 0
 
+global disableJoystick
+disableJoystick = True
 global penalty
 penalty = ""
 
@@ -71,7 +73,6 @@ topLeftCornerOfTypingTaskNumber = (typingTaskWindowSize[0] / 2 - 150 + topLeftCo
                              typingTaskWindowSize[1] / 2 - 20 + topLeftCornerOfTypingTaskWindow[1])
 topLeftCornerOfTypingTaskNumber = (typingTaskWindowSize[0] / 2 - 150 + topLeftCornerOfTypingTaskWindow[0],
                                    typingTaskWindowSize[1] / 2 + 20 + topLeftCornerOfTypingTaskWindow[1])
-numberCompleted = False  # boolean: did user completely type in the number?
 availableTypingTaskNumbers = "123456789"
 generatedTypingTaskNumbers = "123456789"
 typingTaskNumbersCount = 27
@@ -152,11 +153,9 @@ def writeSummaryDataFile(visitTime, outsideRadius1):
 def writeParticipantDataFile(Eventmessage1, message2):
     global outputFile
     global subjNr
-    global numberCompleted
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global generatedTypingTaskNumbers
-    global numberCompleted
     global enteredDigitsStr
     global trackingTaskPresent
     global typingTaskPresent
@@ -223,7 +222,6 @@ def writeParticipantDataFile(Eventmessage1, message2):
         str(outputJoystickAxisY) + ";" + \
         str(outputEnteredDigitsStr) + ";" + \
         str(outputGeneratedTypingTaskNumbers) + ";" + \
-        str(numberCompleted) + ";" + \
         str(outputTypingTaskNumberLength) + ";" + \
         str(outputGeneratedTypingTaskNumbersLength) + ";" + \
         str(Eventmessage1) + ";" + \
@@ -265,7 +263,8 @@ def checkKeyPressed():
         elif event.type == pygame.JOYAXISMOTION:
             if trackingTaskPresent:
                 # values between -1 and 1. (-1,-1) top left corner, (1,-1) top right; (-1,1) bottom left, (1,1) bottom right
-                joystickAxis = (joystickObject.get_axis(0), joystickObject.get_axis(1))
+                if not disableJoystick:
+                    joystickAxis = (joystickObject.get_axis(0), joystickObject.get_axis(1))
         elif event.type == pygame.JOYBUTTONUP:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("closeTracking")
@@ -357,7 +356,6 @@ def switchWindows(message):
 def updateTrackerScreen(sleepTime):
     global screen
     global CursorCoordinates
-    global numberCompleted
     global startTime
     global maxTrialTimeDual
     global maxTrialTimeSingleTyping
@@ -372,9 +370,7 @@ def updateTrackerScreen(sleepTime):
 
     # only add noise if tracker is not moving
     motionThreshold = 0.08
-    if not (trackerWindowVisible and
-            (joystickAxis[0] > motionThreshold or joystickAxis[0] < -1 * motionThreshold
-             or joystickAxis[1] > motionThreshold or joystickAxis[1] < -1 * motionThreshold)):
+    if not (trackerWindowVisible and (joystickAxis[0] > motionThreshold or joystickAxis[0] < -1 * motionThreshold or joystickAxis[1] > motionThreshold or joystickAxis[1] < -1 * motionThreshold)):
         final_x = x + random.gauss(0, standardDeviationOfNoise)
         final_y = y + random.gauss(0, standardDeviationOfNoise)
 
@@ -814,8 +810,8 @@ def openTrackerWindow():
     trackerWindowVisible = True
 
     # get the cursor angle
-    measuredMotion = (joystickObject.get_axis(0), joystickObject.get_axis(1))
-    joystickAxis = (measuredMotion[0], measuredMotion[1])
+    if not disableJoystick:
+        joystickAxis = (joystickObject.get_axis(0), joystickObject.get_axis(1))
 
     if experiment == "dualTask" or experiment == "practiceDualTask":
         intermediateMessage = str(visitScore) + " Punkte"
@@ -868,11 +864,9 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeSingleTyping
-    global numberCompleted
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global generatedTypingTaskNumbers
-    global numberCompleted
     global enteredDigitsStr
     global trackingTaskPresent
     global typingTaskPresent
@@ -923,7 +917,6 @@ def runSingleTaskTypingTrials(isPracticeTrial):
 
         if typingTaskPresent:
             generateTypingTaskNumber()
-            numberCompleted = False
             enteredDigitsStr = ""
             digitPressTimes = [startTime]
 
@@ -937,7 +930,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         # display all updates (made using blit) on the screen
         pygame.display.flip()
 
-        while not numberCompleted and ((time.time() - startTime) < maxTrialTimeSingleTyping) and environmentIsRunning:
+        while (time.time() - startTime) < maxTrialTimeSingleTyping and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
             pygame.display.flip()
             time.sleep(0.02)
@@ -958,7 +951,6 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeSingleTracking
-    global numberCompleted
     global startTime  # stores time at which trial starts
     global CursorCoordinates
     global trackingTaskPresent
@@ -1012,10 +1004,11 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         digitWindowEntryCounter = 0
 
         if trackingTaskPresent:
-            joystickAxis = (0, 0)
-            pygame.joystick.init()
-            joystickObject = pygame.joystick.Joystick(0)
-            joystickObject.init()
+            if not disableJoystick:
+                joystickAxis = (0, 0)
+                pygame.joystick.init()
+                joystickObject = pygame.joystick.Joystick(0)
+                joystickObject.init()
 
             if trackerWindowVisible:
                 openTrackerWindow()
@@ -1045,7 +1038,6 @@ def runDualTaskTrials(isPracticeTrial):
     print("FUNCTION: " + getFunctionName())
     global screen
     global maxTrialTimeDual
-    global numberCompleted
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global enteredDigitsStr
@@ -1127,10 +1119,11 @@ def runDualTaskTrials(isPracticeTrial):
         startTime = time.time()
 
         if trackingTaskPresent:
-            joystickAxis = (0, 0)
-            pygame.joystick.init()
-            joystickObject = pygame.joystick.Joystick(0)
-            joystickObject.init()
+            if not disableJoystick:
+                joystickAxis = (0, 0)
+                pygame.joystick.init()
+                joystickObject = pygame.joystick.Joystick(0)
+                joystickObject.init()
             if trackerWindowVisible:
                 openTrackerWindow()
             else:
@@ -1138,7 +1131,6 @@ def runDualTaskTrials(isPracticeTrial):
 
         if typingTaskPresent:
             generateTypingTaskNumber()
-            numberCompleted = False
             enteredDigitsStr = ""
             digitPressTimes = [startTime]
             if digitWindowVisible:
@@ -1151,7 +1143,7 @@ def runDualTaskTrials(isPracticeTrial):
         # display all updates (made using blit) on the screen
         pygame.display.flip()
 
-        while (not numberCompleted) and ((time.time() - startTime) < maxTrialTimeDual) and environmentIsRunning:
+        while (time.time() - startTime) < maxTrialTimeDual and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
             if trackingTaskPresent:
                 updateTrackerScreen(0.02)
@@ -1222,7 +1214,6 @@ def readInputAndCreateOutputFiles(subjNrStr):
                  "JoystickAxisY;" \
                  "EnteredDigits;" \
                  "GeneratedTypingTaskNumbers;" \
-                 "NumberCompleted;" \
                  "EnteredDigitsLength;" \
                  "GeneratedTypingTaskNumberLength;" \
                  "Eventmessage1;" \
@@ -1268,7 +1259,7 @@ def main():
     timeOfCompleteStartOfExperiment = time.time()
 
     pygame.init()
-    screen = pygame.display.set_mode(ExperimentWindowSize)
+    screen = pygame.display.set_mode(ExperimentWindowSize)#, pygame.FULLSCREEN)
     pygame.display.set_caption("Multitasking 2.0")
     environmentIsRunning = True
 
