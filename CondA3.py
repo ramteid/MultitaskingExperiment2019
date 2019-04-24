@@ -30,8 +30,8 @@ import datetime
 incorrectDigits = 0
 duringTrialScore = 0
 outsideRadius = False
-visitDigits = 0
-visitIncorrectDigitsNum = 0
+correctlyTypedDigitsInVisit = 0
+incorrectlyTypedDigitsInVisit = 0
 visitScore = 0
 visitEndTime = 0
 visitStartTime = 0
@@ -64,11 +64,11 @@ backgroundColorEntireScreen = (50, 50, 50)  # gray
 coverUpColor = (200, 200, 200)  # very light gray
 radiusInnerColor = (255, 204, 102)  # orange
 radiusOuterColor = (255, 0, 0)  # red
-CursorColor = (0, 0, 255)  # blue
+cursorColor = (0, 0, 255)  # blue
 
 ExperimentWindowSize = (1280, 1024)  # eye-tracker screen: 1280*1024 pixels
 TrackingTaskWindowSize = typingTaskWindowSize = (450, 450)
-CursorSize = (20, 20)
+cursorSize = (20, 20)
 
 topLeftCornerOfTypingTaskWindow = (int(ExperimentWindowSize[0] - TrackingTaskWindowSize[0] - typingTaskWindowSize[0]) / 3, 50)
 topLeftCornerOfTrackingTaskWindow = (2 * topLeftCornerOfTypingTaskWindow[0] + typingTaskWindowSize[0], 50)
@@ -82,7 +82,7 @@ generatedTypingTaskNumbers = "123456789"
 typingTaskNumbersCount = 27
 enteredDigitsStr = ""
 
-CursorCoordinates = (TrackingTaskWindowSize[0] / 2 - (CursorSize[0] / 2), TrackingTaskWindowSize[1] / 2 - (CursorSize[0] / 2))
+cursorCoordinates = (TrackingTaskWindowSize[0] / 2 - (cursorSize[0] / 2), TrackingTaskWindowSize[1] / 2 - (cursorSize[0] / 2))
 
 fontsizeGoalAndTypingTaskNumber = 30
 
@@ -136,8 +136,8 @@ def writeSummaryDataFile(visitTime, outsideRadius1):
     global trialNumber
     global standardDeviationOfNoise
     global visitScore
-    global visitDigits
-    global visitIncorrectDigitsNum
+    global correctlyTypedDigitsInVisit
+    global incorrectlyTypedDigitsInVisit
 
     summaryOutputText = \
         str(subjNr) + ";" + \
@@ -146,8 +146,8 @@ def writeSummaryDataFile(visitTime, outsideRadius1):
         experiment + ";" + \
         str(standardDeviationOfNoise) + ";" + \
         str(visitTime) + ";" + \
-        str(visitDigits) + ";" + \
-        str(visitIncorrectDigitsNum) + ";" + \
+        str(correctlyTypedDigitsInVisit) + ";" + \
+        str(incorrectlyTypedDigitsInVisit) + ";" + \
         str(visitScore) + ";" + \
         str(outsideRadius1) + "\n"
 
@@ -166,7 +166,7 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
     global experiment
     global blockNumber
     global trialNumber
-    global CursorCoordinates
+    global cursorCoordinates
     global joystickAxis
     global startTime  # stores time at which trial started
     global trackerWindowVisible
@@ -189,8 +189,8 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
         outputJoystickAxisX = "-"
         outputJoystickAxisY = "-"
     else:
-        outputCursorCoordinateX = scipy.special.round(CursorCoordinates[0] * 100) / 100
-        outputCursorCoordinateY = scipy.special.round(CursorCoordinates[1] * 100) / 100
+        outputCursorCoordinateX = scipy.special.round(cursorCoordinates[0] * 100) / 100
+        outputCursorCoordinateY = scipy.special.round(cursorCoordinates[1] * 100) / 100
         outputJoystickAxisX = scipy.special.round(joystickAxis[0] * 1000) / 1000
         outputJoystickAxisY = scipy.special.round(joystickAxis[1] * 1000) / 1000
 
@@ -239,13 +239,12 @@ def checkMouseClicked():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             quit_app()
-            return True
         elif event.type == pygame.MOUSEBUTTONDOWN:
             pos = pygame.mouse.get_pos()
             posString = str(pos[0]) + "_" + str(pos[1])
             startTime = time.time()
             writeParticipantDataFile("MousePressed", posString)
-            return True
+            return pos[0], pos[1]
     return False
 
 
@@ -257,13 +256,17 @@ def checkKeyPressed():
     global joystickAxis
     global typingTaskWindowSize
     global incorrectDigits
-    global visitDigits
-    global visitIncorrectDigitsNum
+    global correctlyTypedDigitsInVisit
+    global incorrectlyTypedDigitsInVisit
+    global cursorCoordinates
+
+    mouseClickCoordinates = checkMouseClicked()
+    if mouseClickCoordinates:
+        cursorCoordinates = mouseClickCoordinates
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             quit_app()
-            return
         elif event.type == pygame.JOYAXISMOTION:
             if trackingTaskPresent:
                 # values between -1 and 1. (-1,-1) top left corner, (1,-1) top right; (-1,1) bottom left, (1,1) bottom right
@@ -306,7 +309,6 @@ def checkKeyPressed():
                     keyPressed = "-"
                 elif event.key == pygame.K_F4:
                     quit_app()
-                    raise Exception("F4 key pressed and program terminated")
                 else:
                     return
 
@@ -319,11 +321,11 @@ def checkKeyPressed():
                             newpart = ''.join(random.sample(availableTypingTaskNumbers, 1))
                         generatedTypingTaskNumbers = generatedTypingTaskNumbers + newpart
                         writeParticipantDataFile("keypress", keyPressed)
-                        visitDigits = visitDigits + 1
+                        correctlyTypedDigitsInVisit += 1
                     else:
                         writeParticipantDataFile("wrongKeypress", keyPressed)
-                        incorrectDigits = incorrectDigits + 1
-                        visitIncorrectDigitsNum = visitIncorrectDigitsNum + 1
+                        incorrectDigits += 1
+                        incorrectlyTypedDigitsInVisit += 1
                 else:
                     writeParticipantDataFile("stringTypedTooLong", keyPressed)
 
@@ -334,8 +336,7 @@ def checkKeyPressed():
 
                 # then post new message
                 f = pygame.font.Font(None, fontsizeGoalAndTypingTaskNumber)
-                typingTaskNumberMessage = f.render(generatedTypingTaskNumbers[len(enteredDigitsStr):(len(enteredDigitsStr) + 27)], True,
-                                             (0, 0, 0))
+                typingTaskNumberMessage = f.render(generatedTypingTaskNumbers[len(enteredDigitsStr):(len(enteredDigitsStr) + 27)], True, (0, 0, 0))
                 screen.blit(typingTaskNumberMessage, topLeftCornerOfTypingTaskNumber)
 
 
@@ -355,116 +356,6 @@ def switchWindows(message):
                 closeTrackerWindow()
             if (not typingWindowVisible) and typingTaskPresent:
                 openTypingWindow()
-
-
-def updateCursor(sleepTime):
-    global screen
-    global CursorCoordinates
-    global startTime
-    global maxTrialTimeDual
-    global maxTrialTimeSingleTyping
-    global joystickAxis
-    global trackerWindowVisible
-    global stepSizeOfTrackerScreenUpdate
-    global outsideRadius
-    global radiusCircle
-
-    x = CursorCoordinates[0]
-    y = CursorCoordinates[1]
-    final_x = x
-    final_y = y
-
-    # only add noise if tracker is not moving
-    motionThreshold = 0.08
-    if not (trackerWindowVisible and (joystickAxis[0] > motionThreshold or joystickAxis[0] < -1 * motionThreshold or joystickAxis[1] > motionThreshold or joystickAxis[1] < -1 * motionThreshold)):
-        final_x = x + random.gauss(0, standardDeviationOfNoise)
-        final_y = y + random.gauss(0, standardDeviationOfNoise)
-
-    if trackerWindowVisible:  # only add joystickAxis if the window is open (i.e., if the participant sees what way cursor moves!)
-        final_x += joystickAxis[0] * scalingJoystickAxis
-        final_y += joystickAxis[1] * scalingJoystickAxis
-
-    # now iterate through updates (but only do that if the window is open - if it's closed do it without mini-steps, so as to make computation faster)s
-    nrUpdates = int(sleepTime / stepSizeOfTrackerScreenUpdate)
-    delta_x = (final_x - x) / nrUpdates
-    delta_y = (final_y - y) / nrUpdates
-
-    if trackerWindowVisible:
-        for i in range(0, nrUpdates):
-            x += delta_x
-            y += delta_y
-
-            if (x, y) != CursorCoordinates:
-                # now check if the cursor is still within screen range
-                if x < (topLeftCornerOfTrackingTaskWindow[0] + CursorSize[0] / 2):
-                    x = topLeftCornerOfTrackingTaskWindow[0] + CursorSize[0] / 2
-                elif x > (topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] - CursorSize[0] / 2):
-                    x = topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] - CursorSize[0] / 2
-
-                if y < (topLeftCornerOfTrackingTaskWindow[1] + CursorSize[1] / 2):
-                    y = topLeftCornerOfTrackingTaskWindow[1] + CursorSize[1] / 2
-                elif y > (topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] - CursorSize[1] / 2):
-                    y = topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] - CursorSize[1] / 2
-
-                if trackerWindowVisible:  # only update screen when it's visible
-                    # now prepare the screen for an update
-                    # first do appropriate cover-up
-                    oldLocationX = CursorCoordinates[0] - CursorSize[0] / 2
-                    oldLocationY = CursorCoordinates[1] - CursorSize[1] / 2  # gives top-left corner of block
-                    blockMaskingOldLocation = pygame.Surface(CursorSize).convert()
-                    blockMaskingOldLocation.fill(backgroundColorTrackerScreen)
-                    screen.blit(blockMaskingOldLocation, (oldLocationX, oldLocationY))
-
-                    windowMiddleX = topLeftCornerOfTrackingTaskWindow[0] + int(TrackingTaskWindowSize[0] / 2.0)
-                    windowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(TrackingTaskWindowSize[1] / 2.0)
-
-                    distanceCursorMiddle = math.sqrt((abs(windowMiddleX - x)) ** 2 + (abs(windowMiddleY - y)) ** 2)
-                    if distanceCursorMiddle > radiusCircle:
-                        outsideRadius = True
-                        print("OUTSIDE RADIUS TRUE")
-                    else:
-                        outsideRadius = False
-                        print("outsideRadius false")
-
-                    # always redraw cursor
-                    newLocation = (x - CursorSize[0] / 2, y - CursorSize[1] / 2)
-                    blockAtNewLocation = pygame.Surface(CursorSize).convert()
-                    blockAtNewLocation.fill(CursorColor)
-
-                    # blit puts something new on the screen  (should not contain too much info!!)
-                    screen.blit(blockAtNewLocation, newLocation)
-
-            # always update coordinates
-            CursorCoordinates = (x, y)
-            pygame.display.flip()
-            time.sleep(stepSizeOfTrackerScreenUpdate)
-
-        # see if there is additional time to sleep
-        mods = sleepTime % stepSizeOfTrackerScreenUpdate
-        if mods != 0:
-            time.sleep(mods)
-
-    # if tracker window is not visible, just update the values
-    else:
-        x = final_x
-        y = final_y
-
-        # now check if the cursor is still within screen range
-        if (x, y) != CursorCoordinates:
-            if x < (topLeftCornerOfTrackingTaskWindow[0] + CursorSize[0] / 2):
-                x = topLeftCornerOfTrackingTaskWindow[0] + CursorSize[0] / 2
-            elif x > (topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] - CursorSize[0] / 2):
-                x = topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] - CursorSize[0] / 2
-
-            if y < (topLeftCornerOfTrackingTaskWindow[1] + CursorSize[1] / 2):
-                y = topLeftCornerOfTrackingTaskWindow[1] + CursorSize[1] / 2
-            elif y > (topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] - CursorSize[1] / 2):
-                y = topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] - CursorSize[1] / 2
-        # if display is not updated, sleep for entire time
-        time.sleep(sleepTime)
-
-    # always update coordinates
-    CursorCoordinates = (x, y)
 
 
 def printTextOverMultipleLines(text, fontsize, color, location):
@@ -707,6 +598,18 @@ def generateTypingTaskNumber():
         generatedTypingTaskNumbers = generatedTypingTaskNumbers + newpart
 
 
+def drawCircles(bg):
+    # draw a filled circle
+    drawCircle(bg, radiusInnerColor,
+               (int(TrackingTaskWindowSize[0] / 2), int(TrackingTaskWindowSize[1] / 2)),
+               radiusCircle, 0)
+    # Draws a circular shape on the Surface. The pos argument is the center of the circle, and radius is the size.
+    #  The width argument is the thickness to draw the outer edge. If width is zero then the circle will be filled.
+    drawCircle(bg, radiusOuterColor,
+               (int(TrackingTaskWindowSize[0] / 2), int(TrackingTaskWindowSize[1] / 2)),
+               radiusCircle, 5)
+
+
 def drawCircle(image, colour, origin, radius, width=0):
     # based on recommendation on pygame website
     if width == 0:
@@ -724,11 +627,123 @@ def drawCircle(image, colour, origin, radius, width=0):
         image.blit(circle, [origin[0] - (circle.get_width() / 2), origin[1] - (circle.get_height() / 2)])
 
 
+def drawCursor(sleepTime):
+    global screen
+    global cursorCoordinates
+    global startTime
+    global maxTrialTimeDual
+    global maxTrialTimeSingleTyping
+    global joystickAxis
+    global trackerWindowVisible
+    global stepSizeOfTrackerScreenUpdate
+    global outsideRadius
+    global radiusCircle
+    global cursorColor
+
+    x = cursorCoordinates[0]
+    y = cursorCoordinates[1]
+    final_x = x
+    final_y = y
+
+    # only add noise if tracker is not moving
+    motionThreshold = 0.08
+    if not (trackerWindowVisible and (joystickAxis[0] > motionThreshold or joystickAxis[0] < -1 * motionThreshold or joystickAxis[1] > motionThreshold or joystickAxis[1] < -1 * motionThreshold)):
+        final_x = x + random.gauss(0, standardDeviationOfNoise)
+        final_y = y + random.gauss(0, standardDeviationOfNoise)
+
+    if trackerWindowVisible:  # only add joystickAxis if the window is open (i.e., if the participant sees what way cursor moves!)
+        final_x += joystickAxis[0] * scalingJoystickAxis
+        final_y += joystickAxis[1] * scalingJoystickAxis
+
+    # now iterate through updates (but only do that if the window is open - if it's closed do it without mini-steps, so as to make computation faster)s
+    nrUpdates = int(sleepTime / stepSizeOfTrackerScreenUpdate)
+    delta_x = (final_x - x) / nrUpdates
+    delta_y = (final_y - y) / nrUpdates
+
+    if trackerWindowVisible:
+        for i in range(0, nrUpdates):
+            x += delta_x
+            y += delta_y
+
+            if (x, y) != cursorCoordinates:
+                # now check if the cursor is still within screen range
+                if x < (topLeftCornerOfTrackingTaskWindow[0] + cursorSize[0] / 2):
+                    x = topLeftCornerOfTrackingTaskWindow[0] + cursorSize[0] / 2
+                elif x > (topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] - cursorSize[0] / 2):
+                    x = topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] - cursorSize[0] / 2
+
+                if y < (topLeftCornerOfTrackingTaskWindow[1] + cursorSize[1] / 2):
+                    y = topLeftCornerOfTrackingTaskWindow[1] + cursorSize[1] / 2
+                elif y > (topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] - cursorSize[1] / 2):
+                    y = topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] - cursorSize[1] / 2
+
+                if trackerWindowVisible:  # only update screen when it's visible
+                    # now prepare the screen for an update
+                    # first do appropriate cover-up
+                    oldLocationX = cursorCoordinates[0] - cursorSize[0] / 2
+                    oldLocationY = cursorCoordinates[1] - cursorSize[1] / 2  # gives top-left corner of block
+                    blockMaskingOldLocation = pygame.Surface(cursorSize).convert()
+                    blockMaskingOldLocation.fill(backgroundColorTrackerScreen)
+                    screen.blit(blockMaskingOldLocation, (oldLocationX, oldLocationY))
+
+                    windowMiddleX = topLeftCornerOfTrackingTaskWindow[0] + int(TrackingTaskWindowSize[0] / 2.0)
+                    windowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(TrackingTaskWindowSize[1] / 2.0)
+
+                    distanceCursorMiddle = math.sqrt((abs(windowMiddleX - x)) ** 2 + (abs(windowMiddleY - y)) ** 2)
+                    if distanceCursorMiddle > radiusCircle:
+                        outsideRadius = True
+                        cursorColor = (255, 0, 0)  # red
+                    else:
+                        outsideRadius = False
+                        cursorColor = (0, 0, 255)  # blue
+
+                    # always redraw cursor
+                    newLocation = (x - cursorSize[0] / 2, y - cursorSize[1] / 2)
+                    blockAtNewLocation = pygame.Surface(cursorSize).convert()
+                    blockAtNewLocation.fill(cursorColor)
+
+                    # blit puts something new on the screen  (should not contain too much info!!)
+                    screen.blit(blockAtNewLocation, newLocation)
+
+            # always update coordinates
+            cursorCoordinates = (x, y)
+            pygame.display.flip()
+            time.sleep(stepSizeOfTrackerScreenUpdate)
+
+        # see if there is additional time to sleep
+        mods = sleepTime % stepSizeOfTrackerScreenUpdate
+        if mods != 0:
+            time.sleep(mods)
+
+    # if tracker window is not visible, just update the values
+    else:
+        x = final_x
+        y = final_y
+
+        # now check if the cursor is still within screen range
+        if (x, y) != cursorCoordinates:
+            if x < (topLeftCornerOfTrackingTaskWindow[0] + cursorSize[0] / 2):
+                x = topLeftCornerOfTrackingTaskWindow[0] + cursorSize[0] / 2
+            elif x > (topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] - cursorSize[0] / 2):
+                x = topLeftCornerOfTrackingTaskWindow[0] + TrackingTaskWindowSize[0] - cursorSize[0] / 2
+
+            if y < (topLeftCornerOfTrackingTaskWindow[1] + cursorSize[1] / 2):
+                y = topLeftCornerOfTrackingTaskWindow[1] + cursorSize[1] / 2
+            elif y > (topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] - cursorSize[1] / 2):
+                y = topLeftCornerOfTrackingTaskWindow[1] + TrackingTaskWindowSize[1] - cursorSize[1] / 2
+        # if display is not updated, sleep for entire time
+        time.sleep(sleepTime)
+
+    # always update coordinates
+    cursorCoordinates = (x, y)
+
+
 def closeTypingWindow():
     print("FUNCTION: " + getFunctionName())
     global screen
     global typingWindowVisible
     global radiusCircle
+    global visitEndTime
 
     # draw background
     bg = pygame.Surface(TrackingTaskWindowSize).convert()
@@ -736,6 +751,7 @@ def closeTypingWindow():
 
     screen.blit(bg, topLeftCornerOfTypingTaskWindow)  # make area about 30 away from centre
     typingWindowVisible = False
+    visitEndTime = time.time()
 
 
 def openTypingWindow():
@@ -744,17 +760,14 @@ def openTypingWindow():
     global typingWindowVisible
     global typingWindowEntryCounter
     global outsideRadius
-    global visitDigits
-    global visitIncorrectDigitsNum
+    global correctlyTypedDigitsInVisit
+    global incorrectlyTypedDigitsInVisit
     global visitStartTime
 
     visitStartTime = time.time()
-    print("start time:")
-    print(visitStartTime)
-
     outsideRadius = False
-    visitDigits = 0
-    visitIncorrectDigitsNum = 0
+    correctlyTypedDigitsInVisit = 0
+    incorrectlyTypedDigitsInVisit = 0
 
     typingWindowEntryCounter = typingWindowEntryCounter + 1
 
@@ -774,12 +787,14 @@ def closeTrackerWindow():
     print("FUNCTION: " + getFunctionName())
     global screen
     global trackerWindowVisible
+    global visitEndTime
 
     # draw background
     bg = pygame.Surface(TrackingTaskWindowSize).convert()
     bg.fill(coverUpColor)
     screen.blit(bg, topLeftCornerOfTrackingTaskWindow)  # make area about 30 away from centre
     trackerWindowVisible = False
+    visitEndTime = time.time()
 
 
 def openTrackerWindow():
@@ -789,13 +804,12 @@ def openTrackerWindow():
     global trackingWindowEntryCounter
     global joystickAxis
     global visitScore
-    global visitEndTime
-    global CursorColor
-    global CursorCoordinates
+    global visitStartTime
+    global cursorColor
+    global cursorCoordinates
 
-    visitEndTime = time.time()
-    print("End Time:")
-    print(visitEndTime)
+    visitStartTime = time.time()
+    trackingWindowEntryCounter += 1
 
     if experiment == "dualTask" or experiment == "practiceDualTask":
         updateIntermediateScoreAndWriteSummaryDataFile()
@@ -804,24 +818,11 @@ def openTrackerWindow():
     bg = pygame.Surface(TrackingTaskWindowSize).convert()
     bg.fill(backgroundColorTrackerScreen)
 
-    trackingWindowEntryCounter += 1
-
-    # draw a filled circle
-    drawCircle(bg, radiusInnerColor,
-               (int(TrackingTaskWindowSize[0] / 2), int(TrackingTaskWindowSize[1] / 2)),
-               radiusCircle, 0)
-
-    # Draws a circular shape on the Surface. The pos argument is the center of the circle, and radius is the size.
-    #  The width argument is the thickness to draw the outer edge. If width is zero then the circle will be filled.
-    drawCircle(bg, radiusOuterColor,
-               (int(TrackingTaskWindowSize[0] / 2), int(TrackingTaskWindowSize[1] / 2)),
-               radiusCircle, 5)
-
+    drawCircles(bg)
     screen.blit(bg, topLeftCornerOfTrackingTaskWindow)  # make area about 30 away from centre
-
-    newLocation = (CursorCoordinates[0] - (CursorSize[0] / 2), CursorCoordinates[1] - (CursorSize[1] / 2))
-    blockAtNewLocation = pygame.Surface(CursorSize).convert()
-    blockAtNewLocation.fill(CursorColor)
+    newLocation = (cursorCoordinates[0] - (cursorSize[0] / 2), cursorCoordinates[1] - (cursorSize[1] / 2))
+    blockAtNewLocation = pygame.Surface(cursorSize).convert()
+    blockAtNewLocation.fill(cursorColor)
     screen.blit(blockAtNewLocation, newLocation)  # blit puts something new on the screen
     trackerWindowVisible = True
 
@@ -841,19 +842,19 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     print("FUNCTION: " + getFunctionName())
     global duringTrialScore  # cumulative score for the current trial
     global outsideRadius  # boolean - did the cursor leave the circle
-    global visitDigits  # number of correctly typed digits
-    global visitIncorrectDigitsNum  # number of incorrectly typed digits
+    global correctlyTypedDigitsInVisit  # number of correctly typed digits
+    global incorrectlyTypedDigitsInVisit  # number of incorrectly typed digits
     global radiusCircle
     global visitScore  # Score for one visit to the digit window
     global visitStartTime
     global visitEndTime
-    global CursorColor
+    global cursorColor
     global penalty
 
     if outsideRadius:
         if penalty == "lose500":
             # loose 500
-            visitScore = ((visitDigits + 10) + (visitIncorrectDigitsNum - 5)) - 500
+            visitScore = ((correctlyTypedDigitsInVisit + 10) + (incorrectlyTypedDigitsInVisit - 5)) - 500
 
         if penalty == "loseAll":
             # loose all
@@ -861,9 +862,9 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
 
         if penalty == "loseHalf":
             # loose half
-            visitScore = 0.5 * ((visitDigits * 10) + (visitIncorrectDigitsNum * -5))  # penalty for exit is to lose half points
+            visitScore = 0.5 * ((correctlyTypedDigitsInVisit * 10) + (incorrectlyTypedDigitsInVisit * -5))  # penalty for exit is to lose half points
     else:
-        visitScore = (visitDigits * 10) + (visitIncorrectDigitsNum * -5)  # gain is 10 for correct digit and -5 for incorrect digit
+        visitScore = (correctlyTypedDigitsInVisit * 10) + (incorrectlyTypedDigitsInVisit * -5)  # gain is 10 for correct digit and -5 for incorrect digit
 
     # add the score for this digit task visit to the overall trial score
     # duringtrial score is used in reportUserScore
@@ -966,7 +967,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global screen
     global maxTrialTimeSingleTracking
     global startTime  # stores time at which trial starts
-    global CursorCoordinates
+    global cursorCoordinates
     global trackingTaskPresent
     global typingTaskPresent
     global joystickObject
@@ -1008,9 +1009,9 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         typingTaskPresent = False
 
         trialNumber = trialNumber + 1
-        completebg = pygame.Surface(ExperimentWindowSize).convert()
-        completebg.fill(backgroundColorEntireScreen)
-        screen.blit(completebg, (0, 0))
+        bg = pygame.Surface(ExperimentWindowSize).convert()
+        bg.fill(backgroundColorEntireScreen)
+        screen.blit(bg , (0, 0))
 
         startTime = time.time()
 
@@ -1038,7 +1039,8 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
 
             if trackingTaskPresent:
-                updateCursor(0.02)
+                drawCircles(bg)
+                drawCursor(0.02)
                 writeParticipantDataFile("none", "none")
 
             pygame.display.flip()
@@ -1056,7 +1058,7 @@ def runDualTaskTrials(isPracticeTrial):
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global enteredDigitsStr
-    global CursorCoordinates
+    global cursorCoordinates
     global trackingTaskPresent
     global typingTaskPresent
     global joystickObject
@@ -1072,7 +1074,7 @@ def runDualTaskTrials(isPracticeTrial):
     global incorrectDigits
     global duringTrialScore
     global outsideRadius
-    global visitDigits
+    global correctlyTypedDigitsInVisit
     global visitStartTime
     global visitEndTime
 
@@ -1113,7 +1115,7 @@ def runDualTaskTrials(isPracticeTrial):
     for i in range(0, numberOfTrials):
         duringTrialScore = 0
         outsideRadius = False
-        visitDigits = 0
+        correctlyTypedDigitsInVisit = 0
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1161,7 +1163,7 @@ def runDualTaskTrials(isPracticeTrial):
         while (time.time() - startTime) < maxTrialTimeDual and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
             if trackingTaskPresent:
-                updateCursor(0.02)
+                drawCursor(0.02)
                 writeParticipantDataFile("none", "none")
             pygame.display.flip()
 
@@ -1233,7 +1235,7 @@ def readInputAndCreateOutputFiles(subjNrStr):
                  "EnteredDigitsLength;" \
                  "GeneratedTypingTaskNumberLength;" \
                  "EventMessage1;" \
-                 "Eventmessage2" + "\n"
+                 "EventMessage2" + "\n"
     outputFile.write(outputText)
 
     ########################Second Output File######################################
@@ -1246,8 +1248,8 @@ def readInputAndCreateOutputFiles(subjNrStr):
                         "Experiment;" \
                         "StandardDeviationOfNoise;" \
                         "VisitTime;" \
-                        "VisitCorrectDigits;" \
-                        "VisitIncorrectDigitsNum;" \
+                        "CorrectlyTypedDigitsInVisit;" \
+                        "IncorrectlyTypedDigitsInVisit;" \
                         "VisitScore;" \
                         "OutsideRadius" + "\n"
     summaryOutputFile.write(summaryOutputText)
@@ -1275,7 +1277,11 @@ def main():
     timeOfCompleteStartOfExperiment = time.time()
 
     pygame.init()
-    screen = pygame.display.set_mode(ExperimentWindowSize)#, pygame.FULLSCREEN)
+    fullscreen = False
+    if fullscreen:
+        screen = pygame.display.set_mode(ExperimentWindowSize, pygame.FULLSCREEN)
+    else:
+        screen = pygame.display.set_mode(ExperimentWindowSize)
     pygame.display.set_caption("Multitasking 2.0")
     environmentIsRunning = True
 
@@ -1364,14 +1370,14 @@ def main():
         if showPrecedingPenaltyInfo == "yes":
             message = "NEUER BLOCK: \n\n\n" \
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
-                                                                                              "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
-                                                                                              "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
-                                                                                              "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
+                      "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
+                      "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
+                      "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
         else:
             message = "NEUER BLOCK: \n\n\n" \
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
-                                                                                              "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
-                                                                                              "Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
+                      "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
+                      "Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
         GiveMessageOnScreen(message, 10)
 
         runSingleTaskTrackingTrials(False)
@@ -1381,12 +1387,11 @@ def main():
         message = "Bisher hast du: " + str(scipy.sum(scoresForPayment)) + " Punkte"
         GiveMessageOnScreen(message, 8)
 
-    GiveMessageOnScreen("Dies ist das Ende der Studie.", 5)
+    GiveMessageOnScreen("Dies ist das Ende der Studie.", 10)
+    quit_app(False)
 
-    quit_app()
 
-
-def quit_app():
+def quit_app(terminate = True):
     global environmentIsRunning
     global outputFile
     global summaryOutputFile
@@ -1396,6 +1401,8 @@ def quit_app():
     pygame.quit()
     outputFile.close()
     summaryOutputFile.close()
+    if terminate:
+        raise Exception("quit_app() was called")
 
 
 def getFunctionName():
