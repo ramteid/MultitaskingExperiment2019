@@ -1293,7 +1293,7 @@ def readInputAndCreateOutputFiles(subjNrStr):
                  "EnteredDigitsLength;" \
                  "GeneratedTypingTaskNumberLength;" \
                  "NumberOfCircleExits;" \
-                 "trialScore;" \
+                 "TrialScore;" \
                  "EventMessage1;" \
                  "EventMessage2" + "\n"
     outputFile.write(outputText)
