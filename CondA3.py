@@ -177,6 +177,7 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
     global typingWindowEntryCounter
     global standardDeviationOfNoise
     global timeOfCompleteStartOfExperiment  # time at which experiment started
+    global numberOfCircleExits
 
     currentTime = time.time() - timeOfCompleteStartOfExperiment  # this is an absolute time, that always increases (necessary to syncronize with eye-tracker)
     currentTime = scipy.special.round(currentTime * 10000) / 10000
@@ -229,6 +230,7 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
         str(outputGeneratedTypingTaskNumbers) + ";" + \
         str(outputTypingTaskNumberLength) + ";" + \
         str(outputGeneratedTypingTaskNumbersLength) + ";" + \
+        str(numberOfCircleExits) + ";" + \
         str(eventMessage1) + ";" + \
         str(eventMessage2) + "\n"
 
@@ -880,6 +882,7 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     print("FUNCTION: " + getFunctionName())
     global duringTrialScore  # cumulative score for the current trial
     global outsideRadius  # boolean - did the cursor leave the circle
+    global numberOfCircleExits
     global correctlyTypedDigitsInVisit  # number of correctly typed digits
     global incorrectlyTypedDigitsInVisit  # number of incorrectly typed digits
     global radiusCircle
@@ -890,6 +893,7 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     global penalty
 
     if outsideRadius:
+        numberOfCircleExits += 1
         if penalty == "lose500":
             # loose 500
             visitScore = ((correctlyTypedDigitsInVisit + 10) + (incorrectlyTypedDigitsInVisit - 5)) - 500
@@ -931,6 +935,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global trackingWindowEntryCounter
     global typingWindowEntryCounter
     global incorrectDigits
+    global numberOfCircleExits
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTypingTrials
@@ -949,6 +954,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
                             "Kopiere die Ziffern so schnell wie möglich", 5)
 
     for i in range(0, numberOfTrials):
+        numberOfCircleExits = 0
         incorrectDigits = 0
 
         GiveCountdownMessageOnScreen(3)
@@ -1016,6 +1022,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global typingWindowVisible
     global trackingWindowEntryCounter
     global typingWindowEntryCounter
+    global numberOfCircleExits
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTrackingTrials
@@ -1038,6 +1045,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             5)
 
     for i in range(0, numberOfTrials):
+        numberOfCircleExits = 0
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  ###clear all events
         trackerWindowVisible = True
@@ -1113,6 +1121,7 @@ def runDualTaskTrials(isPracticeTrial):
     global incorrectDigits
     global duringTrialScore
     global outsideRadius
+    global numberOfCircleExits
     global correctlyTypedDigitsInVisit
     global visitStartTime
     global visitEndTime
@@ -1152,6 +1161,7 @@ def runDualTaskTrials(isPracticeTrial):
                             "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
 
     for i in range(0, numberOfTrials):
+        numberOfCircleExits = 0
         duringTrialScore = 0
         outsideRadius = False
         correctlyTypedDigitsInVisit = 0
@@ -1278,6 +1288,7 @@ def readInputAndCreateOutputFiles(subjNrStr):
                  "GeneratedTypingTaskNumbers;" \
                  "EnteredDigitsLength;" \
                  "GeneratedTypingTaskNumberLength;" \
+                 "NumberOfCircleExits;" \
                  "EventMessage1;" \
                  "EventMessage2" + "\n"
     outputFile.write(outputText)
