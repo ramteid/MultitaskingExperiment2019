@@ -27,11 +27,11 @@ import datetime
 
 ######initialize global variables
 
-incorrectDigits = 0
+incorrectDigitsTrial = 0
 trialScore = 0
 outsideRadius = False
 correctlyTypedDigitsInVisit = 0
-incorrectlyTypedDigitsInVisit = 0
+incorrectlyTypedDigitsVisit = 0
 visitScore = 0
 visitEndTime = 0
 visitStartTime = 0
@@ -138,7 +138,7 @@ def writeSummaryDataFile(visitTime, outsideRadius1):
     global standardDeviationOfNoise
     global visitScore
     global correctlyTypedDigitsInVisit
-    global incorrectlyTypedDigitsInVisit
+    global incorrectlyTypedDigitsVisit
 
     summaryOutputText = \
         str(subjNr) + ";" + \
@@ -148,7 +148,7 @@ def writeSummaryDataFile(visitTime, outsideRadius1):
         str(standardDeviationOfNoise) + ";" + \
         str(visitTime) + ";" + \
         str(correctlyTypedDigitsInVisit) + ";" + \
-        str(incorrectlyTypedDigitsInVisit) + ";" + \
+        str(incorrectlyTypedDigitsVisit) + ";" + \
         str(visitScore) + ";" + \
         str(outsideRadius1) + "\n"
 
@@ -179,6 +179,7 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
     global timeOfCompleteStartOfExperiment  # time at which experiment started
     global numberOfCircleExits
     global trialScore
+    global incorrectDigitsTrial
 
     currentTime = time.time() - timeOfCompleteStartOfExperiment  # this is an absolute time, that always increases (necessary to syncronize with eye-tracker)
     currentTime = scipy.special.round(currentTime * 10000) / 10000
@@ -233,6 +234,7 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
         str(outputGeneratedTypingTaskNumbersLength) + ";" + \
         str(numberOfCircleExits) + ";" + \
         str(trialScore) + ";" + \
+        str(incorrectDigitsTrial) + ";" + \
         str(eventMessage1) + ";" + \
         str(eventMessage2) + "\n"
 
@@ -258,9 +260,9 @@ def checkKeyPressed():
     global joystickObject  # the joystick object
     global joystickAxis
     global typingTaskWindowSize
-    global incorrectDigits
+    global incorrectDigitsTrial
     global correctlyTypedDigitsInVisit
-    global incorrectlyTypedDigitsInVisit
+    global incorrectlyTypedDigitsVisit
     global cursorCoordinates
 
     for event in pygame.event.get():
@@ -329,8 +331,8 @@ def checkKeyPressed():
                         correctlyTypedDigitsInVisit += 1
                     else:
                         writeParticipantDataFile("wrongKeypress", keyPressed)
-                        incorrectDigits += 1
-                        incorrectlyTypedDigitsInVisit += 1
+                        incorrectDigitsTrial += 1
+                        incorrectlyTypedDigitsVisit += 1
                 else:
                     writeParticipantDataFile("stringTypedTooLong", keyPressed)
 
@@ -475,7 +477,7 @@ def reportUserScore():
     global typingTaskPresent
     global experiment
     global scoresForPayment
-    global incorrectDigits
+    global incorrectDigitsTrial
     global trialScore
 
     # prepare background
@@ -510,8 +512,8 @@ def reportUserScore():
             digitScore = digitPressTimes[-1] - digitPressTimes[0]
             # round values
             digitScore = scipy.special.round(digitScore * 10) / 10
-            feedbackText += "\n\n" + str(incorrectDigits) + " Fehler"
-            scoresOnThisBlock.append(incorrectDigits)
+            feedbackText += "\n\n" + str(incorrectDigitsTrial) + " Fehler"
+            scoresOnThisBlock.append(incorrectDigitsTrial)
             scoreForLogging = digitScore
 
     if feedbackText != "":
@@ -779,13 +781,13 @@ def openTypingWindow():
     global typingWindowEntryCounter
     global outsideRadius
     global correctlyTypedDigitsInVisit
-    global incorrectlyTypedDigitsInVisit
+    global incorrectlyTypedDigitsVisit
     global visitStartTime
 
     visitStartTime = time.time()
     outsideRadius = False
     correctlyTypedDigitsInVisit = 0
-    incorrectlyTypedDigitsInVisit = 0
+    incorrectlyTypedDigitsVisit = 0
 
     typingWindowEntryCounter = typingWindowEntryCounter + 1
 
@@ -884,7 +886,7 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
     global outsideRadius  # boolean - did the cursor leave the circle
     global numberOfCircleExits
     global correctlyTypedDigitsInVisit  # number of correctly typed digits
-    global incorrectlyTypedDigitsInVisit  # number of incorrectly typed digits
+    global incorrectlyTypedDigitsVisit  # number of incorrectly typed digits
     global radiusCircle
     global visitScore  # Score for one visit to the digit window
     global visitStartTime
@@ -896,7 +898,7 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
         numberOfCircleExits += 1
         if penalty == "lose500":
             # loose 500
-            visitScore = ((correctlyTypedDigitsInVisit + 10) + (incorrectlyTypedDigitsInVisit - 5)) - 500
+            visitScore = ((correctlyTypedDigitsInVisit + 10) + (incorrectlyTypedDigitsVisit - 5)) - 500
 
         if penalty == "loseAll":
             # loose all
@@ -904,9 +906,9 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
 
         if penalty == "loseHalf":
             # loose half
-            visitScore = 0.5 * ((correctlyTypedDigitsInVisit * 10) + (incorrectlyTypedDigitsInVisit * -5))  # penalty for exit is to lose half points
+            visitScore = 0.5 * ((correctlyTypedDigitsInVisit * 10) + (incorrectlyTypedDigitsVisit * -5))  # penalty for exit is to lose half points
     else:
-        visitScore = (correctlyTypedDigitsInVisit * 10) + (incorrectlyTypedDigitsInVisit * -5)  # gain is 10 for correct digit and -5 for incorrect digit
+        visitScore = (correctlyTypedDigitsInVisit * 10) + (incorrectlyTypedDigitsVisit * -5)  # gain is 10 for correct digit and -5 for incorrect digit
 
     # add the score for this digit task visit to the overall trial score
     # duringtrial score is used in reportUserScore
@@ -934,7 +936,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global typingWindowVisible
     global trackingWindowEntryCounter
     global typingWindowEntryCounter
-    global incorrectDigits
+    global incorrectDigitsTrial
     global numberOfCircleExits
     global trialScore
 
@@ -957,7 +959,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
         trialScore = 0
-        incorrectDigits = 0
+        incorrectDigitsTrial = 0
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1122,13 +1124,13 @@ def runDualTaskTrials(isPracticeTrial):
     global availableTypingTaskNumbers
     global trackingWindowEntryCounter
     global typingWindowEntryCounter
-    global incorrectDigits
     global trialScore
     global outsideRadius
     global numberOfCircleExits
     global correctlyTypedDigitsInVisit
     global visitStartTime
     global visitEndTime
+    global incorrectDigitsTrial
 
     blockNumber += 1
 
@@ -1167,6 +1169,7 @@ def runDualTaskTrials(isPracticeTrial):
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
         trialScore = 0
+        incorrectDigitsTrial = 0
         outsideRadius = False
         correctlyTypedDigitsInVisit = 0
 
@@ -1294,6 +1297,7 @@ def readInputAndCreateOutputFiles(subjNrStr):
                  "GeneratedTypingTaskNumberLength;" \
                  "NumberOfCircleExits;" \
                  "TrialScore;" \
+                 "IncorrectDigitsTrial;" \
                  "EventMessage1;" \
                  "EventMessage2" + "\n"
     outputFile.write(outputText)
