@@ -295,8 +295,8 @@ def checkKeyPressed():
                 print("PRESSED F1 CLOSE TRACKING")
                 switchWindows("closeTracking")
                 writeParticipantDataFile("ButtonRelease", "none")
-            if event.key == pygame.K_F2 and typingWindowVisible and trackingTaskPresent:
-                print("PRESSED F2 OPEN TRACKING")
+            elif event.key == pygame.K_F1 and typingWindowVisible and trackingTaskPresent:
+                print("PRESSED F1 OPEN TRACKING")
                 switchWindows("openTracking")
                 writeParticipantDataFile("ButtonPress", "none")
 
