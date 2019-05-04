@@ -264,6 +264,8 @@ def checkKeyPressed():
     global correctlyTypedDigitsInVisit
     global incorrectlyTypedDigitsVisit
     global cursorCoordinates
+    global typingTaskPresent
+    global trackingTaskPresent
 
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -289,6 +291,15 @@ def checkKeyPressed():
                 writeParticipantDataFile("ButtonPress", "none")
 
         elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_F1 and trackerWindowVisible and typingTaskPresent:
+                print("PRESSED F1 CLOSE TRACKING")
+                switchWindows("closeTracking")
+                writeParticipantDataFile("ButtonRelease", "none")
+            if event.key == pygame.K_F2 and typingWindowVisible and trackingTaskPresent:
+                print("PRESSED F2 OPEN TRACKING")
+                switchWindows("openTracking")
+                writeParticipantDataFile("ButtonPress", "none")
+
             # only process keypresses if the digit task is present
             if typingTaskPresent and typingWindowVisible:
                 if event.key == pygame.K_0 or event.key == pygame.K_KP0:
@@ -1092,7 +1103,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         while ((time.time() - startTime) < maxTrialTimeSingleTracking) and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
 
-            if trackingTaskPresent:
+            if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
                 writeParticipantDataFile("none", "none")
@@ -1222,7 +1233,7 @@ def runDualTaskTrials(isPracticeTrial):
 
         while (time.time() - startTime) < maxTrialTimeDual and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
-            if trackingTaskPresent:
+            if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
                 writeParticipantDataFile("none", "none")
