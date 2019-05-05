@@ -1,18 +1,10 @@
 # coding=utf-8
 #############################
-#############################
-#############################
-#############################
 ####
 ####  Multitasking experiment: Typing digits (keyboard) while tracking (joystick)
-####  Developed by Christian P. Janssen, c.janssen@ucl.ac.uk
-####  December 2009 - March 2010
+####  Developed by Dietmar Sach (dsach@mail.de) for the Institute of Sport Science of the University of Augsburg
+####  Based on a script made by Christian P. Janssen, c.janssen@ucl.ac.uk December 2009 - March 2010
 ####
-####
-####
-####
-#############################
-#############################
 #############################
 import inspect
 import random
