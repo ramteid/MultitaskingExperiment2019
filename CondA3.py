@@ -906,6 +906,7 @@ def updateScore():
     # duringtrial score is used in reportUserScore
     trialScore += visitScore
     outsideRadius = False
+    writeOutputDataFile("updatedVisitScore", str(visitScore))
 
 
 def runSingleTaskTypingTrials(isPracticeTrial):
