@@ -16,6 +16,7 @@
 #############################
 import inspect
 import random
+import sys
 import time
 import traceback
 
@@ -27,10 +28,10 @@ import datetime
 
 ######initialize global variables
 
-incorrectDigitsTrial = 0
+incorrectlyTypedDigitsTrial = 0
 trialScore = 0
 outsideRadius = False
-correctlyTypedDigitsInVisit = 0
+correctlyTypedDigitsVisit = 0
 incorrectlyTypedDigitsVisit = 0
 visitScore = 0
 visitEndTime = 0
@@ -51,8 +52,8 @@ global environmentIsRunning  # True if there is a display
 global joystickObject  # the joystick object (initialized at start of experiment)
 global experiment
 experiment = "singleTaskTracking"
-global outputFile
-global summaryOutputFile
+global outputDataFile
+global outputSummaryFile
 global conditions
 conditions = ()
 joystickAxis = (0, 0)  # the motion of the joystick
@@ -128,35 +129,8 @@ maxPayment = 15  # what do we pay maximum?
 timeOfCompleteStartOfExperiment = 0  # this value is needed because otherwise one of the time output numbers becomes too large to have enough precision
 
 
-def writeSummaryDataFile(visitTime, outsideRadius1):
-    print("FUNCTION: " + getFunctionName())
-    global summaryOutputFile
-    global subjNr
-    global experiment
-    global blockNumber
-    global trialNumber
-    global standardDeviationOfNoise
-    global visitScore
-    global correctlyTypedDigitsInVisit
-    global incorrectlyTypedDigitsVisit
-
-    summaryOutputText = \
-        str(subjNr) + ";" + \
-        str(blockNumber) + ";" + \
-        str(trialNumber) + ";" + \
-        experiment + ";" + \
-        str(standardDeviationOfNoise) + ";" + \
-        str(visitTime) + ";" + \
-        str(correctlyTypedDigitsInVisit) + ";" + \
-        str(incorrectlyTypedDigitsVisit) + ";" + \
-        str(visitScore) + ";" + \
-        str(outsideRadius1) + "\n"
-
-    summaryOutputFile.write(summaryOutputText)
-
-
-def writeParticipantDataFile(eventMessage1, eventMessage2):
-    global outputFile
+def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
+    global outputDataFile
     global subjNr
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
@@ -178,8 +152,11 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
     global standardDeviationOfNoise
     global timeOfCompleteStartOfExperiment  # time at which experiment started
     global numberOfCircleExits
+    global visitScore
     global trialScore
-    global incorrectDigitsTrial
+    global correctlyTypedDigitsVisit
+    global incorrectlyTypedDigitsTrial
+    global incorrectlyTypedDigitsVisit
 
     currentTime = time.time() - timeOfCompleteStartOfExperiment  # this is an absolute time, that always increases (necessary to syncronize with eye-tracker)
     currentTime = scipy.special.round(currentTime * 10000) / 10000
@@ -200,19 +177,27 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
 
     if typingTaskPresent:
         outputEnteredDigitsStr = enteredDigitsStr
-        outputTypingTaskNumberLength = len(enteredDigitsStr)
+        outputEnteredDigitsLength = len(enteredDigitsStr)
         outputGeneratedTypingTaskNumbers = generatedTypingTaskNumbers
         outputGeneratedTypingTaskNumbersLength = len(generatedTypingTaskNumbers)
     else:
         outputEnteredDigitsStr = "-"
-        outputTypingTaskNumberLength = "-"
+        outputEnteredDigitsLength = "-"
         outputGeneratedTypingTaskNumbers = "-"
         outputGeneratedTypingTaskNumbersLength = "-"
 
+    if experiment == "dualTask" or experiment == "practiceDualTask":
+        visitTime = time.time() - visitStartTime
+    else:
+        visitTime = "-"
+
     outputText = \
         str(subjNr) + ";" + \
+        str(radiusCircle) + ";" + \
+        str(standardDeviationOfNoise) + ";" + \
         str(currentTime) + ";" + \
         str(trialTime) + ";" + \
+        str(visitTime) + ";" + \
         str(blockNumber) + ";" + \
         str(trialNumber) + ";" + \
         experiment + ";" + \
@@ -222,23 +207,29 @@ def writeParticipantDataFile(eventMessage1, eventMessage2):
         str(typingWindowVisible) + ";" + \
         str(trackingWindowEntryCounter) + ";" + \
         str(typingWindowEntryCounter) + ";" + \
-        str(radiusCircle) + ";" + \
-        str(standardDeviationOfNoise) + ";" + \
         str(outputCursorCoordinateX) + ";" + \
         str(outputCursorCoordinateY) + ";" + \
         str(outputJoystickAxisX) + ";" + \
         str(outputJoystickAxisY) + ";" + \
         str(outputEnteredDigitsStr) + ";" + \
+        str(outputEnteredDigitsLength) + ";" + \
         str(outputGeneratedTypingTaskNumbers) + ";" + \
-        str(outputTypingTaskNumberLength) + ";" + \
         str(outputGeneratedTypingTaskNumbersLength) + ";" + \
         str(numberOfCircleExits) + ";" + \
         str(trialScore) + ";" + \
-        str(incorrectDigitsTrial) + ";" + \
+        str(visitScore) + ";" + \
+        str(correctlyTypedDigitsVisit) + ";" + \
+        str(incorrectlyTypedDigitsVisit) + ";" + \
+        str(incorrectlyTypedDigitsTrial) + ";" + \
+        str(outsideRadius) + ";" + \
         str(eventMessage1) + ";" + \
         str(eventMessage2) + "\n"
 
-    outputFile.write(outputText)
+    if writeSummaryFile:
+        outputDataFile.write(outputText)
+        outputSummaryFile.write(outputText)
+    else:
+        outputDataFile.write(outputText)
 
 
 def checkMouseClicked():
@@ -248,7 +239,7 @@ def checkMouseClicked():
         elif event.type == pygame.MOUSEBUTTONDOWN:
             pos = pygame.mouse.get_pos()
             posString = str(pos[0]) + "_" + str(pos[1])
-            writeParticipantDataFile("MousePressed", posString)
+            writeOutputDataFile("MousePressed", posString)
             return pos[0], pos[1]
     return False
 
@@ -260,8 +251,8 @@ def checkKeyPressed():
     global joystickObject  # the joystick object
     global joystickAxis
     global typingTaskWindowSize
-    global incorrectDigitsTrial
-    global correctlyTypedDigitsInVisit
+    global incorrectlyTypedDigitsTrial
+    global correctlyTypedDigitsVisit
     global incorrectlyTypedDigitsVisit
     global cursorCoordinates
     global typingTaskPresent
@@ -284,21 +275,21 @@ def checkKeyPressed():
         elif event.type == pygame.JOYBUTTONUP:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("closeTracking")
-                writeParticipantDataFile("ButtonRelease", "none")
+                writeOutputDataFile("ButtonRelease", "-")
         elif event.type == pygame.JOYBUTTONDOWN:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("openTracking")
-                writeParticipantDataFile("ButtonPress", "none")
+                writeOutputDataFile("ButtonPress", "-")
 
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_F1 and trackerWindowVisible and typingTaskPresent:
                 print("PRESSED F1 CLOSE TRACKING")
                 switchWindows("closeTracking")
-                writeParticipantDataFile("ButtonRelease", "none")
+                writeOutputDataFile("ButtonRelease", "-")
             elif event.key == pygame.K_F1 and typingWindowVisible and trackingTaskPresent:
                 print("PRESSED F1 OPEN TRACKING")
                 switchWindows("openTracking")
-                writeParticipantDataFile("ButtonPress", "none")
+                writeOutputDataFile("ButtonPress", "-")
 
             # only process keypresses if the digit task is present
             if typingTaskPresent and typingWindowVisible:
@@ -338,14 +329,14 @@ def checkKeyPressed():
                         while newpart == generatedTypingTaskNumbers[-1]:
                             newpart = ''.join(random.sample(availableTypingTaskNumbers, 1))
                         generatedTypingTaskNumbers = generatedTypingTaskNumbers + newpart
-                        writeParticipantDataFile("keypress", keyPressed)
-                        correctlyTypedDigitsInVisit += 1
+                        writeOutputDataFile("keypress", keyPressed)
+                        correctlyTypedDigitsVisit += 1
                     else:
-                        writeParticipantDataFile("wrongKeypress", keyPressed)
-                        incorrectDigitsTrial += 1
+                        writeOutputDataFile("wrongKeypress", keyPressed)
+                        incorrectlyTypedDigitsTrial += 1
                         incorrectlyTypedDigitsVisit += 1
                 else:
-                    writeParticipantDataFile("stringTypedTooLong", keyPressed)
+                    writeOutputDataFile("stringTypedTooLong", keyPressed)
 
                 blockMaskingOldLocation = pygame.Surface((int(
                     typingTaskWindowSize[0] - (topLeftCornerOfTypingTaskNumber[0] - topLeftCornerOfTypingTaskWindow[0])), 100)).convert()
@@ -488,7 +479,7 @@ def reportUserScore():
     global typingTaskPresent
     global experiment
     global scoresForPayment
-    global incorrectDigitsTrial
+    global incorrectlyTypedDigitsTrial
     global trialScore
 
     # prepare background
@@ -503,7 +494,7 @@ def reportUserScore():
     screen.blit(messageAreaObject, topCornerOfMessageArea)  # make area 50 pixels away from edges
 
     feedbackText = ""
-    scoreForLogging = "none"  # score that's logged
+    scoreForLogging = "-"  # score that's logged
     scoresOnThisBlock = []  # stores the scores on the current block. Can be used to report performance each 5th trial
 
     if experiment == "dualTask":
@@ -523,8 +514,8 @@ def reportUserScore():
             digitScore = digitPressTimes[-1] - digitPressTimes[0]
             # round values
             digitScore = scipy.special.round(digitScore * 10) / 10
-            feedbackText += "\n\n" + str(incorrectDigitsTrial) + " Fehler"
-            scoresOnThisBlock.append(incorrectDigitsTrial)
+            feedbackText += "\n\n" + str(incorrectlyTypedDigitsTrial) + " Fehler"
+            scoresOnThisBlock.append(incorrectlyTypedDigitsTrial)
             scoreForLogging = digitScore
 
     if feedbackText != "":
@@ -534,7 +525,7 @@ def reportUserScore():
         printTextOverMultipleLines(feedbackText, fontsize, color, location)
 
     pygame.display.flip()
-    writeParticipantDataFile("scoreGiven", str(scoreForLogging))
+    writeOutputDataFile("scoreGiven", str(scoreForLogging))
     time.sleep(timeFeedbackIsGiven)
 
     if len(scoresOnThisBlock) % 5 == 0:  # every fifth trial, report mean score
@@ -567,7 +558,7 @@ def reportUserScore():
         printTextOverMultipleLines(feedbackText2, fontsize, color, location)
         pygame.display.flip()
 
-        writeParticipantDataFile("avscoreGiven", str(meanscore))
+        writeOutputDataFile("avscoreGiven", str(meanscore))
         time.sleep(20)
 
 
@@ -791,13 +782,13 @@ def openTypingWindow():
     global typingWindowVisible
     global typingWindowEntryCounter
     global outsideRadius
-    global correctlyTypedDigitsInVisit
+    global correctlyTypedDigitsVisit
     global incorrectlyTypedDigitsVisit
     global visitStartTime
 
     visitStartTime = time.time()
     outsideRadius = False
-    correctlyTypedDigitsInVisit = 0
+    correctlyTypedDigitsVisit = 0
     incorrectlyTypedDigitsVisit = 0
 
     typingWindowEntryCounter = typingWindowEntryCounter + 1
@@ -850,7 +841,7 @@ def openTrackerWindow():
     trackingWindowEntryCounter += 1
 
     if experiment == "dualTask" or experiment == "practiceDualTask":
-        updateIntermediateScoreAndWriteSummaryDataFile()
+        updateScore()
 
     drawTrackerWindow()
 
@@ -891,17 +882,15 @@ def drawTrackerWindow():
     screen.blit(newCursor, newCursorLocation)  # blit puts something new on the screen
 
 
-def updateIntermediateScoreAndWriteSummaryDataFile():
+def updateScore():
     print("FUNCTION: " + getFunctionName())
     global trialScore  # cumulative score for the current trial
     global outsideRadius  # boolean - did the cursor leave the circle
     global numberOfCircleExits
-    global correctlyTypedDigitsInVisit  # number of correctly typed digits
+    global correctlyTypedDigitsVisit  # number of correctly typed digits
     global incorrectlyTypedDigitsVisit  # number of incorrectly typed digits
     global radiusCircle
     global visitScore  # Score for one visit to the digit window
-    global visitStartTime
-    global visitEndTime
     global cursorColor
     global penalty
 
@@ -909,7 +898,7 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
         numberOfCircleExits += 1
         if penalty == "lose500":
             # loose 500
-            visitScore = ((correctlyTypedDigitsInVisit + 10) + (incorrectlyTypedDigitsVisit - 5)) - 500
+            visitScore = ((correctlyTypedDigitsVisit + 10) + (incorrectlyTypedDigitsVisit - 5)) - 500
 
         if penalty == "loseAll":
             # loose all
@@ -917,16 +906,13 @@ def updateIntermediateScoreAndWriteSummaryDataFile():
 
         if penalty == "loseHalf":
             # loose half
-            visitScore = 0.5 * ((correctlyTypedDigitsInVisit * 10) + (incorrectlyTypedDigitsVisit * -5))  # penalty for exit is to lose half points
+            visitScore = 0.5 * ((correctlyTypedDigitsVisit * 10) + (incorrectlyTypedDigitsVisit * -5))  # penalty for exit is to lose half points
     else:
-        visitScore = (correctlyTypedDigitsInVisit * 10) + (incorrectlyTypedDigitsVisit * -5)  # gain is 10 for correct digit and -5 for incorrect digit
+        visitScore = (correctlyTypedDigitsVisit * 10) + (incorrectlyTypedDigitsVisit * -5)  # gain is 10 for correct digit and -5 for incorrect digit
 
     # add the score for this digit task visit to the overall trial score
     # duringtrial score is used in reportUserScore
     trialScore += visitScore
-
-    visitTime = visitEndTime - visitStartTime
-    writeSummaryDataFile(visitTime, outsideRadius)
     outsideRadius = False
 
 
@@ -947,9 +933,11 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global typingWindowVisible
     global trackingWindowEntryCounter
     global typingWindowEntryCounter
-    global incorrectDigitsTrial
     global numberOfCircleExits
     global trialScore
+    global correctlyTypedDigitsVisit
+    global incorrectlyTypedDigitsVisit
+    global incorrectlyTypedDigitsTrial
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTypingTrials
@@ -970,7 +958,9 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
         trialScore = 0
-        incorrectDigitsTrial = 0
+        correctlyTypedDigitsVisit = 0
+        incorrectlyTypedDigitsVisit = 0
+        incorrectlyTypedDigitsTrial = 0
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -999,7 +989,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
             else:
                 closeTypingWindow()
 
-        writeParticipantDataFile("trialStart", "none")
+        writeOutputDataFile("trialStart", "-")
 
         # display all updates (made using blit) on the screen
         pygame.display.flip()
@@ -1010,11 +1000,11 @@ def runSingleTaskTypingTrials(isPracticeTrial):
             time.sleep(0.02)
 
         if (time.time() - startTime) >= maxTrialTimeSingleTyping:
-            writeParticipantDataFile("trialStopTooMuchTime", "none")
+            writeOutputDataFile("trialStopTooMuchTime", "-", True)
         elif not environmentIsRunning:
-            writeParticipantDataFile("trialStopEnvironmentStopped", "none")
+            writeOutputDataFile("trialStopEnvironmentStopped", "-", True)
         else:
-            writeParticipantDataFile("trialStop", "none")
+            writeOutputDataFile("trialStop", "-", True)
 
         if not isPracticeTrial:
             # now give feedback
@@ -1039,6 +1029,9 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global typingWindowEntryCounter
     global numberOfCircleExits
     global trialScore
+    global correctlyTypedDigitsVisit
+    global incorrectlyTypedDigitsVisit
+    global incorrectlyTypedDigitsTrial
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTrackingTrials
@@ -1069,6 +1062,9 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         typingWindowVisible = False
         trackingTaskPresent = True
         typingTaskPresent = False
+        correctlyTypedDigitsVisit = 0
+        incorrectlyTypedDigitsVisit = 0
+        incorrectlyTypedDigitsTrial = 0
 
         trialNumber = trialNumber + 1
         bg = pygame.Surface(ExperimentWindowSize).convert()
@@ -1095,7 +1091,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             else:
                 closeTrackerWindow()
 
-        writeParticipantDataFile("trialStart", "none")
+        writeOutputDataFile("trialStart", "-")
 
         # display all updates (made using blit) on the screen
         pygame.display.flip()
@@ -1106,14 +1102,14 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
-                writeParticipantDataFile("none", "none")
+                writeOutputDataFile("-", "-")
 
             pygame.display.flip()
 
         if not environmentIsRunning:
-            writeParticipantDataFile("trialEnvironmentRunning", "none")
+            writeOutputDataFile("trialEnvironmentRunning", "-", True)
         else:
-            writeParticipantDataFile("trialEnvironmentStopped", "none")
+            writeOutputDataFile("trialEnvironmentStopped", "-", True)
 
 
 def runDualTaskTrials(isPracticeTrial):
@@ -1138,10 +1134,11 @@ def runDualTaskTrials(isPracticeTrial):
     global trialScore
     global outsideRadius
     global numberOfCircleExits
-    global correctlyTypedDigitsInVisit
+    global correctlyTypedDigitsVisit
     global visitStartTime
     global visitEndTime
-    global incorrectDigitsTrial
+    global incorrectlyTypedDigitsTrial
+    global incorrectlyTypedDigitsVisit
 
     blockNumber += 1
 
@@ -1180,9 +1177,10 @@ def runDualTaskTrials(isPracticeTrial):
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
         trialScore = 0
-        incorrectDigitsTrial = 0
         outsideRadius = False
-        correctlyTypedDigitsInVisit = 0
+        correctlyTypedDigitsVisit = 0
+        incorrectlyTypedDigitsVisit = 0
+        incorrectlyTypedDigitsTrial = 0
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1226,7 +1224,7 @@ def runDualTaskTrials(isPracticeTrial):
             else:
                 closeTypingWindow()
 
-        writeParticipantDataFile("trialStart", "none")
+        writeOutputDataFile("trialStart", "-")
 
         # display all updates (made using blit) on the screen
         pygame.display.flip()
@@ -1236,33 +1234,79 @@ def runDualTaskTrials(isPracticeTrial):
             if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
-                writeParticipantDataFile("none", "none")
+                writeOutputDataFile("-", "-")
             pygame.display.flip()
 
         visitEndTime = time.time()
-        updateIntermediateScoreAndWriteSummaryDataFile()
+        updateScore()
 
         if (time.time() - startTime) >= maxTrialTimeDual:
-            writeParticipantDataFile("trialStopTooMuchTime", "none")
+            writeOutputDataFile("trialStopTooMuchTime", "-", True)
         elif not environmentIsRunning:
-            writeParticipantDataFile("trialStopEnvironmentStopped", "none")
+            writeOutputDataFile("trialStopEnvironmentStopped", "-", True)
         else:
-            writeParticipantDataFile("trialStop", "none")
+            writeOutputDataFile("trialStop", "-", True)
 
         if not isPracticeTrial:
             # now give feedback
             reportUserScore()
 
 
-def readInputAndCreateOutputFiles(subjNrStr):
-    print("FUNCTION: " + getFunctionName())
+def initializeOutputFiles(subjNrStr):
     """
-    Read the participant file / set the participant condition.
-    Initialize the output files
+    Set the participant condition. Initialize the output files
+    """
+    global outputDataFile
+    global outputSummaryFile
+
+    outputText = "SubjectNr;" \
+                 "RadiusCircle;" \
+                 "StandardDeviationOfNoise;" \
+                 "CurrentTime;" \
+                 "TrialTime;" \
+                 "VisitTime;" \
+                 "BlockNumber;" \
+                 "TrialNumber;" \
+                 "Experiment;" \
+                 "TrackingTaskPresent;" \
+                 "TypingTaskPresent;" \
+                 "TrackerWindowVisible;" \
+                 "TypingWindowVisible;" \
+                 "TrackingWindowEntryCounter;" \
+                 "TypingWindowEntryCounter;" \
+                 "CursorCoordinatesX;" \
+                 "CursorCoordinatesY;" \
+                 "JoystickAxisX;" \
+                 "JoystickAxisY;" \
+                 "EnteredDigits;" \
+                 "EnteredDigitsLength;" \
+                 "GeneratedTypingTaskNumbers;" \
+                 "GeneratedTypingTaskNumberLength;" \
+                 "NumberOfCircleExits;" \
+                 "TrialScore;" \
+                 "VisitScore;" \
+                 "CorrectDigitsVisit;" \
+                 "IncorrectDigitsVisit;" \
+                 "IncorrectDigitsTrial;" \
+                 "OutsideRadius;" \
+                 "EventMessage1;" \
+                 "EventMessage2" + "\n"
+    timestamp = time.strftime("%Y-%m-%d_%H-%M")
+
+    dataFileName = "participant_" + subjNrStr + "_data_" + timestamp + ".csv"
+    outputDataFile = open(dataFileName, 'w')  # contains the user data
+    outputDataFile.write(outputText)
+
+    summaryFileName = "participant_" + subjNrStr + "_data_lastTrialEntry_" + timestamp + ".csv"
+    outputSummaryFile = open(summaryFileName, 'w')  # contains the user data
+    outputSummaryFile.write(outputText)
+
+
+def readConditionFile(subjNrStr):
+    """
+    Read the participant file
     """
     global conditions
-    global outputFile
-    global summaryOutputFile
 
     f = open('participantConditions.csv', 'r')
     individualLines = f.read().split('\n')  ## read by lines
@@ -1276,58 +1320,8 @@ def readInputAndCreateOutputFiles(subjNrStr):
                 raise Exception("Duplicate subject number")
     if not subjectLine:
         raise Exception("Invalid subject number")
-
     conditions = subjectLine
     f.close()
-
-    timestamp = time.strftime("%Y-%m-%d_%H-%M")
-
-    fileName = "participant_" + subjNrStr + "_data_" + timestamp + ".csv"
-    outputFile = open(fileName, 'w')  # contains the user data
-    outputText = "SubjectNr;" \
-                 "CurrentTime;" \
-                 "TrialTime;" \
-                 "BlockNumber;" \
-                 "TrialNumber;" \
-                 "Experiment;" \
-                 "TrackingTaskPresent;" \
-                 "TypingTaskPresent;" \
-                 "TrackerWindowVisible;" \
-                 "TypingWindowVisible;" \
-                 "TrackingWindowEntryCounter;" \
-                 "TypingWindowEntryCounter;" \
-                 "RadiusCircle;" \
-                 "StandardDeviationOfNoise;" \
-                 "CursorCoordinatesX;" \
-                 "CursorCoordinatesY;" \
-                 "JoystickAxisX;" \
-                 "JoystickAxisY;" \
-                 "EnteredDigits;" \
-                 "GeneratedTypingTaskNumbers;" \
-                 "EnteredDigitsLength;" \
-                 "GeneratedTypingTaskNumberLength;" \
-                 "NumberOfCircleExits;" \
-                 "TrialScore;" \
-                 "IncorrectDigitsTrial;" \
-                 "EventMessage1;" \
-                 "EventMessage2" + "\n"
-    outputFile.write(outputText)
-
-    ########################Second Output File######################################
-
-    summaryFileName = "participant_" + subjNrStr + "_summary_" + timestamp + ".csv"
-    summaryOutputFile = open(summaryFileName, 'w')  # contains the user data
-    summaryOutputText = "SubjectNr;" \
-                        "BlockNumber;" \
-                        "TrialNumber;" \
-                        "Experiment;" \
-                        "StandardDeviationOfNoise;" \
-                        "VisitTime;" \
-                        "CorrectlyTypedDigitsInVisit;" \
-                        "IncorrectlyTypedDigitsInVisit;" \
-                        "VisitScore;" \
-                        "OutsideRadius" + "\n"
-    summaryOutputFile.write(summaryOutputText)
 
 
 def main():
@@ -1349,7 +1343,8 @@ def main():
     subjNr = int(subjNrStr)
     firstTrial = input("First trial? (yes/no) ")
     showPrecedingPenaltyInfo = input("Show penalty and noise information before the experiment starts? (yes/no) ")
-    readInputAndCreateOutputFiles(subjNrStr)
+    readConditionFile(subjNrStr)
+    initializeOutputFiles(subjNrStr)
     timeOfCompleteStartOfExperiment = time.time()
 
     pygame.init()
@@ -1357,7 +1352,7 @@ def main():
         screen = pygame.display.set_mode(ExperimentWindowSize, pygame.FULLSCREEN)
     else:
         screen = pygame.display.set_mode(ExperimentWindowSize)
-    pygame.display.set_caption("Multitasking 2.0")
+    pygame.display.set_caption("Multitasking 3.0")
     environmentIsRunning = True
 
     ShowStartExperimentScreen()
@@ -1468,14 +1463,15 @@ def main():
 
 def quit_app():
     global environmentIsRunning
-    global outputFile
-    global summaryOutputFile
+    global outputDataFile
+    global outputSummaryFile
 
     environmentIsRunning = False
     pygame.display.quit()
     pygame.quit()
-    outputFile.close()
-    summaryOutputFile.close()
+    outputDataFile.close()
+    outputSummaryFile.close()
+    sys.exit()
 
 
 def getFunctionName():
