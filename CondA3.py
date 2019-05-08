@@ -11,7 +11,6 @@ import random
 import sys
 import time
 import traceback
-
 import math
 import pygame
 import scipy
@@ -33,7 +32,7 @@ global penalty
 penalty = ""
 
 global fullscreen
-fullscreen = True
+fullscreen = False
 
 timeFeedbackIsGiven = 4
 
@@ -76,7 +75,10 @@ generatedTypingTaskNumbers = "123456789"
 typingTaskNumbersCount = 27
 enteredDigitsStr = ""
 
-cursorCoordinates = (TrackingTaskWindowSize[0] / 2 - (cursorSize[0] / 2), TrackingTaskWindowSize[1] / 2 - (cursorSize[0] / 2))
+windowMiddleX = topLeftCornerOfTrackingTaskWindow[0] + int(TrackingTaskWindowSize[0] / 2.0)
+windowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(TrackingTaskWindowSize[1] / 2.0)
+
+cursorCoordinates = (windowMiddleX, windowMiddleY)
 
 fontsizeGoalAndTypingTaskNumber = 30
 
@@ -119,6 +121,8 @@ scoresForPayment = []
 baseratePayment = 0
 maxPayment = 15  # what do we pay maximum?
 timeOfCompleteStartOfExperiment = 0  # this value is needed because otherwise one of the time output numbers becomes too large to have enough precision
+
+cursorDistancesToMiddle = []
 
 
 def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
@@ -199,6 +203,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
         str(typingWindowVisible) + ";" + \
         str(trackingWindowEntryCounter) + ";" + \
         str(typingWindowEntryCounter) + ";" + \
+        str(calculateRmse()) + ";" if writeSummaryFile else "" + \
         str(outputCursorCoordinateX) + ";" + \
         str(outputCursorCoordinateY) + ";" + \
         str(outputJoystickAxisX) + ";" + \
@@ -222,6 +227,26 @@ def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
         outputSummaryFile.write(outputText)
     else:
         outputDataFile.write(outputText)
+
+
+def calculateRmse():
+    global cursorDistancesToMiddle
+
+    n = len(cursorDistancesToMiddle)
+    if n == 0:
+        return 0
+    square = 0
+
+    # Calculate square
+    for i in range(0, n):
+        square += (cursorDistancesToMiddle[i] ** 2)
+    cursorDistancesToMiddle = []
+
+    # Calculate Mean
+    mean = (square / float(n))
+    # Calculate Root
+    root = math.sqrt(mean)
+    return root
 
 
 def checkMouseClicked():
@@ -642,6 +667,8 @@ def drawCursor(sleepTime):
     global outsideRadius
     global radiusCircle
     global cursorColor
+    global windowMiddleX
+    global windowMiddleY
 
     x = cursorCoordinates[0]
     y = cursorCoordinates[1]
@@ -658,7 +685,7 @@ def drawCursor(sleepTime):
         final_x += joystickAxis[0] * scalingJoystickAxis
         final_y += joystickAxis[1] * scalingJoystickAxis
 
-    # now iterate through updates (but only do that if the window is open - if it's closed do it without mini-steps, so as to make computation faster)s
+    # now iterate through updates (but only do that if the window is open - if it's closed do it without mini-steps, so as to make computation faster)
     nrUpdates = int(sleepTime / stepSizeOfTrackerScreenUpdate)
     delta_x = (final_x - x) / nrUpdates
     delta_y = (final_y - y) / nrUpdates
@@ -688,9 +715,6 @@ def drawCursor(sleepTime):
                     blockMaskingOldLocation = pygame.Surface(cursorSize).convert()
                     blockMaskingOldLocation.fill(backgroundColorTrackerScreen)
                     screen.blit(blockMaskingOldLocation, (oldLocationX, oldLocationY))
-
-                    windowMiddleX = topLeftCornerOfTrackingTaskWindow[0] + int(TrackingTaskWindowSize[0] / 2.0)
-                    windowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(TrackingTaskWindowSize[1] / 2.0)
 
                     distanceCursorMiddle = math.sqrt((abs(windowMiddleX - x)) ** 2 + (abs(windowMiddleY - y)) ** 2)
                     if distanceCursorMiddle > radiusCircle:
@@ -751,6 +775,9 @@ def drawCursor(sleepTime):
 
     # always update coordinates
     cursorCoordinates = (x, y)
+
+    # collect distances of the cursor to the circle middle for the RMSE
+    cursorDistancesToMiddle.append(math.sqrt((windowMiddleX - x)**2 + (windowMiddleY - y)**2))
 
 
 def closeTypingWindow():
@@ -1292,7 +1319,7 @@ def initializeOutputFiles(subjNrStr):
 
     summaryFileName = "participant_" + subjNrStr + "_data_lastTrialEntry_" + timestamp + ".csv"
     outputSummaryFile = open(summaryFileName, 'w')  # contains the user data
-    outputSummaryFile.write(outputText)
+    outputSummaryFile.write(outputText.replace("TypingWindowEntryCounter;", "TypingWindowEntryCounter;RMSE;"))
 
 
 def readConditionFile(subjNrStr):
