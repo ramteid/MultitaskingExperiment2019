@@ -1346,8 +1346,15 @@ def main():
 
     subjNrStr = input("Please enter the subject number here: ")
     subjNr = int(subjNrStr)
+
     firstTrialInput = input("First trial? (yes/no) ")
+    if firstTrialInput != "yes" and firstTrialInput != "no":
+        raise Exception("Invalid input '" + firstTrialInput + "'. Allowed is 'yes' or 'no' only.")
+
     showPrecedingPenaltyInfo = input("Show penalty and noise information before the experiment starts? (yes/no) ")
+    if showPrecedingPenaltyInfo != "yes" and showPrecedingPenaltyInfo != "no":
+        raise Exception("Invalid input '" + showPrecedingPenaltyInfo + "'. Allowed is 'yes' or 'no' only.")
+
     readConditionFile(subjNrStr)
     initializeOutputFiles(subjNrStr)
     timeOfCompleteStartOfExperiment = time.time()
@@ -1430,8 +1437,6 @@ def main():
         runDualTaskTrials(True)
         GiveMessageOnScreen("Jetzt testen wir deine Leistung in diesen Aufgaben. \n"
                             "Versuche so viele Punkte wie möglich zu gewinnen", 10)
-    elif firstTrialInput != "no":
-        raise Exception("Invalid input '" + firstTrialInput + "'. Allowed is 'yes' or 'no' only.")
 
     # main experiment loop with verified conditions
     for condition in conditionsVerified:
@@ -1455,8 +1460,6 @@ def main():
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
                       "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
                       "Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
-        else:
-            raise Exception("Invalid input '" + showPrecedingPenaltyInfo + "'. Allowed is 'yes' or 'no' only.")
 
         GiveMessageOnScreen(message, 10)
 
