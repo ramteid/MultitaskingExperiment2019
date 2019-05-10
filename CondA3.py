@@ -7,6 +7,7 @@
 ####
 #############################
 import inspect
+import os
 import random
 import sys
 import time
@@ -126,6 +127,7 @@ timeOfCompleteStartOfExperiment = 0  # this value is needed because otherwise on
 
 def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
     global outputDataFile
+    global outputSummaryFile
     global subjNr
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
@@ -221,10 +223,18 @@ def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
         str(eventMessage2) + "\n"
 
     if writeSummaryFile:
-        outputDataFile.write(outputText)
         outputSummaryFile.write(outputText)
+        outputSummaryFile.flush()
+        # typically the above line would do. however this is used to ensure that the file is written
+        os.fsync(outputSummaryFile.fileno())
+
+        outputDataFile.write(outputText)
     else:
         outputDataFile.write(outputText)
+
+    outputDataFile.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(outputDataFile.fileno())
 
 
 def checkMouseClicked():
@@ -1110,7 +1120,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
-                writeOutputDataFile("-", "-")
+                writeOutputDataFile("trackingVisible", "-")
 
             pygame.display.flip()
 
@@ -1242,7 +1252,7 @@ def runDualTaskTrials(isPracticeTrial):
             if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
-                writeOutputDataFile("-", "-")
+                writeOutputDataFile("trackingVisible", "-")
             pygame.display.flip()
 
         visitEndTime = time.time()
@@ -1304,10 +1314,16 @@ def initializeOutputFiles(subjNrStr):
     dataFileName = "participant_" + subjNrStr + "_data_" + timestamp + ".csv"
     outputDataFile = open(dataFileName, 'w')  # contains the user data
     outputDataFile.write(outputText)
+    outputDataFile.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(outputDataFile.fileno())
 
     summaryFileName = "participant_" + subjNrStr + "_data_lastTrialEntry_" + timestamp + ".csv"
     outputSummaryFile = open(summaryFileName, 'w')  # contains the user data
     outputSummaryFile.write(outputText)
+    outputSummaryFile.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(outputSummaryFile.fileno())
 
 
 def readConditionFile(subjNrStr):
