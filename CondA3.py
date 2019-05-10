@@ -1346,7 +1346,7 @@ def main():
 
     subjNrStr = input("Please enter the subject number here: ")
     subjNr = int(subjNrStr)
-    firstTrial = input("First trial? (yes/no) ")
+    firstTrialInput = input("First trial? (yes/no) ")
     showPrecedingPenaltyInfo = input("Show penalty and noise information before the experiment starts? (yes/no) ")
     readConditionFile(subjNrStr)
     initializeOutputFiles(subjNrStr)
@@ -1420,7 +1420,7 @@ def main():
             "penaltyMsg": penaltyMsg
         })
 
-    if firstTrial == "yes":
+    if firstTrialInput == "yes":
         GiveMessageOnScreen("Willkommen zum Experiment!\n\n\n"
                             "Wir beginnen mit 3 Probedurchläufen.", 10)
         availableTypingTaskNumbers = "123123123"
@@ -1430,6 +1430,8 @@ def main():
         runDualTaskTrials(True)
         GiveMessageOnScreen("Jetzt testen wir deine Leistung in diesen Aufgaben. \n"
                             "Versuche so viele Punkte wie möglich zu gewinnen", 10)
+    elif firstTrialInput != "no":
+        raise Exception("Invalid input '" + firstTrialInput + "'. Allowed is 'yes' or 'no' only.")
 
     # main experiment loop with verified conditions
     for condition in conditionsVerified:
@@ -1448,11 +1450,14 @@ def main():
                       "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
                       "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
                       "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
-        else:
+        elif showPrecedingPenaltyInfo == "no":
             message = "NEUER BLOCK: \n\n\n" \
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
                       "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
                       "Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
+        else:
+            raise Exception("Invalid input '" + showPrecedingPenaltyInfo + "'. Allowed is 'yes' or 'no' only.")
+
         GiveMessageOnScreen(message, 10)
 
         runSingleTaskTrackingTrials(False)
