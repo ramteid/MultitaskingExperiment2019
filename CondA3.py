@@ -644,6 +644,9 @@ def drawCursor(sleepTime):
     global outsideRadius
     global radiusCircle
     global cursorColor
+    global windowMiddleX
+    global windowMiddleY
+    global taskWindowSize
 
     x = cursorCoordinates[0]
     y = cursorCoordinates[1]
@@ -660,7 +663,7 @@ def drawCursor(sleepTime):
         final_x += joystickAxis[0] * scalingJoystickAxis
         final_y += joystickAxis[1] * scalingJoystickAxis
 
-    # now iterate through updates (but only do that if the window is open - if it's closed do it without mini-steps, so as to make computation faster)s
+    # now iterate through updates (but only do that if the window is open - if it's closed do it without mini-steps, so as to make computation faster)
     nrUpdates = int(sleepTime / stepSizeOfTrackerScreenUpdate)
     delta_x = (final_x - x) / nrUpdates
     delta_y = (final_y - y) / nrUpdates
@@ -690,8 +693,8 @@ def drawCursor(sleepTime):
                     blockMaskingOldLocation.fill(backgroundColorTrackerScreen)
                     screen.blit(blockMaskingOldLocation, (oldLocationX, oldLocationY))
 
-                    windowMiddleX = topLeftCornerOfTrackingTaskWindow[0] + int(TrackingTaskWindowSize[0] / 2.0)
-                    windowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(TrackingTaskWindowSize[1] / 2.0)
+                    windowMiddleX = topLeftCornerOfTrackingTaskWindow[0] + int(taskWindowSize[0] / 2.0)
+                    windowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(taskWindowSize[1] / 2.0)
 
                     distanceCursorMiddle = math.sqrt((abs(windowMiddleX - x)) ** 2 + (abs(windowMiddleY - y)) ** 2)
                     if distanceCursorMiddle > radiusCircle:
