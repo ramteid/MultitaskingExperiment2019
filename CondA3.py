@@ -7,6 +7,7 @@
 ####
 #############################
 import inspect
+import os
 import random
 import sys
 import time
@@ -32,7 +33,7 @@ global penalty
 penalty = ""
 
 global fullscreen
-fullscreen = False
+fullscreen = True
 
 timeFeedbackIsGiven = 4
 
@@ -82,13 +83,13 @@ cursorCoordinates = (windowMiddleX, windowMiddleY)
 
 fontsizeGoalAndTypingTaskNumber = 30
 
-maxTrialTimeDual = 120  # maximum time for dual-task trials
+maxTrialTimeDual = 90  # maximum time for dual-task trials
 maxTrialTimeSingleTracking = 10  # maximum time for single-task tracking
 maxTrialTimeSingleTyping = 20  # maximum time for single-task typing
 
 numberOfDualTaskTrials = 3
-numberOfSingleTaskTrackingTrials = 2
-numberOfSingleTaskTypingTrials = 2
+numberOfSingleTaskTrackingTrials = 1
+numberOfSingleTaskTypingTrials = 1
 
 trackingWindowEntryCounter = 0
 typingWindowEntryCounter = 0
@@ -127,6 +128,7 @@ cursorDistancesToMiddle = []
 
 def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
     global outputDataFile
+    global outputSummaryFile
     global subjNr
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
@@ -223,10 +225,18 @@ def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
         str(eventMessage2) + "\n"
 
     if writeSummaryFile:
-        outputDataFile.write(outputText)
         outputSummaryFile.write(outputText)
+        outputSummaryFile.flush()
+        # typically the above line would do. however this is used to ensure that the file is written
+        os.fsync(outputSummaryFile.fileno())
+
+        outputDataFile.write(outputText)
     else:
         outputDataFile.write(outputText)
+
+    outputDataFile.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(outputDataFile.fileno())
 
 
 def calculateRmse():
@@ -668,6 +678,7 @@ def drawCursor(sleepTime):
     global cursorColor
     global windowMiddleX
     global windowMiddleY
+    global taskWindowSize
 
     x = cursorCoordinates[0]
     y = cursorCoordinates[1]
@@ -975,14 +986,15 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         experiment = "practiceTyping"
         numberOfTrials = 2
         GiveMessageOnScreen("Nur Tippen\n\n"
-                            "In diesen Durchgängen führst du nur die Tippaufgabe aus.\n"
+                            "In diesen Durchgängen übst du nur die Tippaufgabe.\n"
                             "Kopiere die Ziffern, die dir auf dem Bildschirm angezeigt werden so schnell wie möglich.\n\n"
                             "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n"
                             "(In zukünftigen Durchgängen würdest du dadurch Punkte verlieren.)", 15)
     else:
         experiment = "singleTaskTyping"
         GiveMessageOnScreen("Nur Tippen\n\n"
-                            "Kopiere die Ziffern so schnell wie möglich", 5)
+                            "Kopiere die Ziffern so schnell wie möglich.\n"
+                            "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n", 10)
 
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
@@ -1069,18 +1081,19 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         experiment = "practiceTracking"
         GiveMessageOnScreen(
             "Nur Tracking\n\n"
-            "In diesen Durchgängen führst du nur die Tracking Aufgabe aus.\n"
-            "Du kannst ausprobieren, wie der Joystick funktioniert und sehen, wie der Cursor umher wandert.\n"
-            "Der Cursor bewegt sich so lange frei herum, bis du ihn bewegst.",
+            "In diesen Durchgängen übst du nur die Trackingaufgabe.\n"
+            "Du kannst ausprobieren, wie der Joystick funktioniert und sehen, wie schnell der blaue Cursor umherwandert.\n"
+            "Der Cursor bewegt sich so lange frei herum, bis du ihn mit dem Joystick bewegst.\n"
+            "Denk daran: deine Aufgabe ist es, zu verhindern, dass der blaue Cursor den Kreis verlässt!",
             15)
         numberOfTrials = 2
     else:
         experiment = "singleTaskTracking"
         GiveMessageOnScreen(
             "Nur Tracking\n\n"
-            "Nutze die Durchgänge, um die Geschwindigkeit des Cursors einschätzen zu können, \n"
-            "aber halte den Cursor innerhalb des Kreises",
-            5)
+            "Nutze diesen Durchgang, um dich mit der Geschwindigkeit des Cursors vertraut zu machen, \n"
+            "und denk daran den Cursor mit deinem Joystick in der Kreismitte zu halten.",
+            10)
 
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
@@ -1131,7 +1144,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
-                writeOutputDataFile("-", "-")
+                writeOutputDataFile("trackingVisible", "-")
 
             pygame.display.flip()
 
@@ -1174,32 +1187,31 @@ def runDualTaskTrials(isPracticeTrial):
     numberOfTrials = numberOfDualTaskTrials
 
     if isPracticeTrial:
-        maxTrialTimeDual = 120
+        maxTrialTimeDual = 90
         experiment = "practiceDualTask"
         GiveMessageOnScreen(
-            "Tracking + Tippen\n\n"
-            "Du führst jetzt beide Aufgaben gleichzeitig aus.\n"
+            "Tracking + Tippen (MULTITASKING)\n\n"
+            "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
             "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n"
-            "Drücke den Schalter unter deinem Zeigefinger am Joystick, um die Trackingaufgabe zu kontrollieren.\n"
+            "Drücke den Schalter unter deinem Zeigefinger am Joystick, um zu kontrollieren ob der blaue Cursor\n"
+            "noch innerhalb des Kreises ist.\n"
             "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n"
             "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
-        GiveMessageOnScreen("Dein Ziel:\n"
-                            "Kopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\n"
-                            "aber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte)\n"
-                            "Fehler beim Tippen führen auch zu einem Punktverlust", 10)
+        GiveMessageOnScreen("Dein Ziel:\n\n"
+                            "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
+                            "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
+                            "Fehler beim Tippen führen auch zu Punktverlust.", 10)
 
         numberOfTrials = 2
     else:
-        maxTrialTimeDual = 120
+        maxTrialTimeDual = 90
         experiment = "dualTask"
-        GiveMessageOnScreen("Tracking + Tippen\n\n"
-                            "Kopiere die Ziffern so schnell wie möglich (so gewinnst du Punkte),\n"
-                            "aber halte den Cursor innerhalb des Kreises (sonst verlierst du Punkte).\n"
+        GiveMessageOnScreen("Tracking + Tippen (MULTITASKING)\n\n"
+                            "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
+                            "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
                             "Fehler beim Tippen führen auch zu einem Punktverlust.\n\n"
                             "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl.", 18)
-        GiveMessageOnScreen("Der Cursor bewegt sich mit derselben Geschwindigkeit wie zuvor.\n"
-                            "Der Kreis hat dieselbe Größe\n\n"
-                            "Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
+        GiveMessageOnScreen("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
                             "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
                             "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
 
@@ -1263,7 +1275,7 @@ def runDualTaskTrials(isPracticeTrial):
             if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
-                writeOutputDataFile("-", "-")
+                writeOutputDataFile("trackingVisible", "-")
             pygame.display.flip()
 
         visitEndTime = time.time()
@@ -1325,10 +1337,16 @@ def initializeOutputFiles(subjNrStr):
     dataFileName = "participant_" + subjNrStr + "_data_" + timestamp + ".csv"
     outputDataFile = open(dataFileName, 'w')  # contains the user data
     outputDataFile.write(outputText)
+    outputDataFile.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(outputDataFile.fileno())
 
     summaryFileName = "participant_" + subjNrStr + "_data_lastTrialEntry_" + timestamp + ".csv"
     outputSummaryFile = open(summaryFileName, 'w')  # contains the user data
-    outputSummaryFile.write(outputText.replace("TypingWindowEntryCounter;", "TypingWindowEntryCounter;RMSE;"))
+	outputSummaryFile.write(outputText.replace("TypingWindowEntryCounter;", "TypingWindowEntryCounter;RMSE;"))
+    outputSummaryFile.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(outputSummaryFile.fileno())
 
 
 def readConditionFile(subjNrStr):
@@ -1370,8 +1388,15 @@ def main():
 
     subjNrStr = input("Please enter the subject number here: ")
     subjNr = int(subjNrStr)
-    firstTrial = input("First trial? (yes/no) ")
+
+    firstTrialInput = input("First trial? (yes/no) ")
+    if firstTrialInput != "yes" and firstTrialInput != "no":
+        raise Exception("Invalid input '" + firstTrialInput + "'. Allowed is 'yes' or 'no' only.")
+
     showPrecedingPenaltyInfo = input("Show penalty and noise information before the experiment starts? (yes/no) ")
+    if showPrecedingPenaltyInfo != "yes" and showPrecedingPenaltyInfo != "no":
+        raise Exception("Invalid input '" + showPrecedingPenaltyInfo + "'. Allowed is 'yes' or 'no' only.")
+
     readConditionFile(subjNrStr)
     initializeOutputFiles(subjNrStr)
     timeOfCompleteStartOfExperiment = time.time()
@@ -1444,16 +1469,17 @@ def main():
             "penaltyMsg": penaltyMsg
         })
 
-    if firstTrial == "yes":
+    if firstTrialInput == "yes":
         GiveMessageOnScreen("Willkommen zum Experiment!\n\n\n"
-                            "Wir beginnen mit 3 Probedurchläufen.", 10)
+                            "Wir beginnen mit den Übungsdurchläufen.", 10)
         availableTypingTaskNumbers = "123123123"
         # do practice trials
         runSingleTaskTrackingTrials(True)
         runSingleTaskTypingTrials(True)
         runDualTaskTrials(True)
-        GiveMessageOnScreen("Jetzt testen wir deine Leistung in diesen Aufgaben. \n"
-                            "Versuche so viele Punkte wie möglich zu gewinnen", 10)
+        GiveMessageOnScreen("Nun beginnt der Hauppteil und wir testen deine Leistung in den Aufgaben, die du \n"
+                            "gerade geübt hast.\n"
+                            "Versuche im Laufe des Experiments so viele Punkte wie möglich zu gewinnen!", 10)
 
     # main experiment loop with verified conditions
     for condition in conditionsVerified:
@@ -1471,13 +1497,14 @@ def main():
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
                       "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
                       "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
-                      "Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
-        else:
+                      "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
+        elif showPrecedingPenaltyInfo == "no":
             message = "NEUER BLOCK: \n\n\n" \
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
                       "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
-                      "Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
-        GiveMessageOnScreen(message, 10)
+                      "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
+
+        GiveMessageOnScreen(message, 12)
 
         runSingleTaskTrackingTrials(False)
         runSingleTaskTypingTrials(False)
