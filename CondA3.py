@@ -33,7 +33,7 @@ global penalty
 penalty = ""
 
 global fullscreen
-fullscreen = True
+fullscreen = False
 
 timeFeedbackIsGiven = 4
 
@@ -45,7 +45,7 @@ global joystickObject  # the joystick object (initialized at start of experiment
 global experiment
 experiment = "singleTaskTracking"
 global outputDataFile
-global outputSummaryFile
+global outputDataFileTrialEnd
 global conditions
 conditions = ()
 joystickAxis = (0, 0)  # the motion of the joystick
@@ -126,9 +126,9 @@ timeOfCompleteStartOfExperiment = 0  # this value is needed because otherwise on
 cursorDistancesToMiddle = []
 
 
-def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
+def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
     global outputDataFile
-    global outputSummaryFile
+    global outputDataFileTrialEnd
     global subjNr
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
@@ -205,7 +205,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
         str(typingWindowVisible) + ";" + \
         str(trackingWindowEntryCounter) + ";" + \
         str(typingWindowEntryCounter) + ";" + \
-        str(calculateRmse()) + ";" if writeSummaryFile else "" + \
+        str(calculateRmse(clearDistances=endOfTrial)) + ";" + \
         str(outputCursorCoordinateX) + ";" + \
         str(outputCursorCoordinateY) + ";" + \
         str(outputJoystickAxisX) + ";" + \
@@ -224,22 +224,25 @@ def writeOutputDataFile(eventMessage1, eventMessage2, writeSummaryFile = False):
         str(eventMessage1) + ";" + \
         str(eventMessage2) + "\n"
 
-    if writeSummaryFile:
-        outputSummaryFile.write(outputText)
-        outputSummaryFile.flush()
+    if endOfTrial:
+        outputDataFileTrialEnd.write(outputText)
+        outputDataFileTrialEnd.flush()
         # typically the above line would do. however this is used to ensure that the file is written
-        os.fsync(outputSummaryFile.fileno())
+        os.fsync(outputDataFileTrialEnd.fileno())
 
-        outputDataFile.write(outputText)
-    else:
-        outputDataFile.write(outputText)
-
+    outputDataFile.write(outputText)
     outputDataFile.flush()
     # typically the above line would do. however this is used to ensure that the file is written
     os.fsync(outputDataFile.fileno())
 
 
-def calculateRmse():
+def calculateRmse(clearDistances):
+    """
+    The distances are collected each time the cursor changes its position.
+    The distances are collected until the RMSE is calculated.
+    The RMSE is calculated every time the data file is written.
+    The distances are cleared after the RMSE is calculated.
+    """
     global cursorDistancesToMiddle
 
     n = len(cursorDistancesToMiddle)
@@ -250,7 +253,9 @@ def calculateRmse():
     # Calculate square
     for i in range(0, n):
         square += (cursorDistancesToMiddle[i] ** 2)
-    cursorDistancesToMiddle = []
+
+    if clearDistances:
+        cursorDistancesToMiddle = []
 
     # Calculate Mean
     mean = (square / float(n))
@@ -685,9 +690,17 @@ def drawCursor(sleepTime):
     final_x = x
     final_y = y
 
+    print("trackerWindowVisisble: " + str(trackerWindowVisible))
+
     # only add noise if tracker is not moving
     motionThreshold = 0.08
-    if not (trackerWindowVisible and (joystickAxis[0] > motionThreshold or joystickAxis[0] < -1 * motionThreshold or joystickAxis[1] > motionThreshold or joystickAxis[1] < -1 * motionThreshold)):
+
+    joystickAxisWithinThreshold = joystickAxis[0] > motionThreshold or \
+                                  joystickAxis[0] < -motionThreshold or \
+                                  joystickAxis[1] > motionThreshold or \
+                                  joystickAxis[1] < -motionThreshold
+
+    if not (trackerWindowVisible and joystickAxisWithinThreshold):
         final_x = x + random.gauss(0, standardDeviationOfNoise)
         final_y = y + random.gauss(0, standardDeviationOfNoise)
 
@@ -787,6 +800,7 @@ def drawCursor(sleepTime):
 
     # collect distances of the cursor to the circle middle for the RMSE
     cursorDistancesToMiddle.append(math.sqrt((windowMiddleX - x)**2 + (windowMiddleY - y)**2))
+    print("cursor drawn")
 
 
 def closeTypingWindow():
@@ -978,6 +992,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global correctlyTypedDigitsVisit
     global incorrectlyTypedDigitsVisit
     global incorrectlyTypedDigitsTrial
+    global cursorDistancesToMiddle
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTypingTrials
@@ -1002,6 +1017,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         correctlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
+        cursorDistancesToMiddle = []
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1073,6 +1089,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global correctlyTypedDigitsVisit
     global incorrectlyTypedDigitsVisit
     global incorrectlyTypedDigitsTrial
+    global cursorDistancesToMiddle
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTrackingTrials
@@ -1107,6 +1124,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         correctlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
+        cursorDistancesToMiddle = []
 
         trialNumber = trialNumber + 1
         bg = pygame.Surface(ExperimentWindowSize).convert()
@@ -1181,6 +1199,7 @@ def runDualTaskTrials(isPracticeTrial):
     global visitEndTime
     global incorrectlyTypedDigitsTrial
     global incorrectlyTypedDigitsVisit
+    global cursorDistancesToMiddle
 
     blockNumber += 1
 
@@ -1222,6 +1241,7 @@ def runDualTaskTrials(isPracticeTrial):
         correctlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
+        cursorDistancesToMiddle = []
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1298,7 +1318,7 @@ def initializeOutputFiles(subjNrStr):
     Set the participant condition. Initialize the output files
     """
     global outputDataFile
-    global outputSummaryFile
+    global outputDataFileTrialEnd
 
     outputText = "SubjectNr;" \
                  "RadiusCircle;" \
@@ -1315,6 +1335,7 @@ def initializeOutputFiles(subjNrStr):
                  "TypingWindowVisible;" \
                  "TrackingWindowEntryCounter;" \
                  "TypingWindowEntryCounter;" \
+                 "RMSE;" \
                  "CursorCoordinatesX;" \
                  "CursorCoordinatesY;" \
                  "JoystickAxisX;" \
@@ -1342,11 +1363,11 @@ def initializeOutputFiles(subjNrStr):
     os.fsync(outputDataFile.fileno())
 
     summaryFileName = "participant_" + subjNrStr + "_data_lastTrialEntry_" + timestamp + ".csv"
-    outputSummaryFile = open(summaryFileName, 'w')  # contains the user data
-	outputSummaryFile.write(outputText.replace("TypingWindowEntryCounter;", "TypingWindowEntryCounter;RMSE;"))
-    outputSummaryFile.flush()
+    outputDataFileTrialEnd = open(summaryFileName, 'w')  # contains the user data
+    outputDataFileTrialEnd.write(outputText.replace("TypingWindowEntryCounter;", "TypingWindowEntryCounter;RMSE;"))
+    outputDataFileTrialEnd.flush()
     # typically the above line would do. however this is used to ensure that the file is written
-    os.fsync(outputSummaryFile.fileno())
+    os.fsync(outputDataFileTrialEnd.fileno())
 
 
 def readConditionFile(subjNrStr):
@@ -1520,13 +1541,13 @@ def main():
 def quit_app():
     global environmentIsRunning
     global outputDataFile
-    global outputSummaryFile
+    global outputDataFileTrialEnd
 
     environmentIsRunning = False
     pygame.display.quit()
     pygame.quit()
     outputDataFile.close()
-    outputSummaryFile.close()
+    outputDataFileTrialEnd.close()
     sys.exit()
 
 
