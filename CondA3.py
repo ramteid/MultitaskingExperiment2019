@@ -911,7 +911,9 @@ def updateScore():
     global cursorColor
     global penalty
 
-    if outsideRadius:
+    if penalty == "none":
+        visitScore = 0
+    elif outsideRadius:
         numberOfCircleExits += 1
         if penalty == "lose500":
             # loose 500
@@ -924,10 +926,6 @@ def updateScore():
         if penalty == "loseHalf":
             # loose half
             visitScore = 0.5 * ((correctlyTypedDigitsVisit * 10) + (incorrectlyTypedDigitsVisit * -5))  # penalty for exit is to lose half points
-
-        if penalty == "none":
-            visitScore = 0
-            raise Exception("not implemented")
     else:
         visitScore = (correctlyTypedDigitsVisit * 10) + (incorrectlyTypedDigitsVisit * -5)  # gain is 10 for correct digit and -5 for incorrect digit
 
