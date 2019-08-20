@@ -690,8 +690,6 @@ def drawCursor(sleepTime):
     final_x = x
     final_y = y
 
-    print("trackerWindowVisisble: " + str(trackerWindowVisible))
-
     # only add noise if tracker is not moving
     motionThreshold = 0.08
 
@@ -800,7 +798,6 @@ def drawCursor(sleepTime):
 
     # collect distances of the cursor to the circle middle for the RMSE
     cursorDistancesToMiddle.append(math.sqrt((windowMiddleX - x)**2 + (windowMiddleY - y)**2))
-    print("cursor drawn")
 
 
 def closeTypingWindow():
