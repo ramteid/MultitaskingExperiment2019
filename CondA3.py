@@ -33,7 +33,7 @@ global penalty
 penalty = ""
 
 global fullscreen
-fullscreen = False
+fullscreen = True
 
 timeFeedbackIsGiven = 4
 
@@ -267,7 +267,7 @@ def calculateRmse(clearDistances):
 def checkMouseClicked():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            quit_app()
+            quitApp()
         elif event.type == pygame.MOUSEBUTTONDOWN:
             pos = pygame.mouse.get_pos()
             posString = str(pos[0]) + "_" + str(pos[1])
@@ -295,7 +295,7 @@ def checkKeyPressed():
             pos = pygame.mouse.get_pos()
             cursorCoordinates = pos[0], pos[1]
         elif event.type == pygame.QUIT:
-            quit_app()
+            quitApp()
         elif event.type == pygame.JOYAXISMOTION:
             if trackingTaskPresent:
                 # values between -1 and 1. (-1,-1) top left corner, (1,-1) top right; (-1,1) bottom left, (1,1) bottom right
@@ -349,7 +349,7 @@ def checkKeyPressed():
                         or event.key == pygame.K_KP_MINUS or event.key == pygame.K_KP_PLUS or event.key == pygame.K_KP_MULTIPLY:
                     keyPressed = "-"
                 elif event.key == pygame.K_F4:
-                    quit_app()
+                    quitApp()
                 else:
                     return
 
@@ -1510,32 +1510,47 @@ def main():
         penalty = condition["penalty"]
         penaltyMsg = condition["penaltyMsg"]
 
-        if showPrecedingPenaltyInfo == "yes":
-            message = "NEUER BLOCK: \n\n\n" \
-                      "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
-                      "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
-                      "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
-                      "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
-        elif showPrecedingPenaltyInfo == "no":
-            message = "NEUER BLOCK: \n\n\n" \
-                      "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
-                      "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
-                      "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
-
+        message = getMessageBeforeTrial("singleTracking", noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
         GiveMessageOnScreen(message, 12)
-
         runSingleTaskTrackingTrials(False)
+
+        message = getMessageBeforeTrial("singleTyping", noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
+        GiveMessageOnScreen(message, 12)
         runSingleTaskTypingTrials(False)
+
+        message = getMessageBeforeTrial("dualTask", noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
+        GiveMessageOnScreen(message, 12)
         runDualTaskTrials(False)
 
         message = "Bisher hast du: " + str(scipy.sum(scoresForPayment)) + " Punkte"
         GiveMessageOnScreen(message, 8)
 
     GiveMessageOnScreen("Dies ist das Ende der Studie.", 10)
-    quit_app()
+    quitApp()
 
 
-def quit_app():
+def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg, showPrecedingPenaltyInfo):
+    message = "NEUER BLOCK: \n\n\n"
+    if trialType == "singleTracking" or trialType == "dualTask":
+        message += "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n"
+    elif trialType == "singleTyping" or trialType == "dualTask":
+        message += "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n"
+    if showPrecedingPenaltyInfo == "yes":
+        if trialType == "singleTyping" or trialType == "dualTask":
+            message += "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n"
+        elif trialType == "singleTracking" or trialType == "dualTask":
+            message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
+    elif showPrecedingPenaltyInfo == "no":
+        if trialType == "dualTask":
+            message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
+        elif trialType == "singleTyping":
+            message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
+        elif trialType == "singleTracking":
+            message += "Achtung: Du verlierst Punkte wenn der Punkt den Kreis verlässt."
+    return message
+
+
+def quitApp():
     global environmentIsRunning
     global outputDataFile
     global outputDataFileTrialEnd
