@@ -916,6 +916,7 @@ def drawTrackerWindow():
     global cursorColor
     global cursorCoordinates
     global experiment
+    global penalty
 
     bg = pygame.Surface(ExperimentWindowSize).convert()
     bg.fill(backgroundColorEntireScreen)
@@ -932,7 +933,7 @@ def drawTrackerWindow():
     screen.blit(newCursor, newCursorLocation)  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
-    if experiment == "dualTask" or experiment == "practiceDualTask":
+    if penalty != "none" and (experiment == "dualTask" or experiment == "practiceDualTask"):
         intermediateMessage = str(visitScore) + " Punkte"
         fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
@@ -955,7 +956,9 @@ def updateScore():
     global cursorColor
     global penalty
 
-    if outsideRadius:
+    if penalty == "none":
+        visitScore = 0
+    elif outsideRadius:
         numberOfCircleExits += 1
         if penalty == "lose500":
             # loose 500
@@ -974,8 +977,8 @@ def updateScore():
     # add the score for this digit task visit to the overall trial score
     # duringtrial score is used in reportUserScore
     trialScore += visitScore
-    outsideRadius = False
     writeOutputDataFile("updatedVisitScore", str(visitScore))
+    outsideRadius = False
 
 
 def runSingleTaskTypingTrials(isPracticeTrial):
@@ -1433,7 +1436,7 @@ def main():
     if firstTrialInput != "yes" and firstTrialInput != "no":
         raise Exception("Invalid input '" + firstTrialInput + "'. Allowed is 'yes' or 'no' only.")
 
-    showPrecedingPenaltyInfo = input("Show penalty and noise information before the experiment starts? (yes/no) ")
+    showPrecedingPenaltyInfo = input("Show reward, penalty and noise information before the experiment starts? (yes/no) ")
     if showPrecedingPenaltyInfo != "yes" and showPrecedingPenaltyInfo != "no":
         raise Exception("Invalid input '" + showPrecedingPenaltyInfo + "'. Allowed is 'yes' or 'no' only.")
 
@@ -1455,8 +1458,9 @@ def main():
     conditionsVerified = []
     for pos in range(0, len(conditions)):
         currentCondition = conditions[pos]
-        if len(currentCondition) != 4:
-            raise Exception("Current Condition" + currentCondition + " has invalid length " + len(currentCondition))
+        numDigits = len(currentCondition)
+        if numDigits != 4:
+            raise Exception("Current Condition" + currentCondition + " has invalid length " + str(len(currentCondition)))
 
         # noise values are h (high), m (medium) or l (low)
         if currentCondition[0] == "h":
@@ -1487,7 +1491,7 @@ def main():
         else:
             raise Exception("Invalid number " + currentCondition[2])
 
-        # define penalty
+        # only if the fourth digit is specified, define penalty
         if currentCondition[3] == "a":
             penalty = "loseAll"
             penaltyMsg = "alle"
@@ -1497,6 +1501,9 @@ def main():
         elif currentCondition[3] == "n":
             penalty = "lose500"
             penaltyMsg = "500"
+        elif currentCondition[3] == "-":
+            penalty = "none"
+            penaltyMsg = "-"
         else:
             raise Exception("Invalid penalty " + currentCondition[3])
 
@@ -1536,13 +1543,15 @@ def main():
             message = "NEUER BLOCK: \n\n\n" \
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
                       "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n" \
-                      "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n" \
-                      "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
+                      "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n"
+            if penalty != "none":
+                message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
         elif showPrecedingPenaltyInfo == "no":
             message = "NEUER BLOCK: \n\n\n" \
                       "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n" \
-                      "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n" \
-                      "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
+                      "Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n"
+            if penalty != "none":
+                message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
 
         GiveMessageOnScreen(message, 12)
 
