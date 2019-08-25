@@ -33,7 +33,7 @@ global penalty
 penalty = ""
 
 global fullscreen
-fullscreen = False
+fullscreen = True
 
 timeFeedbackIsGiven = 4
 
@@ -293,9 +293,10 @@ def checkKeyPressed():
     global cursorCoordinates
     global typingTaskPresent
     global trackingTaskPresent
+    global trackerWindowVisible
 
     for event in pygame.event.get():
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN and trackerWindowVisible:
             pos = pygame.mouse.get_pos()
             cursorCoordinates = pos[0], pos[1]
         elif event.type == pygame.QUIT:
@@ -1337,39 +1338,39 @@ def initializeOutputFiles(subjNrStr):
     global outputDataFile
     global outputDataFileTrialEnd
 
-    outputText = "SubjectNr;" \
-                 "RadiusCircle;" \
-                 "StandardDeviationOfNoise;" \
-                 "CurrentTime;" \
-                 "TrialTime;" \
-                 "VisitTime;" \
-                 "BlockNumber;" \
-                 "TrialNumber;" \
-                 "Experiment;" \
-                 "TrackingTaskPresent;" \
-                 "TypingTaskPresent;" \
-                 "TrackerWindowVisible;" \
-                 "TypingWindowVisible;" \
-                 "TrackingWindowEntryCounter;" \
-                 "TypingWindowEntryCounter;" \
-                 "RMSE;" \
-                 "LengthPathTrackedPixel" \
-                 "CursorCoordinatesX;" \
-                 "CursorCoordinatesY;" \
-                 "JoystickAxisX;" \
-                 "JoystickAxisY;" \
-                 "EnteredDigits;" \
-                 "EnteredDigitsLength;" \
-                 "GeneratedTypingTaskNumbers;" \
-                 "GeneratedTypingTaskNumberLength;" \
-                 "NumberOfCircleExits;" \
-                 "TrialScore;" \
-                 "VisitScore;" \
-                 "CorrectDigitsVisit;" \
-                 "IncorrectDigitsVisit;" \
-                 "IncorrectDigitsTrial;" \
-                 "OutsideRadius;" \
-                 "EventMessage1;" \
+    outputText = "SubjectNr" + ";" \
+                 "RadiusCircle" + ";" \
+                 "StandardDeviationOfNoise" + ";" \
+                 "CurrentTime" + ";" \
+                 "TrialTime" + ";" \
+                 "VisitTime" + ";" \
+                 "BlockNumber" + ";" \
+                 "TrialNumber" + ";" \
+                 "Experiment" + ";" \
+                 "TrackingTaskPresent" + ";" \
+                 "TypingTaskPresent" + ";" \
+                 "TrackerWindowVisible" + ";" \
+                 "TypingWindowVisible" + ";" \
+                 "TrackingWindowEntryCounter" + ";" \
+                 "TypingWindowEntryCounter" + ";" \
+                 "RMSE" + ";" \
+                 "LengthPathTrackedPixel" + ";" \
+                 "CursorCoordinatesX" + ";" \
+                 "CursorCoordinatesY" + ";" \
+                 "JoystickAxisX" + ";" \
+                 "JoystickAxisY" + ";" \
+                 "EnteredDigits" + ";" \
+                 "EnteredDigitsLength" + ";" \
+                 "GeneratedTypingTaskNumbers" + ";" \
+                 "GeneratedTypingTaskNumberLength" + ";" \
+                 "NumberOfCircleExits" + ";" \
+                 "TrialScore" + ";" \
+                 "VisitScore" + ";" \
+                 "CorrectDigitsVisit" + ";" \
+                 "IncorrectDigitsVisit" + ";" \
+                 "IncorrectDigitsTrial" + ";" \
+                 "OutsideRadius" + ";" \
+                 "EventMessage1" + ";" \
                  "EventMessage2" + "\n"
     timestamp = time.strftime("%Y-%m-%d_%H-%M")
 
