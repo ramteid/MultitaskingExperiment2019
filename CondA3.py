@@ -33,7 +33,7 @@ global penalty
 penalty = ""
 
 global fullscreen
-fullscreen = False
+fullscreen = True
 
 timeFeedbackIsGiven = 4
 
@@ -125,6 +125,9 @@ timeOfCompleteStartOfExperiment = 0  # this value is needed because otherwise on
 
 cursorDistancesToMiddle = []
 
+global PathTracked
+lengthOfPathTracked = 0
+
 
 def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
     global outputDataFile
@@ -154,6 +157,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
     global correctlyTypedDigitsVisit
     global incorrectlyTypedDigitsTrial
     global incorrectlyTypedDigitsVisit
+    global lengthOfPathTracked
 
     currentTime = time.time() - timeOfCompleteStartOfExperiment  # this is an absolute time, that always increases (necessary to syncronize with eye-tracker)
     currentTime = scipy.special.round(currentTime * 10000) / 10000
@@ -205,6 +209,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
         str(trackingWindowEntryCounter) + ";" + \
         str(typingWindowEntryCounter) + ";" + \
         str(calculateRmse(clearDistances=endOfTrial)) + ";" + \
+        str(lengthOfPathTracked) + ";" + \
         str(outputCursorCoordinateX) + ";" + \
         str(outputCursorCoordinateY) + ";" + \
         str(outputJoystickAxisX) + ";" + \
@@ -288,9 +293,10 @@ def checkKeyPressed():
     global cursorCoordinates
     global typingTaskPresent
     global trackingTaskPresent
+    global trackerWindowVisible
 
     for event in pygame.event.get():
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN and trackerWindowVisible:
             pos = pygame.mouse.get_pos()
             cursorCoordinates = pos[0], pos[1]
         elif event.type == pygame.QUIT:
@@ -683,9 +689,12 @@ def drawCursor(sleepTime):
     global windowMiddleX
     global windowMiddleY
     global taskWindowSize
+    global lengthOfPathTracked
 
     x = cursorCoordinates[0]
     y = cursorCoordinates[1]
+    oldX = x
+    oldY = y
     final_x = x
     final_y = y
 
@@ -797,6 +806,9 @@ def drawCursor(sleepTime):
 
     # collect distances of the cursor to the circle middle for the RMSE
     cursorDistancesToMiddle.append(math.sqrt((windowMiddleX - x)**2 + (windowMiddleY - y)**2))
+
+    # collect cumulatively the distance the cursor has moved
+    lengthOfPathTracked += math.sqrt((oldX - x)**2 + (oldY - y)**2)
 
 
 def closeTypingWindow():
@@ -989,6 +1001,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global incorrectlyTypedDigitsVisit
     global incorrectlyTypedDigitsTrial
     global cursorDistancesToMiddle
+    global lengthOfPathTracked
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTypingTrials
@@ -1014,6 +1027,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
         cursorDistancesToMiddle = []
+        lengthOfPathTracked = 0
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1087,6 +1101,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global incorrectlyTypedDigitsTrial
     global cursorDistancesToMiddle
     global cursorCoordinates
+    global lengthOfPathTracked
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTrackingTrials
@@ -1122,6 +1137,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
         cursorDistancesToMiddle = []
+        lengthOfPathTracked = 0
 
         trialNumber = trialNumber + 1
         bg = pygame.Surface(ExperimentWindowSize).convert()
@@ -1199,6 +1215,7 @@ def runDualTaskTrials(isPracticeTrial):
     global incorrectlyTypedDigitsVisit
     global cursorDistancesToMiddle
     global cursorCoordinates
+    global lengthOfPathTracked
 
     blockNumber += 1
 
@@ -1241,6 +1258,7 @@ def runDualTaskTrials(isPracticeTrial):
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
         cursorDistancesToMiddle = []
+        lengthOfPathTracked = 0
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1320,38 +1338,39 @@ def initializeOutputFiles(subjNrStr):
     global outputDataFile
     global outputDataFileTrialEnd
 
-    outputText = "SubjectNr;" \
-                 "RadiusCircle;" \
-                 "StandardDeviationOfNoise;" \
-                 "CurrentTime;" \
-                 "TrialTime;" \
-                 "VisitTime;" \
-                 "BlockNumber;" \
-                 "TrialNumber;" \
-                 "Experiment;" \
-                 "TrackingTaskPresent;" \
-                 "TypingTaskPresent;" \
-                 "TrackerWindowVisible;" \
-                 "TypingWindowVisible;" \
-                 "TrackingWindowEntryCounter;" \
-                 "TypingWindowEntryCounter;" \
-                 "RMSE;" \
-                 "CursorCoordinatesX;" \
-                 "CursorCoordinatesY;" \
-                 "JoystickAxisX;" \
-                 "JoystickAxisY;" \
-                 "EnteredDigits;" \
-                 "EnteredDigitsLength;" \
-                 "GeneratedTypingTaskNumbers;" \
-                 "GeneratedTypingTaskNumberLength;" \
-                 "NumberOfCircleExits;" \
-                 "TrialScore;" \
-                 "VisitScore;" \
-                 "CorrectDigitsVisit;" \
-                 "IncorrectDigitsVisit;" \
-                 "IncorrectDigitsTrial;" \
-                 "OutsideRadius;" \
-                 "EventMessage1;" \
+    outputText = "SubjectNr" + ";" \
+                 "RadiusCircle" + ";" \
+                 "StandardDeviationOfNoise" + ";" \
+                 "CurrentTime" + ";" \
+                 "TrialTime" + ";" \
+                 "VisitTime" + ";" \
+                 "BlockNumber" + ";" \
+                 "TrialNumber" + ";" \
+                 "Experiment" + ";" \
+                 "TrackingTaskPresent" + ";" \
+                 "TypingTaskPresent" + ";" \
+                 "TrackerWindowVisible" + ";" \
+                 "TypingWindowVisible" + ";" \
+                 "TrackingWindowEntryCounter" + ";" \
+                 "TypingWindowEntryCounter" + ";" \
+                 "RMSE" + ";" \
+                 "LengthPathTrackedPixel" + ";" \
+                 "CursorCoordinatesX" + ";" \
+                 "CursorCoordinatesY" + ";" \
+                 "JoystickAxisX" + ";" \
+                 "JoystickAxisY" + ";" \
+                 "EnteredDigits" + ";" \
+                 "EnteredDigitsLength" + ";" \
+                 "GeneratedTypingTaskNumbers" + ";" \
+                 "GeneratedTypingTaskNumberLength" + ";" \
+                 "NumberOfCircleExits" + ";" \
+                 "TrialScore" + ";" \
+                 "VisitScore" + ";" \
+                 "CorrectDigitsVisit" + ";" \
+                 "IncorrectDigitsVisit" + ";" \
+                 "IncorrectDigitsTrial" + ";" \
+                 "OutsideRadius" + ";" \
+                 "EventMessage1" + ";" \
                  "EventMessage2" + "\n"
     timestamp = time.strftime("%Y-%m-%d_%H-%M")
 
@@ -1564,5 +1583,3 @@ if __name__ == '__main__':
             log.write(f"{datetime.datetime.now()} {str(e)}   {str(stack)} \n")
             print(str(e))
             print(str(stack))
-
-
