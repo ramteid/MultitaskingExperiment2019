@@ -50,7 +50,7 @@ global conditions
 conditions = ()
 joystickAxis = (0, 0)  # the motion of the joystick
 digitPressTimes = []
-startTime = 0
+startTime = time.time()
 timeFeedbackIsShown = 4
 backgroundColorTrackerScreen = (255, 255, 255)  # white
 backgroundColorDigitScreen = backgroundColorTrackerScreen
@@ -125,6 +125,9 @@ timeOfCompleteStartOfExperiment = 0  # this value is needed because otherwise on
 
 cursorDistancesToMiddle = []
 
+global lengthOfPathTracked
+lengthOfPathTracked = 0
+
 
 def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
     global outputDataFile
@@ -141,7 +144,6 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
     global trialNumber
     global cursorCoordinates
     global joystickAxis
-    global startTime  # stores time at which trial started
     global trackerWindowVisible
     global typingWindowVisible
     global radiusCircle
@@ -155,6 +157,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
     global correctlyTypedDigitsVisit
     global incorrectlyTypedDigitsTrial
     global incorrectlyTypedDigitsVisit
+    global lengthOfPathTracked
 
     currentTime = time.time() - timeOfCompleteStartOfExperiment  # this is an absolute time, that always increases (necessary to syncronize with eye-tracker)
     currentTime = scipy.special.round(currentTime * 10000) / 10000
@@ -206,6 +209,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
         str(trackingWindowEntryCounter) + ";" + \
         str(typingWindowEntryCounter) + ";" + \
         str(calculateRmse(clearDistances=endOfTrial)) + ";" + \
+        str(lengthOfPathTracked) + ";" + \
         str(outputCursorCoordinateX) + ";" + \
         str(outputCursorCoordinateY) + ";" + \
         str(outputJoystickAxisX) + ";" + \
@@ -289,9 +293,10 @@ def checkKeyPressed():
     global cursorCoordinates
     global typingTaskPresent
     global trackingTaskPresent
+    global trackerWindowVisible
 
     for event in pygame.event.get():
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN and trackerWindowVisible:
             pos = pygame.mouse.get_pos()
             cursorCoordinates = pos[0], pos[1]
         elif event.type == pygame.QUIT:
@@ -684,9 +689,12 @@ def drawCursor(sleepTime):
     global windowMiddleX
     global windowMiddleY
     global taskWindowSize
+    global lengthOfPathTracked
 
     x = cursorCoordinates[0]
     y = cursorCoordinates[1]
+    oldX = x
+    oldY = y
     final_x = x
     final_y = y
 
@@ -799,6 +807,9 @@ def drawCursor(sleepTime):
     # collect distances of the cursor to the circle middle for the RMSE
     cursorDistancesToMiddle.append(math.sqrt((windowMiddleX - x)**2 + (windowMiddleY - y)**2))
 
+    # collect cumulatively the distance the cursor has moved
+    lengthOfPathTracked += math.sqrt((oldX - x)**2 + (oldY - y)**2)
+
 
 def closeTypingWindow():
     print("FUNCTION: " + getFunctionName())
@@ -905,6 +916,7 @@ def drawTrackerWindow():
     global cursorColor
     global cursorCoordinates
     global experiment
+    global penalty
 
     bg = pygame.Surface(ExperimentWindowSize).convert()
     bg.fill(backgroundColorEntireScreen)
@@ -921,7 +933,7 @@ def drawTrackerWindow():
     screen.blit(newCursor, newCursorLocation)  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
-    if experiment == "dualTask" or experiment == "practiceDualTask":
+    if penalty != "none" and (experiment == "dualTask" or experiment == "practiceDualTask"):
         intermediateMessage = str(visitScore) + " Punkte"
         fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
@@ -944,7 +956,9 @@ def updateScore():
     global cursorColor
     global penalty
 
-    if outsideRadius:
+    if penalty == "none":
+        visitScore = 0
+    elif outsideRadius:
         numberOfCircleExits += 1
         if penalty == "lose500":
             # loose 500
@@ -963,8 +977,8 @@ def updateScore():
     # add the score for this digit task visit to the overall trial score
     # duringtrial score is used in reportUserScore
     trialScore += visitScore
-    outsideRadius = False
     writeOutputDataFile("updatedVisitScore", str(visitScore))
+    outsideRadius = False
 
 
 def runSingleTaskTypingTrials(isPracticeTrial):
@@ -990,6 +1004,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global incorrectlyTypedDigitsVisit
     global incorrectlyTypedDigitsTrial
     global cursorDistancesToMiddle
+    global lengthOfPathTracked
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTypingTrials
@@ -1015,6 +1030,7 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
         cursorDistancesToMiddle = []
+        lengthOfPathTracked = 0
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1087,6 +1103,8 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global incorrectlyTypedDigitsVisit
     global incorrectlyTypedDigitsTrial
     global cursorDistancesToMiddle
+    global cursorCoordinates
+    global lengthOfPathTracked
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTrackingTrials
@@ -1122,6 +1140,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
         cursorDistancesToMiddle = []
+        lengthOfPathTracked = 0
 
         trialNumber = trialNumber + 1
         bg = pygame.Surface(ExperimentWindowSize).convert()
@@ -1132,6 +1151,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
 
         trackingWindowEntryCounter = 0
         typingWindowEntryCounter = 0
+        cursorCoordinates = (windowMiddleX, windowMiddleY)
 
         if trackingTaskPresent:
             joystickAxis = (0, 0)
@@ -1197,6 +1217,8 @@ def runDualTaskTrials(isPracticeTrial):
     global incorrectlyTypedDigitsTrial
     global incorrectlyTypedDigitsVisit
     global cursorDistancesToMiddle
+    global cursorCoordinates
+    global lengthOfPathTracked
 
     blockNumber += 1
 
@@ -1239,6 +1261,7 @@ def runDualTaskTrials(isPracticeTrial):
         incorrectlyTypedDigitsVisit = 0
         incorrectlyTypedDigitsTrial = 0
         cursorDistancesToMiddle = []
+        lengthOfPathTracked = 0
 
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
@@ -1251,6 +1274,7 @@ def runDualTaskTrials(isPracticeTrial):
         trackingWindowEntryCounter = 0
         typingWindowEntryCounter = 0
         trialNumber = trialNumber + 1
+        cursorCoordinates = (windowMiddleX, windowMiddleY)
 
         completebg = pygame.Surface(ExperimentWindowSize).convert()
         completebg.fill(backgroundColorEntireScreen)
@@ -1317,38 +1341,39 @@ def initializeOutputFiles(subjNrStr):
     global outputDataFile
     global outputDataFileTrialEnd
 
-    outputText = "SubjectNr;" \
-                 "RadiusCircle;" \
-                 "StandardDeviationOfNoise;" \
-                 "CurrentTime;" \
-                 "TrialTime;" \
-                 "VisitTime;" \
-                 "BlockNumber;" \
-                 "TrialNumber;" \
-                 "Experiment;" \
-                 "TrackingTaskPresent;" \
-                 "TypingTaskPresent;" \
-                 "TrackerWindowVisible;" \
-                 "TypingWindowVisible;" \
-                 "TrackingWindowEntryCounter;" \
-                 "TypingWindowEntryCounter;" \
-                 "RMSE;" \
-                 "CursorCoordinatesX;" \
-                 "CursorCoordinatesY;" \
-                 "JoystickAxisX;" \
-                 "JoystickAxisY;" \
-                 "EnteredDigits;" \
-                 "EnteredDigitsLength;" \
-                 "GeneratedTypingTaskNumbers;" \
-                 "GeneratedTypingTaskNumberLength;" \
-                 "NumberOfCircleExits;" \
-                 "TrialScore;" \
-                 "VisitScore;" \
-                 "CorrectDigitsVisit;" \
-                 "IncorrectDigitsVisit;" \
-                 "IncorrectDigitsTrial;" \
-                 "OutsideRadius;" \
-                 "EventMessage1;" \
+    outputText = "SubjectNr" + ";" \
+                 "RadiusCircle" + ";" \
+                 "StandardDeviationOfNoise" + ";" \
+                 "CurrentTime" + ";" \
+                 "TrialTime" + ";" \
+                 "VisitTime" + ";" \
+                 "BlockNumber" + ";" \
+                 "TrialNumber" + ";" \
+                 "Experiment" + ";" \
+                 "TrackingTaskPresent" + ";" \
+                 "TypingTaskPresent" + ";" \
+                 "TrackerWindowVisible" + ";" \
+                 "TypingWindowVisible" + ";" \
+                 "TrackingWindowEntryCounter" + ";" \
+                 "TypingWindowEntryCounter" + ";" \
+                 "RMSE" + ";" \
+                 "LengthPathTrackedPixel" + ";" \
+                 "CursorCoordinatesX" + ";" \
+                 "CursorCoordinatesY" + ";" \
+                 "JoystickAxisX" + ";" \
+                 "JoystickAxisY" + ";" \
+                 "EnteredDigits" + ";" \
+                 "EnteredDigitsLength" + ";" \
+                 "GeneratedTypingTaskNumbers" + ";" \
+                 "GeneratedTypingTaskNumberLength" + ";" \
+                 "NumberOfCircleExits" + ";" \
+                 "TrialScore" + ";" \
+                 "VisitScore" + ";" \
+                 "CorrectDigitsVisit" + ";" \
+                 "IncorrectDigitsVisit" + ";" \
+                 "IncorrectDigitsTrial" + ";" \
+                 "OutsideRadius" + ";" \
+                 "EventMessage1" + ";" \
                  "EventMessage2" + "\n"
     timestamp = time.strftime("%Y-%m-%d_%H-%M")
 
@@ -1411,7 +1436,7 @@ def main():
     if firstTrialInput != "yes" and firstTrialInput != "no":
         raise Exception("Invalid input '" + firstTrialInput + "'. Allowed is 'yes' or 'no' only.")
 
-    showPrecedingPenaltyInfo = input("Show penalty and noise information before the experiment starts? (yes/no) ")
+    showPrecedingPenaltyInfo = input("Show reward, penalty and noise information before the experiment starts? (yes/no) ")
     if showPrecedingPenaltyInfo != "yes" and showPrecedingPenaltyInfo != "no":
         raise Exception("Invalid input '" + showPrecedingPenaltyInfo + "'. Allowed is 'yes' or 'no' only.")
 
@@ -1433,8 +1458,9 @@ def main():
     conditionsVerified = []
     for pos in range(0, len(conditions)):
         currentCondition = conditions[pos]
-        if len(currentCondition) != 4:
-            raise Exception("Current Condition" + currentCondition + " has invalid length " + len(currentCondition))
+        numDigits = len(currentCondition)
+        if numDigits != 4:
+            raise Exception("Current Condition" + currentCondition + " has invalid length " + str(len(currentCondition)))
 
         # noise values are h (high), m (medium) or l (low)
         if currentCondition[0] == "h":
@@ -1465,7 +1491,7 @@ def main():
         else:
             raise Exception("Invalid number " + currentCondition[2])
 
-        # define penalty
+        # only if the fourth digit is specified, define penalty
         if currentCondition[3] == "a":
             penalty = "loseAll"
             penaltyMsg = "alle"
@@ -1475,6 +1501,9 @@ def main():
         elif currentCondition[3] == "n":
             penalty = "lose500"
             penaltyMsg = "500"
+        elif currentCondition[3] == "-":
+            penalty = "none"
+            penaltyMsg = "-"
         else:
             raise Exception("Invalid penalty " + currentCondition[3])
 
@@ -1576,5 +1605,3 @@ if __name__ == '__main__':
             log.write(f"{datetime.datetime.now()} {str(e)}   {str(stack)} \n")
             print(str(e))
             print(str(stack))
-
-
