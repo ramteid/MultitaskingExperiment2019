@@ -916,6 +916,7 @@ def drawTrackerWindow():
     global cursorColor
     global cursorCoordinates
     global experiment
+    global penalty
 
     bg = pygame.Surface(ExperimentWindowSize).convert()
     bg.fill(backgroundColorEntireScreen)
@@ -932,7 +933,7 @@ def drawTrackerWindow():
     screen.blit(newCursor, newCursorLocation)  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
-    if experiment == "dualTask" or experiment == "practiceDualTask":
+    if penalty != "none" and (experiment == "dualTask" or experiment == "practiceDualTask"):
         intermediateMessage = str(visitScore) + " Punkte"
         fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
@@ -976,8 +977,8 @@ def updateScore():
     # add the score for this digit task visit to the overall trial score
     # duringtrial score is used in reportUserScore
     trialScore += visitScore
-    outsideRadius = False
     writeOutputDataFile("updatedVisitScore", str(visitScore))
+    outsideRadius = False
 
 
 def runSingleTaskTypingTrials(isPracticeTrial):
@@ -1458,8 +1459,8 @@ def main():
     for pos in range(0, len(conditions)):
         currentCondition = conditions[pos]
         numDigits = len(currentCondition)
-        if numDigits != 3 and numDigits != 4:
-            raise Exception("Current Condition" + currentCondition + " has invalid length " + len(currentCondition))
+        if numDigits != 4:
+            raise Exception("Current Condition" + currentCondition + " has invalid length " + str(len(currentCondition)))
 
         # noise values are h (high), m (medium) or l (low)
         if currentCondition[0] == "h":
@@ -1491,22 +1492,20 @@ def main():
             raise Exception("Invalid number " + currentCondition[2])
 
         # only if the fourth digit is specified, define penalty
-        if numDigits == 4:
-            if currentCondition[3] == "a":
-                penalty = "loseAll"
-                penaltyMsg = "alle"
-            elif currentCondition[3] == "h":
-                penalty = "loseHalf"
-                penaltyMsg = "die Hälfte deiner"
-            elif currentCondition[3] == "n":
-                penalty = "lose500"
-                penaltyMsg = "500"
-            elif currentCondition[3] == "-":
-                penalty = "none"
-            else:
-                raise Exception("Invalid penalty " + currentCondition[3])
-        else:
+        if currentCondition[3] == "a":
+            penalty = "loseAll"
+            penaltyMsg = "alle"
+        elif currentCondition[3] == "h":
+            penalty = "loseHalf"
+            penaltyMsg = "die Hälfte deiner"
+        elif currentCondition[3] == "n":
+            penalty = "lose500"
+            penaltyMsg = "500"
+        elif currentCondition[3] == "-":
             penalty = "none"
+            penaltyMsg = "-"
+        else:
+            raise Exception("Invalid penalty " + currentCondition[3])
 
         conditionsVerified.append({
             "standardDeviationOfNoise": standardDeviationOfNoise,
