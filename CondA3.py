@@ -50,7 +50,7 @@ global conditions
 conditions = ()
 joystickAxis = (0, 0)  # the motion of the joystick
 digitPressTimes = []
-startTime = 0
+startTime = time.time()
 timeFeedbackIsShown = 4
 backgroundColorTrackerScreen = (255, 255, 255)  # white
 backgroundColorDigitScreen = backgroundColorTrackerScreen
@@ -141,7 +141,6 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial = False):
     global trialNumber
     global cursorCoordinates
     global joystickAxis
-    global startTime  # stores time at which trial started
     global trackerWindowVisible
     global typingWindowVisible
     global radiusCircle
@@ -1087,6 +1086,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global incorrectlyTypedDigitsVisit
     global incorrectlyTypedDigitsTrial
     global cursorDistancesToMiddle
+    global cursorCoordinates
 
     blockNumber += 1
     numberOfTrials = numberOfSingleTaskTrackingTrials
@@ -1132,6 +1132,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
 
         trackingWindowEntryCounter = 0
         typingWindowEntryCounter = 0
+        cursorCoordinates = (windowMiddleX, windowMiddleY)
 
         if trackingTaskPresent:
             joystickAxis = (0, 0)
@@ -1197,6 +1198,7 @@ def runDualTaskTrials(isPracticeTrial):
     global incorrectlyTypedDigitsTrial
     global incorrectlyTypedDigitsVisit
     global cursorDistancesToMiddle
+    global cursorCoordinates
 
     blockNumber += 1
 
@@ -1251,6 +1253,7 @@ def runDualTaskTrials(isPracticeTrial):
         trackingWindowEntryCounter = 0
         typingWindowEntryCounter = 0
         trialNumber = trialNumber + 1
+        cursorCoordinates = (windowMiddleX, windowMiddleY)
 
         completebg = pygame.Surface(ExperimentWindowSize).convert()
         completebg.fill(backgroundColorEntireScreen)
