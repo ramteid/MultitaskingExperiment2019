@@ -471,26 +471,6 @@ def GiveCountdownMessageOnScreen(timeMessageIsOnScreen):
         time.sleep(1)
 
 
-def ShowStartExperimentScreen():
-    global startTime
-    print("FUNCTION: " + getFunctionName())
-
-    drawCanvas()
-
-    fontsize = fontsizeGoalAndTypingTaskNumber
-    color = (0, 0, 0)
-    location = (175, 175)
-
-    message = "Experimentalleiter bitte hier drücken."
-    printTextOverMultipleLines(message, fontsize, color, location)
-
-    pygame.display.flip()
-
-    while not checkMouseClicked():  # wait for a mouseclick
-        time.sleep(0.25)
-    startTime = time.time()
-
-
 def drawCanvas():
     global screen
     # prepare background
@@ -1414,6 +1394,26 @@ def readConditionFile(subjNrStr):
     f.close()
 
 
+def ShowStartExperimentScreen():
+    global startTime
+    print("FUNCTION: " + getFunctionName())
+
+    drawCanvas()
+
+    fontsize = fontsizeGoalAndTypingTaskNumber
+    color = (0, 0, 0)
+    location = (175, 175)
+
+    message = "Experimentalleiter bitte hier drücken."
+    printTextOverMultipleLines(message, fontsize, color, location)
+
+    pygame.display.flip()
+
+    while not checkMouseClicked():  # wait for a mouseclick
+        time.sleep(0.25)
+    startTime = time.time()
+
+
 def main():
     global screen
     global environmentIsRunning  # variable that states that there is a main window
@@ -1562,12 +1562,12 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg, showPrecedingPenaltyI
     message = "NEUER BLOCK: \n\n\n"
     if trialType == "singleTracking" or trialType == "dualTask":
         message += "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n"
-    elif trialType == "singleTyping" or trialType == "dualTask":
+    if trialType == "singleTyping" or trialType == "dualTask":
         message += "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n"
     if showPrecedingPenaltyInfo == "yes":
         if trialType == "singleTyping" or trialType == "dualTask":
             message += "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n"
-        elif trialType == "singleTracking" or trialType == "dualTask":
+        if trialType == "singleTracking" or trialType == "dualTask":
             message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
     elif showPrecedingPenaltyInfo == "no":
         if trialType == "dualTask":
