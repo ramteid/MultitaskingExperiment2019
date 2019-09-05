@@ -1366,7 +1366,6 @@ def initializeOutputFiles(subjNrStr):
 
     summaryFileName = "participant_" + subjNrStr + "_data_lastTrialEntry_" + timestamp + ".csv"
     outputDataFileTrialEnd = open(summaryFileName, 'w')  # contains the user data
-    outputDataFileTrialEnd.write(outputText.replace("TypingWindowEntryCounter;", "TypingWindowEntryCounter;RMSE;"))
     outputDataFileTrialEnd.flush()
     # typically the above line would do. however this is used to ensure that the file is written
     os.fsync(outputDataFileTrialEnd.fileno())
