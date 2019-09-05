@@ -29,6 +29,9 @@ visitScore = 0
 visitEndTime = 0
 visitStartTime = 0
 
+global parallelDualTasks
+parallelDualTasks = True
+
 global penalty
 penalty = ""
 
@@ -294,6 +297,7 @@ def checkKeyPressed():
     global typingTaskPresent
     global trackingTaskPresent
     global trackerWindowVisible
+    global parallelDualTasks
 
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONDOWN and trackerWindowVisible:
@@ -309,21 +313,21 @@ def checkKeyPressed():
                     joystickAxis = (joystickObject.get_axis(0), joystickObject.get_axis(1))
                 except (pygame.error, NameError):
                     pass
-        elif event.type == pygame.JOYBUTTONUP:
+        elif event.type == pygame.JOYBUTTONUP and not parallelDualTasks:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("closeTracking")
                 writeOutputDataFile("ButtonRelease", "-")
-        elif event.type == pygame.JOYBUTTONDOWN:
+        elif event.type == pygame.JOYBUTTONDOWN and not parallelDualTasks:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("openTracking")
                 writeOutputDataFile("ButtonPress", "-")
 
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_F1 and trackerWindowVisible and typingTaskPresent:
+            if event.key == pygame.K_F1 and trackerWindowVisible and typingTaskPresent and not parallelDualTasks:
                 print("PRESSED F1 CLOSE TRACKING")
                 switchWindows("closeTracking")
                 writeOutputDataFile("ButtonRelease", "-")
-            elif event.key == pygame.K_F1 and typingWindowVisible and trackingTaskPresent:
+            elif event.key == pygame.K_F1 and typingWindowVisible and trackingTaskPresent and not parallelDualTasks:
                 print("PRESSED F1 OPEN TRACKING")
                 switchWindows("openTracking")
                 writeOutputDataFile("ButtonPress", "-")
@@ -375,8 +379,7 @@ def checkKeyPressed():
                 else:
                     writeOutputDataFile("stringTypedTooLong", keyPressed)
 
-                blockMaskingOldLocation = pygame.Surface((int(
-                    taskWindowSize[0] - (topLeftCornerOfTypingTaskNumber[0] - topLeftCornerOfTypingTaskWindow[0])), 100)).convert()
+                blockMaskingOldLocation = pygame.Surface((int(taskWindowSize[0] - (topLeftCornerOfTypingTaskNumber[0] - topLeftCornerOfTypingTaskWindow[0])), 100)).convert()
                 blockMaskingOldLocation.fill(backgroundColorDigitScreen)
                 screen.blit(blockMaskingOldLocation, topLeftCornerOfTypingTaskNumber)
 
@@ -441,34 +444,6 @@ def GiveMessageOnScreen(message, timeMessageIsOnScreen):
 
     pygame.display.flip()
     time.sleep(timeMessageIsOnScreen)
-
-
-def GiveCountdownMessageOnScreen(timeMessageIsOnScreen):
-    global screen
-
-    for i in range(0, timeMessageIsOnScreen):
-        # prepare background
-        completebg = pygame.Surface(ExperimentWindowSize).convert()
-        completebg.fill(backgroundColorEntireScreen)
-        screen.blit(completebg, (0, 0))
-
-        messageAreaObject = pygame.Surface(
-            (int(ExperimentWindowSize[0] / 5), int(ExperimentWindowSize[1] / 5))).convert()
-        messageAreaObject.fill((255, 255, 255))
-
-        topCornerOfMessageArea = (int(ExperimentWindowSize[0] * 2 / 5), int(topLeftCornerOfTypingTaskWindow[1] + 10))
-        screen.blit(messageAreaObject, topCornerOfMessageArea)
-
-        message = "Mach dich bereit!\n\n       " + str(timeMessageIsOnScreen - i)
-
-        fontsize = fontsizeGoalAndTypingTaskNumber
-        color = (0, 0, 0)
-        location = (topCornerOfMessageArea[0] + 70, topCornerOfMessageArea[1] + 10)
-
-        printTextOverMultipleLines(message, fontsize, color, location)
-
-        pygame.display.flip()
-        time.sleep(1)
 
 
 def drawCanvas():
@@ -824,6 +799,7 @@ def openTypingWindow():
     global correctlyTypedDigitsVisit
     global incorrectlyTypedDigitsVisit
     global visitStartTime
+    global parallelDualTasks
 
     visitStartTime = time.time()
     outsideRadius = False
@@ -837,17 +813,14 @@ def openTypingWindow():
 def drawTypingWindow():
     global screen
     global experiment
-
-    bg = pygame.Surface(ExperimentWindowSize).convert()
-    bg.fill(backgroundColorEntireScreen)
-    screen.blit(bg, (0, 0))
+    global parallelDualTasks
 
     # draw background
     bg = pygame.Surface(taskWindowSize).convert()
     bg.fill((255, 255, 255))
     screen.blit(bg, topLeftCornerOfTypingTaskWindow)  # make area about 30 away from centre
 
-    if experiment == "dualTask" or experiment == "practiceDualTask":
+    if not parallelDualTasks and (experiment == "dualTask" or experiment == "practiceDualTask"):
         drawCover("tracking")
 
     f = pygame.font.Font(None, fontsizeGoalAndTypingTaskNumber)
@@ -897,10 +870,7 @@ def drawTrackerWindow():
     global cursorCoordinates
     global experiment
     global penalty
-
-    bg = pygame.Surface(ExperimentWindowSize).convert()
-    bg.fill(backgroundColorEntireScreen)
-    screen.blit(bg, (0, 0))
+    global parallelDualTasks
 
     # draw background
     bg = pygame.Surface(taskWindowSize).convert()
@@ -913,14 +883,14 @@ def drawTrackerWindow():
     screen.blit(newCursor, newCursorLocation)  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
-    if penalty != "none" and (experiment == "dualTask" or experiment == "practiceDualTask"):
-        intermediateMessage = str(visitScore) + " Punkte"
+    if penalty != "none" and (experiment == "dualTask" or experiment == "practiceDualTask") and not parallelDualTasks:
+        intermediateMessage = str(visitScore) + " PunkteC"
         fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
         location = (900, 65)
         printTextOverMultipleLines(intermediateMessage, fontsize, color, location)
 
-    if experiment == "dualTask" or experiment == "practiceDualTask":
+    if not parallelDualTasks and (experiment == "dualTask" or experiment == "practiceDualTask"):
         drawCover("typing")
 
 
@@ -959,6 +929,34 @@ def updateScore():
     trialScore += visitScore
     writeOutputDataFile("updatedVisitScore", str(visitScore))
     outsideRadius = False
+
+
+def GiveCountdownMessageOnScreen(timeMessageIsOnScreen):
+    global screen
+
+    for i in range(0, timeMessageIsOnScreen):
+        # prepare background
+        completebg = pygame.Surface(ExperimentWindowSize).convert()
+        completebg.fill(backgroundColorEntireScreen)
+        screen.blit(completebg, (0, 0))
+
+        messageAreaObject = pygame.Surface(
+            (int(ExperimentWindowSize[0] / 5), int(ExperimentWindowSize[1] / 5))).convert()
+        messageAreaObject.fill((255, 255, 255))
+
+        topCornerOfMessageArea = (int(ExperimentWindowSize[0] * 2 / 5), int(topLeftCornerOfTypingTaskWindow[1] + 10))
+        screen.blit(messageAreaObject, topCornerOfMessageArea)
+
+        message = "Mach dich bereit!\n\n       " + str(timeMessageIsOnScreen - i)
+
+        fontsize = fontsizeGoalAndTypingTaskNumber
+        color = (0, 0, 0)
+        location = (topCornerOfMessageArea[0] + 70, topCornerOfMessageArea[1] + 10)
+
+        printTextOverMultipleLines(message, fontsize, color, location)
+
+        pygame.display.flip()
+        time.sleep(1)
 
 
 def runSingleTaskTypingTrials(isPracticeTrial):
@@ -1199,6 +1197,7 @@ def runDualTaskTrials(isPracticeTrial):
     global cursorDistancesToMiddle
     global cursorCoordinates
     global lengthOfPathTracked
+    global parallelDualTasks
 
     blockNumber += 1
 
@@ -1207,31 +1206,31 @@ def runDualTaskTrials(isPracticeTrial):
     if isPracticeTrial:
         maxTrialTimeDual = 90
         experiment = "practiceDualTask"
-        GiveMessageOnScreen(
-            "Tracking + Tippen (MULTITASKING)\n\n"
-            "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
-            "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n"
-            "Drücke den Schalter unter deinem Zeigefinger am Joystick, um zu kontrollieren ob der blaue Cursor\n"
-            "noch innerhalb des Kreises ist.\n"
-            "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n"
-            "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
+        message = "Tracking + Tippen (MULTITASKING)\n\n" \
+        "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
+        if not parallelDualTasks:
+            message += "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n" \
+            "Drücke den Schalter unter deinem Zeigefinger am Joystick, um zu kontrollieren ob der blaue Cursor\n" \
+            "noch innerhalb des Kreises ist.\n" \
+            "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n" \
+            "Du kannst immer nur eine Aufgabe bearbeiten."
         GiveMessageOnScreen("Dein Ziel:\n\n"
                             "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
                             "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
                             "Fehler beim Tippen führen auch zu Punktverlust.", 10)
-
         numberOfTrials = 2
     else:
         maxTrialTimeDual = 90
         experiment = "dualTask"
         GiveMessageOnScreen("Tracking + Tippen (MULTITASKING)\n\n"
-                            "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
-                            "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
-                            "Fehler beim Tippen führen auch zu einem Punktverlust.\n\n"
-                            "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl.", 18)
-        GiveMessageOnScreen("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
-                            "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
-                            "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
+                          "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
+                          "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
+                          "Fehler beim Tippen führen auch zu einem Punktverlust.\n\n"
+                          "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl.", 18)
+        if not parallelDualTasks:
+            GiveMessageOnScreen("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
+                              "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
+                              "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
 
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
@@ -1246,8 +1245,13 @@ def runDualTaskTrials(isPracticeTrial):
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
 
-        trackerWindowVisible = False
-        typingWindowVisible = True
+        if parallelDualTasks:
+            trackerWindowVisible = True
+            typingWindowVisible = True
+        else:
+            trackerWindowVisible = False
+            typingWindowVisible = True
+
         trackingTaskPresent = True
         typingTaskPresent = True
 
@@ -1293,10 +1297,21 @@ def runDualTaskTrials(isPracticeTrial):
 
         while (time.time() - startTime) < maxTrialTimeDual and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
+
             if trackingTaskPresent and trackerWindowVisible:
                 drawTrackerWindow()
                 drawCursor(0.02)
-                writeOutputDataFile("trackingVisible", "-")
+            if parallelDualTasks and typingTaskPresent and typingWindowVisible:
+                drawTypingWindow()
+
+            if parallelDualTasks:
+                eventMsg = "trackingAndTypingVisible"
+            elif trackerWindowVisible:
+                eventMsg = "trackingVisible"
+            elif typingWindowVisible:
+                eventMsg = "typingVisible"
+
+            writeOutputDataFile(eventMsg, "-")
             pygame.display.flip()
 
         visitEndTime = time.time()
@@ -1366,7 +1381,6 @@ def initializeOutputFiles(subjNrStr):
 
     summaryFileName = "participant_" + subjNrStr + "_data_lastTrialEntry_" + timestamp + ".csv"
     outputDataFileTrialEnd = open(summaryFileName, 'w')  # contains the user data
-    outputDataFileTrialEnd.write(outputText.replace("TypingWindowEntryCounter;", "TypingWindowEntryCounter;RMSE;"))
     outputDataFileTrialEnd.flush()
     # typically the above line would do. however this is used to ensure that the file is written
     os.fsync(outputDataFileTrialEnd.fileno())
