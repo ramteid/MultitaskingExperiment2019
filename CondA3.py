@@ -55,6 +55,7 @@ joystickAxis = (0, 0)  # the motion of the joystick
 digitPressTimes = []
 startTime = time.time()
 timeFeedbackIsShown = 4
+
 backgroundColorTrackerScreen = (255, 255, 255)  # white
 backgroundColorDigitScreen = backgroundColorTrackerScreen
 backgroundColorEntireScreen = (50, 50, 50)  # gray
@@ -67,13 +68,14 @@ ExperimentWindowSize = (1280, 1024)  # eye-tracker screen: 1280*1024 pixels
 taskWindowSize = (450, 450)
 cursorSize = (20, 20)
 
-topLeftCornerOfTypingTaskWindow = (int(ExperimentWindowSize[0] - taskWindowSize[0] - taskWindowSize[0]) / 3, 50)
-topLeftCornerOfTrackingTaskWindow = (2 * topLeftCornerOfTypingTaskWindow[0] + taskWindowSize[0], 50)
+spaceBetweenWindows = 128
+offsetLeftRight = int((ExperimentWindowSize[0] - spaceBetweenWindows - 2*taskWindowSize[0]) / 2)
+topLeftCornerOfTypingTaskWindow = (offsetLeftRight, 50)
+topLeftCornerOfTrackingTaskWindow = (offsetLeftRight + taskWindowSize[0] + spaceBetweenWindows, 50)
 
 topLeftCornerOfTypingTaskNumber = (taskWindowSize[0] / 2 - 150 + topLeftCornerOfTypingTaskWindow[0],
                                    taskWindowSize[1] / 2 - 20 + topLeftCornerOfTypingTaskWindow[1])
-topLeftCornerOfTypingTaskNumber = (taskWindowSize[0] / 2 - 150 + topLeftCornerOfTypingTaskWindow[0],
-                                   taskWindowSize[1] / 2 + 20 + topLeftCornerOfTypingTaskWindow[1])
+
 availableTypingTaskNumbers = "123456789"
 generatedTypingTaskNumbers = "123456789"
 typingTaskNumbersCount = 27
