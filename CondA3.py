@@ -24,6 +24,7 @@ class GeneralExperimentSettings:
     # Specify radius sizes in ascending order from left to right
     CircleRadiiSmall = [40, 60, 80]
     CircleRadiiBig = [80, 100, 120]
+    CircleRadiiPractice = [80, 100, 120]
     TypingTaskNumbersDualTask = ["12", "34", "56"]  # each entry corresponds to an circle radius
     # Each line specifies the inner and outer circle color for the radii above from left to right
     CircleRadiiColors = [{'innerCircleColor': (255, 204, 102), 'borderColor': (255, 0, 0)},  # first radius colors (orange, red)
@@ -629,7 +630,7 @@ def GetTypingTaskNumbers(count):
     # If the cursor is outside the outermost circle radius, the tpying task should show an "e"
     if not possibleCharacters and GeneralExperimentSettings.ParallelDualTasks:
         possibleCharacters = "e"
-    else:
+    elif not possibleCharacters:
         raise Exception("Could not get a random typing task number for the current circle radius!")
 
     # Return the specified number of random characters
@@ -1533,6 +1534,7 @@ def main():
         DisplayMessage("Willkommen zum Experiment!\n\n\n"
                        "Wir beginnen mit den Übungsdurchläufen.", 10)
         # do practice trials
+        RuntimeExperimentVariables.CircleRadii = GeneralExperimentSettings.CircleRadiiPractice
         runSingleTaskTrackingTrials(True)
         runSingleTaskTypingTrials(True)
         runDualTaskTrials(True)
