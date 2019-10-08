@@ -15,6 +15,24 @@ import pygame
 import scipy
 import scipy.special
 import datetime
+from enum import Enum
+
+
+class TaskTypes(Enum):
+    SingleTracking = 1
+    SingleTyping = 2
+    DualTask = 3
+    PracticeSingleTracking = 4
+    PracticeSingleTyping = 5
+    PracticeDualTask = 6
+
+
+class Block:
+    TaskType = None
+    NumberOfTrials = 0
+    def __init__(self, taskType, numberOfTrials):
+        self.TaskType = taskType
+        self.NumberOfTrials = numberOfTrials
 
 
 class GeneralExperimentSettings:
@@ -33,7 +51,22 @@ class GeneralExperimentSettings:
     CircleBorderThickness = 5
     TypingTaskNumbersSingleTask = "123"
     TypingTaskNumbersCount = 27
-    ParallelDualTasks = True  # If set to true, both tasks will be visible on dual task
+
+    # Set to True if for DualTasks, both Tracking and Typing shall be visible simultaneously
+    ParallelDualTasks = True
+
+    # Configure here the order of blocks and the number for trials for each respective. The order is from top to bottom. Also add Practice Tasks here. Use the names from class TaskTypes.
+    RunningOrder = [
+        Block(taskType=TaskTypes.PracticeSingleTracking, numberOfTrials=2),
+        Block(taskType=TaskTypes.PracticeSingleTyping, numberOfTrials=2),
+        Block(taskType=TaskTypes.PracticeDualTask, numberOfTrials=2),
+        Block(taskType=TaskTypes.SingleTracking, numberOfTrials=1),
+        Block(taskType=TaskTypes.SingleTyping, numberOfTrials=1),
+        Block(taskType=TaskTypes.DualTask, numberOfTrials=3)
+    ]
+    MaxTrialTimeDual = 90  # maximum time for dual-task trials
+    MaxTrialTimeSingleTracking = 10  # maximum time for single-task tracking
+    MaxTrialTimeSingleTyping = 20  # maximum time for single-task typing
 
 
 class RuntimeExperimentVariables:
@@ -42,6 +75,7 @@ class RuntimeExperimentVariables:
     """
     CircleRadii = []  # is set for each condition
     CurrentTypingTaskNumbers = ""
+    CurrentTask = None
 
 
 incorrectlyTypedDigitsTrial = 0
@@ -66,8 +100,6 @@ numberOfCircleExits = 0
 
 global environmentIsRunning  # True if there is a display
 global joystickObject  # the joystick object (initialized at start of experiment)
-global experiment
-experiment = "singleTaskTracking"
 global outputDataFile
 global outputDataFileTrialEnd
 global conditions
@@ -103,14 +135,6 @@ trackingWindowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(taskWindowSiz
 cursorCoordinates = (trackingWindowMiddleX, trackingWindowMiddleY)
 
 fontsizeGoalAndTypingTaskNumber = 30
-
-maxTrialTimeDual = 90  # maximum time for dual-task trials
-maxTrialTimeSingleTracking = 10  # maximum time for single-task tracking
-maxTrialTimeSingleTyping = 20  # maximum time for single-task typing
-
-numberOfDualTaskTrials = 3
-numberOfSingleTaskTrackingTrials = 1
-numberOfSingleTaskTypingTrials = 1
 
 trackingWindowEntryCounter = 0
 typingWindowEntryCounter = 0
@@ -159,7 +183,6 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
     global enteredDigitsStr
     global trackingTaskPresent
     global typingTaskPresent
-    global experiment
     global blockNumber
     global trialNumber
     global cursorCoordinates
@@ -169,7 +192,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
     global trackingWindowEntryCounter
     global typingWindowEntryCounter
     global standardDeviationOfNoise
-    global timeOfCompleteStartOfExperiment  # time at which experiment started
+    global timeOfCompleteStartOfExperiment  # time at which RuntimeExperimentVariables.CurrentTask started
     global numberOfCircleExits
     global visitScore
     global trialScore
@@ -206,7 +229,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         outputGeneratedTypingTaskNumbers = "-"
         outputGeneratedTypingTaskNumbersLength = "-"
 
-    if experiment == "dualTask" or experiment == "practiceDualTask":
+    if RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask:
         visitTime = time.time() - visitStartTime
     else:
         visitTime = "-"
@@ -220,7 +243,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         str(visitTime) + ";" + \
         str(blockNumber) + ";" + \
         str(trialNumber) + ";" + \
-        experiment + ";" + \
+        "None" if RuntimeExperimentVariables.CurrentTask is None else str(RuntimeExperimentVariables.CurrentTask) + ";" + \
         str(trackingTaskPresent) + ";" + \
         str(typingTaskPresent) + ";" + \
         str(trackingWindowVisible) + ";" + \
@@ -356,7 +379,7 @@ def checkKeyPressed():
                 digitPressTimes.append(time.time())
 
                 # In parallel dual task, e is to be typed when the cursor was outside the circle. On e, all key presses are neither correct or incorrect.
-                if RuntimeExperimentVariables.CurrentTypingTaskNumbers[0] == "e" and GeneralExperimentSettings.ParallelDualTasks and (experiment == "dualTask" or experiment == "practiceDualTask"):
+                if RuntimeExperimentVariables.CurrentTypingTaskNumbers[0] == "e" and GeneralExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
                     enteredDigitsStr += key
                     UpdateTypingTaskString(reset=False)  # generate one new character
                     writeOutputDataFile("keypress", key)
@@ -391,7 +414,7 @@ def switchWindows(message):
     print("FUNCTION: " + getFunctionName())
 
     # switching is only done in dual-task
-    if experiment == "dualTask" or experiment == "practiceDualTask":
+    if RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask:
         if message == "openTracking":
             if trackingTaskPresent:
                 openTrackingWindow()
@@ -499,7 +522,6 @@ def reportUserScore():
     global digitPressTimes  # stores the intervals between keypresses
     global trackingTaskPresent
     global typingTaskPresent
-    global experiment
     global scoresForPayment
     global incorrectlyTypedDigitsTrial
     global trialScore
@@ -519,7 +541,7 @@ def reportUserScore():
     scoreForLogging = "-"  # score that's logged
     scoresOnThisBlock = []  # stores the scores on the current block. Can be used to report performance each 5th trial
 
-    if experiment == "dualTask":
+    if RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask:
         feedbackScore = trialScore
         if trialScore > 0:
             feedbackText = "+" + str(feedbackScore) + " Punkte"
@@ -530,7 +552,7 @@ def reportUserScore():
         scoresOnThisBlock.append(trialScore)  # store score, so average performance can be reported
         scoreForLogging = trialScore
 
-    elif experiment == "singleTaskTyping":
+    elif RuntimeExperimentVariables.CurrentTask == TaskTypes.SingleTyping:
         feedbackText = "Anzahl Fehler: \n"
         if typingTaskPresent:
             digitScore = digitPressTimes[-1] - digitPressTimes[0]
@@ -564,11 +586,11 @@ def reportUserScore():
         meanscore = scipy.special.round(scipy.mean(scoresOnThisBlock[-2:]) * 100) / 100  # report meanscore
         feedbackText2 = feedbackText2 + str(meanscore)
 
-        if experiment == "singleTaskTracking":
+        if RuntimeExperimentVariables.CurrentTask == TaskTypes.SingleTracking:
             feedbackText2 = feedbackText2 + " pixels"
-        elif experiment == "singleTaskTyping":
+        elif RuntimeExperimentVariables.CurrentTask == TaskTypes.SingleTyping:
             feedbackText2 = feedbackText2 + " errors"
-        elif experiment == "dualTask":
+        elif RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask:
             feedbackText2 = "Block " + str(int(len(
                 scoresOnThisBlock) / 3)) + " von 6 vollständig. Deine durchschnittliche Leistung der letzten 4 Durchgänge:\n\n" \
                             + str(meanscore) + " points"
@@ -679,8 +701,6 @@ def drawCursor(sleepTime):
     global screen
     global cursorCoordinates
     global startTime
-    global maxTrialTimeDual
-    global maxTrialTimeSingleTyping
     global joystickAxis
     global trackingWindowVisible
     global stepSizeOfTrackingScreenUpdate
@@ -857,14 +877,13 @@ def openTypingWindow():
 
 def drawTypingWindow():
     global screen
-    global experiment
 
     # draw background
     bg = pygame.Surface(taskWindowSize).convert()
     bg.fill((255, 255, 255))
     screen.blit(bg, topLeftCornerOfTypingTaskWindow)  # make area about 30 away from centre
 
-    if not GeneralExperimentSettings.ParallelDualTasks and (experiment == "dualTask" or experiment == "practiceDualTask"):
+    if not GeneralExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
         drawCover("tracking")
 
     f = pygame.font.Font(None, fontsizeGoalAndTypingTaskNumber)
@@ -893,7 +912,7 @@ def openTrackingWindow():
     visitStartTime = time.time()
     trackingWindowEntryCounter += 1
 
-    if experiment == "dualTask" or experiment == "practiceDualTask":
+    if RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask:
         updateScore()
 
     drawTrackingWindow()
@@ -912,7 +931,6 @@ def drawTrackingWindow():
     global screen
     global cursorColor
     global cursorCoordinates
-    global experiment
     global penalty
 
     # draw background
@@ -926,14 +944,14 @@ def drawTrackingWindow():
     screen.blit(newCursor, newCursorLocation)  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
-    if penalty != "none" and (experiment == "dualTask" or experiment == "practiceDualTask") and not GeneralExperimentSettings.ParallelDualTasks:
+    if penalty != "none" and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask) and not GeneralExperimentSettings.ParallelDualTasks:
         intermediateMessage = str(visitScore) + " Punkte"
         fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
         location = (900, 65)
         printTextOverMultipleLines(intermediateMessage, fontsize, color, location)
 
-    if not GeneralExperimentSettings.ParallelDualTasks and (experiment == "dualTask" or experiment == "practiceDualTask"):
+    if not GeneralExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
         drawCover("typing")
 
     # display all updates (made using blit) on the screen
@@ -976,16 +994,14 @@ def updateScore():
     IsOutsideRadius = False
 
 
-def runSingleTaskTypingTrials(isPracticeTrial):
+def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
     print("FUNCTION: " + getFunctionName())
     global screen
-    global maxTrialTimeSingleTyping
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global enteredDigitsStr
     global trackingTaskPresent
     global typingTaskPresent
-    global experiment
     global blockNumber
     global trialNumber
     global trackingWindowVisible
@@ -1001,18 +1017,16 @@ def runSingleTaskTypingTrials(isPracticeTrial):
     global lengthOfPathTracked
 
     blockNumber += 1
-    numberOfTrials = numberOfSingleTaskTypingTrials
 
     if isPracticeTrial:
-        experiment = "practiceTyping"
-        numberOfTrials = 2
+        RuntimeExperimentVariables.CurrentTask = TaskTypes.PracticeSingleTyping
         DisplayMessage("Nur Tippen\n\n"
                        "In diesen Durchgängen übst du nur die Tippaufgabe.\n"
                        "Kopiere die Ziffern, die dir auf dem Bildschirm angezeigt werden so schnell wie möglich.\n\n"
                        "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n"
                        "(In zukünftigen Durchgängen würdest du dadurch Punkte verlieren.)", 15)
     else:
-        experiment = "singleTaskTyping"
+        RuntimeExperimentVariables.CurrentTask = TaskTypes.SingleTyping
         DisplayMessage("Nur Tippen\n\n"
                        "Kopiere die Ziffern so schnell wie möglich.\n"
                        "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n", 10)
@@ -1058,12 +1072,12 @@ def runSingleTaskTypingTrials(isPracticeTrial):
         # display all updates (made using blit) on the screen
         pygame.display.flip()
 
-        while (time.time() - startTime) < maxTrialTimeSingleTyping and environmentIsRunning:
+        while (time.time() - startTime) < GeneralExperimentSettings.MaxTrialTimeSingleTyping and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
             pygame.display.flip()
             time.sleep(0.02)
 
-        if (time.time() - startTime) >= maxTrialTimeSingleTyping:
+        if (time.time() - startTime) >= GeneralExperimentSettings.MaxTrialTimeSingleTyping:
             writeOutputDataFile("trialStopTooMuchTime", "-", True)
         elif not environmentIsRunning:
             writeOutputDataFile("trialStopEnvironmentStopped", "-", True)
@@ -1075,16 +1089,14 @@ def runSingleTaskTypingTrials(isPracticeTrial):
             reportUserScore()
 
 
-def runSingleTaskTrackingTrials(isPracticeTrial):
+def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
     print("FUNCTION: " + getFunctionName())
     global screen
-    global maxTrialTimeSingleTracking
     global startTime  # stores time at which trial starts
     global trackingTaskPresent
     global typingTaskPresent
     global joystickObject
     global joystickAxis
-    global experiment
     global blockNumber
     global trialNumber
     global trackingWindowVisible
@@ -1101,10 +1113,9 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
     global lengthOfPathTracked
 
     blockNumber += 1
-    numberOfTrials = numberOfSingleTaskTrackingTrials
 
     if isPracticeTrial:
-        experiment = "practiceTracking"
+        RuntimeExperimentVariables.CurrentTask = TaskTypes.PracticeSingleTracking
         DisplayMessage(
             "Nur Tracking\n\n"
             "In diesen Durchgängen übst du nur die Trackingaufgabe.\n"
@@ -1112,9 +1123,8 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             "Der Cursor bewegt sich so lange frei herum, bis du ihn mit dem Joystick bewegst.\n"
             "Denk daran: deine Aufgabe ist es, zu verhindern, dass der blaue Cursor den Kreis verlässt!",
             15)
-        numberOfTrials = 2
     else:
-        experiment = "singleTaskTracking"
+        RuntimeExperimentVariables.CurrentTask = TaskTypes.SingleTracking
         DisplayMessage(
             "Nur Tracking\n\n"
             "Nutze diesen Durchgang, um dich mit der Geschwindigkeit des Cursors vertraut zu machen, \n"
@@ -1167,7 +1177,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
         # display all updates (made using blit) on the screen
         pygame.display.flip()
 
-        while ((time.time() - startTime) < maxTrialTimeSingleTracking) and environmentIsRunning:
+        while ((time.time() - startTime) < GeneralExperimentSettings.MaxTrialTimeSingleTracking) and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
 
             if trackingTaskPresent and trackingWindowVisible:
@@ -1183,10 +1193,9 @@ def runSingleTaskTrackingTrials(isPracticeTrial):
             writeOutputDataFile("trialEnvironmentStopped", "-", True)
 
 
-def runDualTaskTrials(isPracticeTrial):
+def runDualTaskTrials(isPracticeTrial, numberOfTrials):
     print("FUNCTION: " + getFunctionName())
     global screen
-    global maxTrialTimeDual
     global startTime  # stores time at which trial starts
     global digitPressTimes  # stores the intervals between keypresses
     global enteredDigitsStr
@@ -1194,7 +1203,6 @@ def runDualTaskTrials(isPracticeTrial):
     global typingTaskPresent
     global joystickObject
     global joystickAxis
-    global experiment
     global blockNumber
     global trialNumber
     global trackingWindowVisible
@@ -1215,11 +1223,8 @@ def runDualTaskTrials(isPracticeTrial):
 
     blockNumber += 1
 
-    numberOfTrials = numberOfDualTaskTrials
-
     if isPracticeTrial:
-        maxTrialTimeDual = 90
-        experiment = "practiceDualTask"
+        RuntimeExperimentVariables.CurrentTask = TaskTypes.PracticeDualTask
         message = "Tracking + Tippen (MULTITASKING)\n\n" \
                   "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
         if not GeneralExperimentSettings.ParallelDualTasks:
@@ -1232,10 +1237,8 @@ def runDualTaskTrials(isPracticeTrial):
                        "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
                        "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
                        "Fehler beim Tippen führen auch zu Punktverlust.", 10)
-        numberOfTrials = 2
     else:
-        maxTrialTimeDual = 90
-        experiment = "dualTask"
+        RuntimeExperimentVariables.CurrentTask = TaskTypes.DualTask
         DisplayMessage("Tracking + Tippen (MULTITASKING)\n\n"
                        "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
                        "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
@@ -1309,7 +1312,7 @@ def runDualTaskTrials(isPracticeTrial):
         # display all updates (made using blit) on the screen
         pygame.display.flip()
 
-        while (time.time() - startTime) < maxTrialTimeDual and environmentIsRunning:
+        while (time.time() - startTime) < GeneralExperimentSettings.MaxTrialTimeDual and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the tracking task and the typingTask and starts relevant display updates
 
             if trackingTaskPresent and trackingWindowVisible:
@@ -1330,7 +1333,7 @@ def runDualTaskTrials(isPracticeTrial):
         visitEndTime = time.time()
         updateScore()
 
-        if (time.time() - startTime) >= maxTrialTimeDual:
+        if (time.time() - startTime) >= GeneralExperimentSettings.MaxTrialTimeDual:
             writeOutputDataFile("trialStopTooMuchTime", "-", True)
         elif not environmentIsRunning:
             writeOutputDataFile("trialStopEnvironmentStopped", "-", True)
@@ -1533,11 +1536,19 @@ def main():
     if firstTrialInput == "yes":
         DisplayMessage("Willkommen zum Experiment!\n\n\n"
                        "Wir beginnen mit den Übungsdurchläufen.", 10)
+
         # do practice trials
         RuntimeExperimentVariables.CircleRadii = GeneralExperimentSettings.CircleRadiiPractice
-        runSingleTaskTrackingTrials(True)
-        runSingleTaskTypingTrials(True)
-        runDualTaskTrials(True)
+        for block in GeneralExperimentSettings.RunningOrder:
+            if block.TaskType == TaskTypes.PracticeSingleTracking:
+                runSingleTaskTrackingTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
+            elif block.TaskType == TaskTypes.PracticeSingleTyping:
+                runSingleTaskTypingTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
+            elif block.TaskType == TaskTypes.PracticeDualTask:
+                runDualTaskTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
+            else:
+                raise Exception(f"Invalid TaskType block specified: {block.TaskType}")
+
         DisplayMessage("Nun beginnt der Hauppteil und wir testen deine Leistung in den Aufgaben, die du \n"
                        "gerade geübt hast.\n"
                        "Versuche im Laufe des Experiments so viele Punkte wie möglich zu gewinnen!", 10)
@@ -1552,17 +1563,21 @@ def main():
         penalty = condition["penalty"]
         penaltyMsg = condition["penaltyMsg"]
 
-        message = getMessageBeforeTrial("singleTracking", noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
-        DisplayMessage(message, 12)
-        runSingleTaskTrackingTrials(False)
-
-        message = getMessageBeforeTrial("singleTyping", noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
-        DisplayMessage(message, 12)
-        runSingleTaskTypingTrials(False)
-
-        message = getMessageBeforeTrial("dualTask", noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
-        DisplayMessage(message, 12)
-        runDualTaskTrials(False)
+        for block in GeneralExperimentSettings.RunningOrder:
+            if block.TaskType == TaskTypes.SingleTracking:
+                message = getMessageBeforeTrial(TaskTypes.SingleTracking, noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
+                DisplayMessage(message, 12)
+                runSingleTaskTrackingTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
+            if block.TaskType == TaskTypes.SingleTyping:
+                message = getMessageBeforeTrial(TaskTypes.SingleTyping, noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
+                DisplayMessage(message, 12)
+                runSingleTaskTypingTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
+            if block.TaskType == TaskTypes.DualTask:
+                message = getMessageBeforeTrial(TaskTypes.DualTask, noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
+                DisplayMessage(message, 12)
+                runDualTaskTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
+            else:
+                raise Exception(f"Invalid TaskType block specified: {block.TaskType}")
 
         message = "Bisher hast du: " + str(scipy.sum(scoresForPayment)) + " Punkte"
         DisplayMessage(message, 8)
@@ -1581,25 +1596,28 @@ def ValidateExperimentSettings():
             or len(GeneralExperimentSettings.CircleRadiiBig) != len(GeneralExperimentSettings.CircleRadiiColors) \
             or len(GeneralExperimentSettings.CircleRadiiColors) != len(GeneralExperimentSettings.TypingTaskNumbersDualTask):
         quitApp("Circle radii settings are inconsistent! Make sure the lists all have the same length!")
+    for block in GeneralExperimentSettings.RunningOrder:
+        if block.TaskType.name not in TaskTypes._member_names_:
+            quitApp(f"Specified TaskType {block.TaskType} is invalid!")
 
 
 def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg, showPrecedingPenaltyInfo):
     message = "NEUER BLOCK: \n\n\n"
-    if trialType == "singleTracking" or trialType == "dualTask":
+    if trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask:
         message += "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n"
-    if trialType == "singleTyping" or trialType == "dualTask":
+    if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
         message += "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n"
     if showPrecedingPenaltyInfo == "yes":
-        if trialType == "singleTyping" or trialType == "dualTask":
+        if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
             message += "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n"
-        if trialType == "singleTracking" or trialType == "dualTask":
+        if trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask:
             message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
     elif showPrecedingPenaltyInfo == "no":
-        if trialType == "dualTask":
+        if trialType == TaskTypes.DualTask:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
-        elif trialType == "singleTyping":
+        elif trialType == TaskTypes.SingleTyping:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
-        elif trialType == "singleTracking":
+        elif trialType == TaskTypes.SingleTracking:
             message += "Achtung: Du verlierst Punkte wenn der Punkt den Kreis verlässt."
     return message
 
