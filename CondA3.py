@@ -19,6 +19,9 @@ from enum import Enum
 
 
 class TaskTypes(Enum):
+    """
+    Used to represent different task types. Do not change this class.
+    """
     SingleTracking = 1
     SingleTyping = 2
     DualTask = 3
@@ -28,6 +31,9 @@ class TaskTypes(Enum):
 
 
 class Block:
+    """
+    Used to represent a block of trials. Do not change this class.
+    """
     TaskType = None
     NumberOfTrials = 0
     def __init__(self, taskType, numberOfTrials):
@@ -234,6 +240,8 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
     else:
         visitTime = "-"
 
+    currentTask = str(RuntimeExperimentVariables.CurrentTask);
+
     outputText = \
         str(subjNr) + ";" + \
         str(RuntimeExperimentVariables.CircleRadii) + ";" + \
@@ -243,7 +251,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         str(visitTime) + ";" + \
         str(blockNumber) + ";" + \
         str(trialNumber) + ";" + \
-        "None" if RuntimeExperimentVariables.CurrentTask is None else str(RuntimeExperimentVariables.CurrentTask) + ";" + \
+        str(currentTask) + ";" + \
         str(trackingTaskPresent) + ";" + \
         str(typingTaskPresent) + ";" + \
         str(trackingWindowVisible) + ";" + \
@@ -1397,6 +1405,7 @@ def initializeOutputFiles(subjNrStr):
 
     summaryFileName = "participant_" + subjNrStr + "_data_lastTrialEntry_" + timestamp + ".csv"
     outputDataFileTrialEnd = open(summaryFileName, 'w')  # contains the user data
+    outputDataFileTrialEnd.write(outputText)
     outputDataFileTrialEnd.flush()
     # typically the above line would do. however this is used to ensure that the file is written
     os.fsync(outputDataFileTrialEnd.fileno())
@@ -1546,8 +1555,6 @@ def main():
                 runSingleTaskTypingTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
             elif block.TaskType == TaskTypes.PracticeDualTask:
                 runDualTaskTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
-            else:
-                raise Exception(f"Invalid TaskType block specified: {block.TaskType}")
 
         DisplayMessage("Nun beginnt der Hauppteil und wir testen deine Leistung in den Aufgaben, die du \n"
                        "gerade geübt hast.\n"
@@ -1576,8 +1583,6 @@ def main():
                 message = getMessageBeforeTrial(TaskTypes.DualTask, noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
                 DisplayMessage(message, 12)
                 runDualTaskTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
-            else:
-                raise Exception(f"Invalid TaskType block specified: {block.TaskType}")
 
         message = "Bisher hast du: " + str(scipy.sum(scoresForPayment)) + " Punkte"
         DisplayMessage(message, 8)
