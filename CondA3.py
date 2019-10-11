@@ -20,7 +20,8 @@ from enum import Enum
 
 class TaskTypes(Enum):
     """
-    Used to represent different task types. Do not change this class.
+    Used to represent different task types.
+    Do not modify anything here!
     """
     SingleTracking = 1
     SingleTyping = 2
@@ -32,7 +33,8 @@ class TaskTypes(Enum):
 
 class Block:
     """
-    Used to represent a block of trials. Do not change this class.
+    Used to represent a block of trials.
+    Do not modify anything here!
     """
     TaskType = None
     NumberOfTrials = 0
@@ -41,27 +43,29 @@ class Block:
         self.NumberOfTrials = numberOfTrials
 
 
-class GeneralExperimentSettings:
+class Circle:
+    """
+    Used to represent a circle.
+    Do not modify anything here!
+    """
+    Radius = 0
+    TypingTaskNumbersDualTask = ""
+    InnerCircleColor = (255, 204, 102) # orange
+    BorderColor = (255, 0, 0) # red
+    def __init__(self, radius, typingTaskNumbersDualTask, innerCircleColor, borderColor):
+        self.Radius = radius
+        self.TypingTaskNumbersDualTask = typingTaskNumbersDualTask
+        self.InnerCircleColor = innerCircleColor
+        self.BorderColor = borderColor
+
+
+class ExperimentSettings:
     """
     These settings can be modified by the Experiment supervisor
     """
-    # Specify radius sizes in ascending order from left to right
-    CircleRadiiSmall = [40, 60, 80]
-    CircleRadiiBig = [80, 100, 120]
-    CircleRadiiPractice = [80, 100, 120]
-    TypingTaskNumbersDualTask = ["12", "34", "56"]  # each entry corresponds to an circle radius
-    # Each line specifies the inner and outer circle color for the radii above from left to right
-    CircleRadiiColors = [{'innerCircleColor': (255, 204, 102), 'borderColor': (255, 0, 0)},  # first radius colors (orange, red)
-                         {'innerCircleColor': (252, 215, 141), 'borderColor': (255, 0, 0)},  # second radius colors
-                         {'innerCircleColor': (250, 228, 185), 'borderColor': (255, 0, 0)}]  # third radius colors
-    CircleBorderThickness = 5
-    TypingTaskNumbersSingleTask = "123"
-    TypingTaskNumbersCount = 27
-
-    # Set to True if for DualTasks, both Tracking and Typing shall be visible simultaneously
-    ParallelDualTasks = True
-
-    # Configure here the order of blocks and the number for trials for each respective. The order is from top to bottom. Also add Practice Tasks here. Use the names from class TaskTypes.
+    # Configure here the order of blocks and the number for trials for each respective.
+    # The order is from top to bottom. Also add optional Practice Tasks here.
+    # Use the task type names from class TaskTypes.
     RunningOrder = [
         Block(taskType=TaskTypes.PracticeSingleTracking, numberOfTrials=2),
         Block(taskType=TaskTypes.PracticeSingleTyping, numberOfTrials=2),
@@ -70,17 +74,44 @@ class GeneralExperimentSettings:
         Block(taskType=TaskTypes.SingleTyping, numberOfTrials=1),
         Block(taskType=TaskTypes.DualTask, numberOfTrials=3)
     ]
+
+    # Set to True if for DualTasks, both Tracking and Typing shall be visible simultaneously
+    ParallelDualTasks = True
+
+    CirclesSmall = [
+        Circle(radius=40, typingTaskNumbersDualTask="12", innerCircleColor=(255, 204, 102), borderColor=(255, 0, 0)),
+        Circle(radius=80, typingTaskNumbersDualTask="34", innerCircleColor=(252, 215, 141), borderColor=(255, 0, 0)),
+        Circle(radius=100, typingTaskNumbersDualTask="56", innerCircleColor=(250, 228, 185), borderColor=(255, 0, 0))
+    ]
+    CirclesBig = [
+        Circle(radius=80, typingTaskNumbersDualTask="12", innerCircleColor=(255, 204, 102), borderColor=(255, 0, 0)),
+        Circle(radius=150, typingTaskNumbersDualTask="34", innerCircleColor=(252, 215, 141), borderColor=(255, 0, 0)),
+        Circle(radius=220, typingTaskNumbersDualTask="56", innerCircleColor=(250, 228, 185), borderColor=(255, 0, 0))
+    ]
+    CirclesPractice = [
+        Circle(radius=80, typingTaskNumbersDualTask="12", innerCircleColor=(255, 204, 102), borderColor=(255, 0, 0)),
+        Circle(radius=150, typingTaskNumbersDualTask="34", innerCircleColor=(252, 215, 141), borderColor=(255, 0, 0)),
+        Circle(radius=220, typingTaskNumbersDualTask="56", innerCircleColor=(250, 228, 185), borderColor=(255, 0, 0))
+    ]
+    CircleBorderThickness = 5
+    SingleTypingTaskNumbers = "123"
+    SingleTypingTaskNumbersLength = 27
+
     MaxTrialTimeDual = 90  # maximum time for dual-task trials
     MaxTrialTimeSingleTracking = 10  # maximum time for single-task tracking
     MaxTrialTimeSingleTyping = 20  # maximum time for single-task typing
+
+    TaskWindowSize = (550, 550)
+    SpaceBetweenWindows = 128
 
 
 class RuntimeExperimentVariables:
     """
     These variables are required by the program itself, do not modify anything here!
     """
-    CircleRadii = []  # is set for each condition
+    CurrentCircles = []  # is set for each condition
     CurrentTypingTaskNumbers = ""
+    CurrentTypingTaskNumbersLength = 1
     CurrentTask = None
 
 
@@ -122,21 +153,16 @@ coverUpColor = (200, 200, 200)  # very light gray
 cursorColor = (0, 0, 255)  # blue
 
 ExperimentWindowSize = (1280, 1024)
-taskWindowSize = (450, 450)
 cursorSize = (20, 20)
 
-spaceBetweenWindows = 128
-offsetLeftRight = int((ExperimentWindowSize[0] - spaceBetweenWindows - 2 * taskWindowSize[0]) / 2)
+offsetLeftRight = int((ExperimentWindowSize[0] - ExperimentSettings.SpaceBetweenWindows - 2 * ExperimentSettings.TaskWindowSize[0]) / 2)
 topLeftCornerOfTypingTaskWindow = (offsetLeftRight, 50)
-topLeftCornerOfTrackingTaskWindow = (offsetLeftRight + taskWindowSize[0] + spaceBetweenWindows, 50)
-
-topLeftCornerOfTypingTaskNumber = (taskWindowSize[0] / 2 - 150 + topLeftCornerOfTypingTaskWindow[0],
-                                   taskWindowSize[1] / 2 - 20 + topLeftCornerOfTypingTaskWindow[1])
+topLeftCornerOfTrackingTaskWindow = (offsetLeftRight + ExperimentSettings.TaskWindowSize[0] + ExperimentSettings.SpaceBetweenWindows, 50)
 
 enteredDigitsStr = ""
 
-trackingWindowMiddleX = topLeftCornerOfTrackingTaskWindow[0] + int(taskWindowSize[0] / 2.0)
-trackingWindowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(taskWindowSize[1] / 2.0)
+trackingWindowMiddleX = topLeftCornerOfTrackingTaskWindow[0] + int(ExperimentSettings.TaskWindowSize[0] / 2.0)
+trackingWindowMiddleY = topLeftCornerOfTrackingTaskWindow[1] + int(ExperimentSettings.TaskWindowSize[1] / 2.0)
 
 cursorCoordinates = (trackingWindowMiddleX, trackingWindowMiddleY)
 
@@ -166,7 +192,6 @@ trackingWindowVisible = True
 global typingWindowVisible
 typingWindowVisible = True
 
-circleRadii = []
 standardDeviationOfNoise = -1
 stepSizeOfTrackingScreenUpdate = 0.005  # how many seconds does it take for a screen update?
 scoresForPayment = []
@@ -240,11 +265,12 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
     else:
         visitTime = "-"
 
-    currentTask = str(RuntimeExperimentVariables.CurrentTask);
+    circleRadii = list(map(lambda circle: circle.Radius, RuntimeExperimentVariables.CurrentCircles))
+    currentTask = str(RuntimeExperimentVariables.CurrentTask)
 
     outputText = \
         str(subjNr) + ";" + \
-        str(RuntimeExperimentVariables.CircleRadii) + ";" + \
+        str(circleRadii) + ";" + \
         str(standardDeviationOfNoise) + ";" + \
         str(currentTime) + ";" + \
         str(trialTime) + ";" + \
@@ -335,7 +361,6 @@ def checkKeyPressed():
     global enteredDigitsStr
     global joystickObject  # the joystick object
     global joystickAxis
-    global taskWindowSize
     global incorrectlyTypedDigitsTrial
     global correctlyTypedDigitsVisit
     global incorrectlyTypedDigitsVisit
@@ -359,21 +384,21 @@ def checkKeyPressed():
                     joystickAxis = (joystickObject.get_axis(0), joystickObject.get_axis(1))
                 except (pygame.error, NameError):
                     pass
-        elif event.type == pygame.JOYBUTTONUP and not GeneralExperimentSettings.ParallelDualTasks:
+        elif event.type == pygame.JOYBUTTONUP and not ExperimentSettings.ParallelDualTasks:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("closeTracking")
                 writeOutputDataFile("ButtonRelease", "-")
-        elif event.type == pygame.JOYBUTTONDOWN and not GeneralExperimentSettings.ParallelDualTasks:
+        elif event.type == pygame.JOYBUTTONDOWN and not ExperimentSettings.ParallelDualTasks:
             if event.button == 0:  # only respond to 0 button
                 switchWindows("openTracking")
                 writeOutputDataFile("ButtonPress", "-")
 
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_F1 and trackingWindowVisible and typingTaskPresent and not GeneralExperimentSettings.ParallelDualTasks:
+            if event.key == pygame.K_F1 and trackingWindowVisible and typingTaskPresent and not ExperimentSettings.ParallelDualTasks:
                 print("PRESSED F1 CLOSE TRACKING")
                 switchWindows("closeTracking")
                 writeOutputDataFile("ButtonRelease", "-")
-            elif event.key == pygame.K_F1 and typingWindowVisible and trackingTaskPresent and not GeneralExperimentSettings.ParallelDualTasks:
+            elif event.key == pygame.K_F1 and typingWindowVisible and trackingTaskPresent and not ExperimentSettings.ParallelDualTasks:
                 print("PRESSED F1 OPEN TRACKING")
                 switchWindows("openTracking")
                 writeOutputDataFile("ButtonPress", "-")
@@ -387,7 +412,7 @@ def checkKeyPressed():
                 digitPressTimes.append(time.time())
 
                 # In parallel dual task, e is to be typed when the cursor was outside the circle. On e, all key presses are neither correct or incorrect.
-                if RuntimeExperimentVariables.CurrentTypingTaskNumbers[0] == "e" and GeneralExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
+                if RuntimeExperimentVariables.CurrentTypingTaskNumbers[0] == "e" and ExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
                     enteredDigitsStr += key
                     UpdateTypingTaskString(reset=False)  # generate one new character
                     writeOutputDataFile("keypress", key)
@@ -406,14 +431,7 @@ def checkKeyPressed():
                     writeOutputDataFile("wrongKeypress", key)
                     print(f"Incorrect key press: {key}")
 
-                blockMaskingOldLocation = pygame.Surface((int(taskWindowSize[0] - (topLeftCornerOfTypingTaskNumber[0] - topLeftCornerOfTypingTaskWindow[0])), 100)).convert()
-                blockMaskingOldLocation.fill(backgroundColorDigitScreen)
-                screen.blit(blockMaskingOldLocation, topLeftCornerOfTypingTaskNumber)
-                # then post new message
-                f = pygame.font.Font(None, fontsizeGoalAndTypingTaskNumber)
-                typingTaskNumberMessage = f.render(RuntimeExperimentVariables.CurrentTypingTaskNumbers, True, (0, 0, 0))
-                screen.blit(typingTaskNumberMessage, topLeftCornerOfTypingTaskNumber)
-                # display all updates (made using blit) on the screen
+                drawTypingWindow()
                 pygame.display.flip()
 
 
@@ -484,8 +502,8 @@ def GiveCountdownMessageOnScreen(timeMessageIsOnScreen):
 
 
 def DisplayMessage(message, timeMessageIsOnScreen):
-    print("FUNCTION: " + getFunctionName())
     global screen
+    print("FUNCTION: " + getFunctionName())
     # prepare background
     completebg = pygame.Surface(ExperimentWindowSize).convert()
     completebg.fill(backgroundColorEntireScreen)
@@ -624,7 +642,7 @@ def UpdateTypingTaskString(reset=False):
     # Remove the leftmost character
     RuntimeExperimentVariables.CurrentTypingTaskNumbers = RuntimeExperimentVariables.CurrentTypingTaskNumbers[1:]
     # Generate random characters until the string is complete
-    numberOfNewCharacters = GeneralExperimentSettings.TypingTaskNumbersCount - len(RuntimeExperimentVariables.CurrentTypingTaskNumbers)
+    numberOfNewCharacters = RuntimeExperimentVariables.CurrentTypingTaskNumbersLength - len(RuntimeExperimentVariables.CurrentTypingTaskNumbers)
     if numberOfNewCharacters > 0:
         newCharacters = GetTypingTaskNumbers(numberOfNewCharacters)
         # Update the typing task string. Append the new numbers on the right hand side.
@@ -647,18 +665,18 @@ def GetTypingTaskNumbers(count):
 
     # For single typing task only, return the single task string
     if typingWindowVisible and not trackingWindowVisible:
-        return ''.join([random.choice(GeneralExperimentSettings.TypingTaskNumbersSingleTask) for _ in range(count)])
+        return ''.join([random.choice(ExperimentSettings.SingleTypingTaskNumbers) for _ in range(count)])
 
     # For dual task with both tracking and typing window visible, determine the typing string from the cursor position
     distanceCursorMiddle = math.sqrt((abs(trackingWindowMiddleX - cursorCoordinates[0])) ** 2 + (abs(trackingWindowMiddleY - cursorCoordinates[1])) ** 2)
     possibleCharacters = None
-    for i in range(0, len(RuntimeExperimentVariables.CircleRadii)):
-        if distanceCursorMiddle < RuntimeExperimentVariables.CircleRadii[i]:
-            possibleCharacters = GeneralExperimentSettings.TypingTaskNumbersDualTask[i]
+    for circle in RuntimeExperimentVariables.CurrentCircles:
+        if distanceCursorMiddle < circle.Radius:
+            possibleCharacters = circle.TypingTaskNumbersDualTask
             break
 
     # If the cursor is outside the outermost circle radius, the tpying task should show an "e"
-    if not possibleCharacters and GeneralExperimentSettings.ParallelDualTasks:
+    if not possibleCharacters and ExperimentSettings.ParallelDualTasks:
         possibleCharacters = "e"
     elif not possibleCharacters:
         raise Exception("Could not get a random typing task number for the current circle radius!")
@@ -668,27 +686,23 @@ def GetTypingTaskNumbers(count):
 
 
 def drawCircles(bg):
-    global taskWindowSize
-    for i in reversed(range(0, len(RuntimeExperimentVariables.CircleRadii))):
-        radiusInnerColor = GeneralExperimentSettings.CircleRadiiColors[i]['innerCircleColor']
-        radiusOuterColor = GeneralExperimentSettings.CircleRadiiColors[i]['borderColor']
-        radiusCircle = RuntimeExperimentVariables.CircleRadii[i]
+    for circle in reversed(RuntimeExperimentVariables.CurrentCircles):
         # draw a filled circle
         drawCircle(bg,
-                   radiusInnerColor,
-                   radiusCircle,
+                   circle.InnerCircleColor,
+                   circle.Radius,
                    0)
         # Draws a circular shape on the Surface. The pos argument is the center of the circle, and radius is the size.
         #  The width argument is the thickness to draw the outer edge. If width is zero then the circle will be filled.
         drawCircle(bg,
-                   radiusOuterColor,
-                   radiusCircle,
-                   GeneralExperimentSettings.CircleBorderThickness)
+                   circle.BorderColor,
+                   circle.Radius,
+                   ExperimentSettings.CircleBorderThickness)
 
 
 def drawCircle(image, colour, radius, width=0):
     global cursorCoordinates
-    origin = (int(taskWindowSize[0] / 2), int(taskWindowSize[1] / 2))
+    origin = (int(ExperimentSettings.TaskWindowSize[0] / 2), int(ExperimentSettings.TaskWindowSize[1] / 2))
     # based on recommendation on pygame website
     if width == 0:
         pygame.draw.circle(image, colour, origin, int(radius))
@@ -716,7 +730,6 @@ def drawCursor(sleepTime):
     global cursorColor
     global trackingWindowMiddleX
     global trackingWindowMiddleY
-    global taskWindowSize
     global lengthOfPathTracked
 
     x = cursorCoordinates[0]
@@ -756,13 +769,13 @@ def drawCursor(sleepTime):
                 # now check if the cursor is still within screen range
                 if x < (topLeftCornerOfTrackingTaskWindow[0] + cursorSize[0] / 2):
                     x = topLeftCornerOfTrackingTaskWindow[0] + cursorSize[0] / 2
-                elif x > (topLeftCornerOfTrackingTaskWindow[0] + taskWindowSize[0] - cursorSize[0] / 2):
-                    x = topLeftCornerOfTrackingTaskWindow[0] + taskWindowSize[0] - cursorSize[0] / 2
+                elif x > (topLeftCornerOfTrackingTaskWindow[0] + ExperimentSettings.TaskWindowSize[0] - cursorSize[0] / 2):
+                    x = topLeftCornerOfTrackingTaskWindow[0] + ExperimentSettings.TaskWindowSize[0] - cursorSize[0] / 2
 
                 if y < (topLeftCornerOfTrackingTaskWindow[1] + cursorSize[1] / 2):
                     y = topLeftCornerOfTrackingTaskWindow[1] + cursorSize[1] / 2
-                elif y > (topLeftCornerOfTrackingTaskWindow[1] + taskWindowSize[1] - cursorSize[1] / 2):
-                    y = topLeftCornerOfTrackingTaskWindow[1] + taskWindowSize[1] - cursorSize[1] / 2
+                elif y > (topLeftCornerOfTrackingTaskWindow[1] + ExperimentSettings.TaskWindowSize[1] - cursorSize[1] / 2):
+                    y = topLeftCornerOfTrackingTaskWindow[1] + ExperimentSettings.TaskWindowSize[1] - cursorSize[1] / 2
 
                 if trackingWindowVisible:  # only update screen when it's visible
                     # now prepare the screen for an update
@@ -773,25 +786,30 @@ def drawCursor(sleepTime):
                     screen.blit(blockMaskingOldLocation, (oldLocationX, oldLocationY))
 
                     distanceCursorMiddle = math.sqrt((abs(trackingWindowMiddleX - x)) ** 2 + (abs(trackingWindowMiddleY - y)) ** 2)
-                    largestCircleRadius = max(RuntimeExperimentVariables.CircleRadii)
+                    largestCircleRadius = max(list(map(lambda circle: circle.Radius, RuntimeExperimentVariables.CurrentCircles)))
+                    wasCursorOutsideRadiusBefore = IsOutsideRadius
                     if distanceCursorMiddle > largestCircleRadius:
                         IsOutsideRadius = True
                         cursorColor = (255, 0, 0)  # red
+                        # When the cursor moves outside the circles, the parallel dual task typing number shall become "e" immediately
+                        if not wasCursorOutsideRadiusBefore and ExperimentSettings.ParallelDualTasks:
+                            RuntimeExperimentVariables.CurrentTypingTaskNumbers = "e"
                     else:
                         IsOutsideRadius = False
                         cursorColor = (0, 0, 255)  # blue
+                        # When the cursor moves back inside the circles, the parallel dual task typing number shall become a number immediately
+                        if wasCursorOutsideRadiusBefore and ExperimentSettings.ParallelDualTasks:
+                            UpdateTypingTaskString(reset=False)
 
-                    # if cursor used to be within radius from target, redraw circle
-                    # taskWindowSize = (int(largestCircleRadius * 2.5), int(largestCircleRadius * 2.5))
-                    taskWindow = pygame.Surface(taskWindowSize).convert()
+                    taskWindow = pygame.Surface(ExperimentSettings.TaskWindowSize).convert()
                     taskWindow.fill(backgroundColorTrackingScreen)
 
                     drawCircles(taskWindow)
 
                     # make area about 30 away from centre
                     screen.blit(taskWindow, (
-                        (topLeftCornerOfTrackingTaskWindow[0] + taskWindowSize[0] / 2 - taskWindowSize[0] / 2),
-                        (topLeftCornerOfTrackingTaskWindow[1] + taskWindowSize[1] / 2 - taskWindowSize[1] / 2)
+                        (topLeftCornerOfTrackingTaskWindow[0] + ExperimentSettings.TaskWindowSize[0] / 2 - ExperimentSettings.TaskWindowSize[0] / 2),
+                        (topLeftCornerOfTrackingTaskWindow[1] + ExperimentSettings.TaskWindowSize[1] / 2 - ExperimentSettings.TaskWindowSize[1] / 2)
                     ))
 
                     # always redraw cursor
@@ -821,13 +839,13 @@ def drawCursor(sleepTime):
         if (x, y) != cursorCoordinates:
             if x < (topLeftCornerOfTrackingTaskWindow[0] + cursorSize[0] / 2):
                 x = topLeftCornerOfTrackingTaskWindow[0] + cursorSize[0] / 2
-            elif x > (topLeftCornerOfTrackingTaskWindow[0] + taskWindowSize[0] - cursorSize[0] / 2):
-                x = topLeftCornerOfTrackingTaskWindow[0] + taskWindowSize[0] - cursorSize[0] / 2
+            elif x > (topLeftCornerOfTrackingTaskWindow[0] + ExperimentSettings.TaskWindowSize[0] - cursorSize[0] / 2):
+                x = topLeftCornerOfTrackingTaskWindow[0] + ExperimentSettings.TaskWindowSize[0] - cursorSize[0] / 2
 
             if y < (topLeftCornerOfTrackingTaskWindow[1] + cursorSize[1] / 2):
                 y = topLeftCornerOfTrackingTaskWindow[1] + cursorSize[1] / 2
-            elif y > (topLeftCornerOfTrackingTaskWindow[1] + taskWindowSize[1] - cursorSize[1] / 2):
-                y = topLeftCornerOfTrackingTaskWindow[1] + taskWindowSize[1] - cursorSize[1] / 2
+            elif y > (topLeftCornerOfTrackingTaskWindow[1] + ExperimentSettings.TaskWindowSize[1] - cursorSize[1] / 2):
+                y = topLeftCornerOfTrackingTaskWindow[1] + ExperimentSettings.TaskWindowSize[1] - cursorSize[1] / 2
         # if display is not updated, sleep for entire time
         time.sleep(sleepTime)
 
@@ -860,7 +878,7 @@ def drawCover(window):
         raise Exception("invalid window side specified")
 
     # draw background
-    bg = pygame.Surface(taskWindowSize).convert()
+    bg = pygame.Surface(ExperimentSettings.TaskWindowSize).convert()
     bg.fill(coverUpColor)
     screen.blit(bg, location)  # make area about 30 away from centre
 
@@ -887,16 +905,19 @@ def drawTypingWindow():
     global screen
 
     # draw background
-    bg = pygame.Surface(taskWindowSize).convert()
+    bg = pygame.Surface(ExperimentSettings.TaskWindowSize).convert()
     bg.fill((255, 255, 255))
     screen.blit(bg, topLeftCornerOfTypingTaskWindow)  # make area about 30 away from centre
 
-    if not GeneralExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
+    if not ExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
         drawCover("tracking")
 
     f = pygame.font.Font(None, fontsizeGoalAndTypingTaskNumber)
-    typingTaskNumberMessage = f.render(RuntimeExperimentVariables.CurrentTypingTaskNumbers, True, (0, 0, 0))
-    screen.blit(typingTaskNumberMessage, topLeftCornerOfTypingTaskNumber)
+    typingTaskNumberText = f.render(RuntimeExperimentVariables.CurrentTypingTaskNumbers, True, (0, 0, 0))
+    textWidth, textHeight = f.size(RuntimeExperimentVariables.CurrentTypingTaskNumbers)
+    x = (topLeftCornerOfTypingTaskWindow[0] + (ExperimentSettings.TaskWindowSize[0]) / 2) - (textWidth / 2)
+    y = topLeftCornerOfTypingTaskWindow[1] + (ExperimentSettings.TaskWindowSize[1] / 2) - (textHeight / 2)
+    screen.blit(typingTaskNumberText, (x, y))
 
 
 def closeTrackingWindow():
@@ -942,7 +963,7 @@ def drawTrackingWindow():
     global penalty
 
     # draw background
-    bg = pygame.Surface(taskWindowSize).convert()
+    bg = pygame.Surface(ExperimentSettings.TaskWindowSize).convert()
     bg.fill(backgroundColorTrackingScreen)
     drawCircles(bg)
     screen.blit(bg, topLeftCornerOfTrackingTaskWindow)  # make area about 30 away from centre
@@ -952,14 +973,17 @@ def drawTrackingWindow():
     screen.blit(newCursor, newCursorLocation)  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
-    if penalty != "none" and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask) and not GeneralExperimentSettings.ParallelDualTasks:
+    if penalty != "none" and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask) and not ExperimentSettings.ParallelDualTasks:
         intermediateMessage = str(visitScore) + " Punkte"
         fontsize = fontsizeGoalAndTypingTaskNumber
         color = (0, 0, 0)
-        location = (900, 65)
-        printTextOverMultipleLines(intermediateMessage, fontsize, color, location)
+        f = pygame.font.Font(None, fontsizeGoalAndTypingTaskNumber)
+        textWidth, textHeight = f.size(intermediateMessage)
+        x = topLeftCornerOfTrackingTaskWindow[0] + (ExperimentSettings.TaskWindowSize[0] / 2) - (textWidth / 2)
+        y = topLeftCornerOfTrackingTaskWindow[1] + 10
+        printTextOverMultipleLines(intermediateMessage, fontsize, color, (x, y))
 
-    if not GeneralExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
+    if not ExperimentSettings.ParallelDualTasks and (RuntimeExperimentVariables.CurrentTask == TaskTypes.DualTask or RuntimeExperimentVariables.CurrentTask == TaskTypes.PracticeDualTask):
         drawCover("typing")
 
     # display all updates (made using blit) on the screen
@@ -1039,6 +1063,8 @@ def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
                        "Kopiere die Ziffern so schnell wie möglich.\n"
                        "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n", 10)
 
+    RuntimeExperimentVariables.CurrentTypingTaskNumbersLength = ExperimentSettings.SingleTypingTaskNumbersLength
+
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
         trialScore = 0
@@ -1080,12 +1106,12 @@ def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
         # display all updates (made using blit) on the screen
         pygame.display.flip()
 
-        while (time.time() - startTime) < GeneralExperimentSettings.MaxTrialTimeSingleTyping and environmentIsRunning:
+        while (time.time() - startTime) < ExperimentSettings.MaxTrialTimeSingleTyping and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
             pygame.display.flip()
             time.sleep(0.02)
 
-        if (time.time() - startTime) >= GeneralExperimentSettings.MaxTrialTimeSingleTyping:
+        if (time.time() - startTime) >= ExperimentSettings.MaxTrialTimeSingleTyping:
             writeOutputDataFile("trialStopTooMuchTime", "-", True)
         elif not environmentIsRunning:
             writeOutputDataFile("trialStopEnvironmentStopped", "-", True)
@@ -1185,7 +1211,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
         # display all updates (made using blit) on the screen
         pygame.display.flip()
 
-        while ((time.time() - startTime) < GeneralExperimentSettings.MaxTrialTimeSingleTracking) and environmentIsRunning:
+        while ((time.time() - startTime) < ExperimentSettings.MaxTrialTimeSingleTracking) and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
 
             if trackingTaskPresent and trackingWindowVisible:
@@ -1235,7 +1261,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
         RuntimeExperimentVariables.CurrentTask = TaskTypes.PracticeDualTask
         message = "Tracking + Tippen (MULTITASKING)\n\n" \
                   "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
-        if not GeneralExperimentSettings.ParallelDualTasks:
+        if not ExperimentSettings.ParallelDualTasks:
             message += "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n" \
                        "Drücke den Schalter unter deinem Zeigefinger am Joystick, um zu kontrollieren ob der blaue Cursor\n" \
                        "noch innerhalb des Kreises ist.\n" \
@@ -1252,10 +1278,12 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
                        "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
                        "Fehler beim Tippen führen auch zu einem Punktverlust.\n\n"
                        "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl.", 18)
-        if not GeneralExperimentSettings.ParallelDualTasks:
+        if not ExperimentSettings.ParallelDualTasks:
             DisplayMessage("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
                            "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
                            "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
+
+    RuntimeExperimentVariables.CurrentTypingTaskNumbersLength = 1 if ExperimentSettings.ParallelDualTasks else ExperimentSettings.SingleTypingTaskNumbersLength
 
     for i in range(0, numberOfTrials):
         numberOfCircleExits = 0
@@ -1270,7 +1298,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
         GiveCountdownMessageOnScreen(3)
         pygame.event.clear()  # clear all events
 
-        if GeneralExperimentSettings.ParallelDualTasks:
+        if ExperimentSettings.ParallelDualTasks:
             trackingWindowVisible = True
             typingWindowVisible = True
         else:
@@ -1320,28 +1348,30 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
         # display all updates (made using blit) on the screen
         pygame.display.flip()
 
-        while (time.time() - startTime) < GeneralExperimentSettings.MaxTrialTimeDual and environmentIsRunning:
+        while (time.time() - startTime) < ExperimentSettings.MaxTrialTimeDual and environmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the tracking task and the typingTask and starts relevant display updates
 
             if trackingTaskPresent and trackingWindowVisible:
                 drawTrackingWindow()
                 drawCursor(0.02)
-            if GeneralExperimentSettings.ParallelDualTasks and typingTaskPresent and typingWindowVisible:
+            if ExperimentSettings.ParallelDualTasks and typingTaskPresent and typingWindowVisible:
                 drawTypingWindow()
 
-            if GeneralExperimentSettings.ParallelDualTasks:
+            if ExperimentSettings.ParallelDualTasks:
                 eventMsg = "trackingAndTypingVisible"
             elif trackingWindowVisible:
                 eventMsg = "trackingVisible"
             elif typingWindowVisible:
                 eventMsg = "typingVisible"
+            else:
+                eventMsg = ""
 
             writeOutputDataFile(eventMsg, "-")
 
         visitEndTime = time.time()
         updateScore()
 
-        if (time.time() - startTime) >= GeneralExperimentSettings.MaxTrialTimeDual:
+        if (time.time() - startTime) >= ExperimentSettings.MaxTrialTimeDual:
             writeOutputDataFile("trialStopTooMuchTime", "-", True)
         elif not environmentIsRunning:
             writeOutputDataFile("trialStopEnvironmentStopped", "-", True)
@@ -1462,6 +1492,11 @@ def main():
     global startTime
     global fullscreen
 
+    # Sort the circle lists by radius to make getting the typing task numbers work properly
+    ExperimentSettings.CirclesSmall.sort(key=lambda circle: circle.Radius, reverse=False)
+    ExperimentSettings.CirclesBig.sort(key=lambda circle: circle.Radius, reverse=False)
+    ExperimentSettings.CirclesPractice.sort(key=lambda circle: circle.Radius, reverse=False)
+
     ValidateExperimentSettings()
 
     subjNrStr = input("Please enter the subject number here: ")
@@ -1512,9 +1547,9 @@ def main():
 
         # radius is S (small) or B (big)
         if currentCondition[1] == "S":  # small radius
-            radiusCircle = GeneralExperimentSettings.CircleRadiiSmall
+            radiusCircle = ExperimentSettings.CirclesSmall
         elif currentCondition[1] == "B":
-            radiusCircle = GeneralExperimentSettings.CircleRadiiBig
+            radiusCircle = ExperimentSettings.CirclesBig
         else:
             raise Exception("Invalid radius " + currentCondition[1])
 
@@ -1547,8 +1582,8 @@ def main():
                        "Wir beginnen mit den Übungsdurchläufen.", 10)
 
         # do practice trials
-        RuntimeExperimentVariables.CircleRadii = GeneralExperimentSettings.CircleRadiiPractice
-        for block in GeneralExperimentSettings.RunningOrder:
+        RuntimeExperimentVariables.CurrentCircles = ExperimentSettings.CirclesPractice
+        for block in ExperimentSettings.RunningOrder:
             if block.TaskType == TaskTypes.PracticeSingleTracking:
                 runSingleTaskTrackingTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
             elif block.TaskType == TaskTypes.PracticeSingleTyping:
@@ -1566,11 +1601,11 @@ def main():
         # set global and local variables
         standardDeviationOfNoise = condition["standardDeviationOfNoise"]
         noiseMsg = condition["noiseMsg"]
-        RuntimeExperimentVariables.CircleRadii = condition["radiusCircle"]
+        RuntimeExperimentVariables.CurrentCircles = condition["radiusCircle"]
         penalty = condition["penalty"]
         penaltyMsg = condition["penaltyMsg"]
 
-        for block in GeneralExperimentSettings.RunningOrder:
+        for block in ExperimentSettings.RunningOrder:
             if block.TaskType == TaskTypes.SingleTracking:
                 message = getMessageBeforeTrial(TaskTypes.SingleTracking, noiseMsg, penaltyMsg, showPrecedingPenaltyInfo)
                 DisplayMessage(message, 12)
@@ -1593,15 +1628,7 @@ def main():
 
 def ValidateExperimentSettings():
     """Some important consistency checks for fields of GeneralExperimentSettings"""
-    if GeneralExperimentSettings.CircleRadiiSmall != sorted(GeneralExperimentSettings.CircleRadiiSmall):
-        quitApp("GeneralExperimentSettings.CircleRadiiSmall is not sorted in ascending order! This must be fixed for the random numbers to work in parallel dual task!")
-    if GeneralExperimentSettings.CircleRadiiBig != sorted(GeneralExperimentSettings.CircleRadiiBig):
-        quitApp("GeneralExperimentSettings.CircleRadiiBig is not sorted in ascending order! This must be fixed for the random numbers to work in parallel dual task!")
-    if len(GeneralExperimentSettings.CircleRadiiSmall) != len(GeneralExperimentSettings.CircleRadiiBig) \
-            or len(GeneralExperimentSettings.CircleRadiiBig) != len(GeneralExperimentSettings.CircleRadiiColors) \
-            or len(GeneralExperimentSettings.CircleRadiiColors) != len(GeneralExperimentSettings.TypingTaskNumbersDualTask):
-        quitApp("Circle radii settings are inconsistent! Make sure the lists all have the same length!")
-    for block in GeneralExperimentSettings.RunningOrder:
+    for block in ExperimentSettings.RunningOrder:
         if block.TaskType.name not in TaskTypes._member_names_:
             quitApp(f"Specified TaskType {block.TaskType} is invalid!")
 
