@@ -117,7 +117,7 @@ class Constants:
     TrackingWindowMiddleY = TopLeftCornerOfTrackingTaskWindow.Y + int(ExperimentSettings.TaskWindowSize.Y / 2.0)
     ScalingJoystickAxis = 5  # how many pixels does the cursor move when joystick is at full angle (value of 1 or -1).
     StepSizeOfTrackingScreenUpdate = 0.005  # how many seconds does it take for a RuntimeVariables.Screen update?
-    SettingsFilename = "settings.csv"
+    SettingsFilename = "guiconfig.dat"
 
 
 class RuntimeVariables:
