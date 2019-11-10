@@ -1280,15 +1280,11 @@ def readParticipantFile():
     for line in lines:
         if line[0] == "StandardDeviationOfNoise":
             continue
-        standardDeviationOfNoise = line[0]
-        circleSize = line[1]
-        penalty = line[2]
-        gainCorrectDigit = line[3]
         conditions.append({
-            'standardDeviationOfNoise': standardDeviationOfNoise,
-            'circleSize': circleSize,
-            'penalty': penalty,
-            'gainCorrectDigit': gainCorrectDigit
+            'standardDeviationOfNoise': line[0],
+            'circleSize': line[1],
+            'penalty': line[2],
+            'gainCorrectDigit': line[3]
         })
     return conditions
 
