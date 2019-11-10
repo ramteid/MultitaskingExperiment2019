@@ -40,9 +40,9 @@ class Penalty(Enum):
     Do not modify anything here!
     """
     NoPenalty = 1  # Do not change the score
-    Lose500 = 2
-    LoseAll = 3
-    LoseHalf = 4
+    LoseAll = 2
+    LoseHalf = 3
+    LoseAmount = 4 # Lose an amount specified in RuntimeVariables.PenaltyAmount
 
 
 class Block:
@@ -131,7 +131,7 @@ class Constants:
     TrackingWindowMiddleX = TopLeftCornerOfTrackingTaskWindow.X + int(ExperimentSettings.TaskWindowSize.X / 2.0)
     TrackingWindowMiddleY = TopLeftCornerOfTrackingTaskWindow.Y + int(ExperimentSettings.TaskWindowSize.Y / 2.0)
     ScalingJoystickAxis = 5  # how many pixels does the cursor move when joystick is at full angle (value of 1 or -1).
-    StepSizeOfTrackingScreenUpdate = 0.005  # how many seconds does it take for a RuntimeVariables.Screen update?
+    StepSizeOfTrackingScreenUpdate = 0.005  # how many seconds does it take for a screen update?
     SettingsFilename = "guiconfig.dat"
 
 
@@ -149,7 +149,6 @@ class RuntimeVariables:
     CurrentTypingTaskNumbersLength = 1
     CurrentTask = None
     CurrentCursorColor = ExperimentSettings.CursorColorInside
-    Conditions = []
     CorrectlyTypedDigitsVisit = 0
     CurrentCondition = ""
     CursorCoordinates = Vector2D(Constants.TrackingWindowMiddleX, Constants.TrackingWindowMiddleY)
@@ -170,7 +169,8 @@ class RuntimeVariables:
     OutputDataFile = None
     OutputDataFileTrialEnd = None
     ParallelDualTasks = False
-    Penalty = ""
+    Penalty = None
+    PenaltyAmount = 0
     RunningOrder = []
     RunPracticeTrials = True
     ShowPenaltyRewardNoise = True
@@ -179,7 +179,7 @@ class RuntimeVariables:
     StandardDeviationOfNoise = -1
     StartTimeCurrentTrial = time.time()
     StartTimeOfFirstExperiment = time.time()
-    SubjectNumber = 0
+    ParticipantNumber = "0"
     TrackingTaskPresent = False
     TrackingWindowEntryCounter = 0
     TrackingWindowVisible = False
@@ -231,7 +231,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
     currentTask = str(RuntimeVariables.CurrentTask)
 
     outputText = \
-        str(RuntimeVariables.SubjectNumber) + ";" + \
+        str(RuntimeVariables.ParticipantNumber) + ";" + \
         str(circleRadii) + ";" + \
         str(RuntimeVariables.StandardDeviationOfNoise) + ";" + \
         str(currentTime) + ";" + \
@@ -643,7 +643,7 @@ def drawCursor(sleepTime):
         final_x = x + random.gauss(0, RuntimeVariables.StandardDeviationOfNoise)
         final_y = y + random.gauss(0, RuntimeVariables.StandardDeviationOfNoise)
 
-    if RuntimeVariables.TrackingWindowVisible:  # only add RuntimeVariables.JoystickAxis if the window is open (i.e., if the participant sees what way cursor moves!)
+    if RuntimeVariables.TrackingWindowVisible:  # only add joystickAxis if the window is open (i.e., if the participant sees what way cursor moves!)
         final_x += RuntimeVariables.JoystickAxis.X * Constants.ScalingJoystickAxis
         final_y += RuntimeVariables.JoystickAxis.Y * Constants.ScalingJoystickAxis
 
@@ -658,7 +658,7 @@ def drawCursor(sleepTime):
             y += delta_y
 
             if (x, y) != RuntimeVariables.CursorCoordinates:
-                # now check if the cursor is still within RuntimeVariables.Screen range
+                # now check if the cursor is still within screen range
                 if x < (Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2):
                     x = Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2
                 elif x > (Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.TaskWindowSize.X - ExperimentSettings.CursorSize.X / 2):
@@ -703,7 +703,7 @@ def drawCursor(sleepTime):
         x = final_x
         y = final_y
 
-        # now check if the cursor is still within RuntimeVariables.Screen range
+        # now check if the cursor is still within screen range
         if (x, y) != RuntimeVariables.CursorCoordinates:
             if x < (Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2):
                 x = Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2
@@ -800,7 +800,7 @@ def openTrackingWindow():
     RuntimeVariables.TrackingWindowEntryCounter += 1
 
     if RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask:
-        ApplyPenaltyForTypingTaskScores()
+        ApplyPenaltyAndRewardForTypingTaskScores()
 
     RuntimeVariables.TrackingWindowVisible = True
 
@@ -821,7 +821,7 @@ def drawTrackingWindow():
     newCursorLocation = Vector2D(RuntimeVariables.CursorCoordinates.X - (ExperimentSettings.CursorSize.X / 2), RuntimeVariables.CursorCoordinates.Y - (ExperimentSettings.CursorSize.Y / 2))
     newCursor = pygame.Surface((ExperimentSettings.CursorSize.X, ExperimentSettings.CursorSize.Y)).convert()
     newCursor.fill(RuntimeVariables.CurrentCursorColor)
-    RuntimeVariables.Screen.blit(newCursor, (newCursorLocation.X, newCursorLocation.Y))  # blit puts something new on the RuntimeVariables.Screen
+    RuntimeVariables.Screen.blit(newCursor, (newCursorLocation.X, newCursorLocation.Y))  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
     if RuntimeVariables.Penalty != "none" and (RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask) and not RuntimeVariables.ParallelDualTasks:
@@ -838,30 +838,32 @@ def drawDualTaskScore():
     printTextOverMultipleLines(intermediateMessage, (x, y))
 
 
-def ApplyPenaltyForTypingTaskScores():
+def ApplyPenaltyAndRewardForTypingTaskScores():
     """
     For dual tasks: If the cursor is outside of the circle, apply penalty if applicable.
     This function is called at the end of a dual task trial or when switching from tracking to typing window.
     """
     print("FUNCTION: " + getFunctionName())
+    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit + 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit - 5) # gain is 10 for correct digit and -5 for incorrect digit
 
     # If Cursor is outside of the circle
     if RuntimeVariables.IsOutsideRadius:
         RuntimeVariables.NumberOfCircleExits += 1
-        if RuntimeVariables.Penalty == Penalty.Lose500:
-            # loose 500
-            RuntimeVariables.VisitScore = ((RuntimeVariables.CorrectlyTypedDigitsVisit + 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit - 5)) - 500
+        if RuntimeVariables.Penalty == Penalty.LoseAmount:
+            # lose an amount
+            RuntimeVariables.VisitScore = gainFormula - RuntimeVariables.PenaltyAmount
         elif RuntimeVariables.Penalty == Penalty.LoseAll:
-            # loose all
+            # lose all
             RuntimeVariables.VisitScore = 0
         elif RuntimeVariables.Penalty == Penalty.LoseHalf:
-            # loose half
-            RuntimeVariables.VisitScore = 0.5 * ((RuntimeVariables.CorrectlyTypedDigitsVisit * 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit * -5))  # RuntimeVariables.Penalty for exit is to lose half points
-        # Penalty could also be "none", then do not apply any penalty to the score
+            # lose half
+            RuntimeVariables.VisitScore = 0.5 * gainFormula  # Penalty for exit is to lose half points
+        elif RuntimeVariables.Penalty == Penalty.NoPenalty:
+            pass
 
-    # If Cursor is inside the circle
+    # If Cursor is inside the circle, apply reward
     else:
-        RuntimeVariables.VisitScore = (RuntimeVariables.CorrectlyTypedDigitsVisit * 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit * -5)  # gain is 10 for correct digit and -5 for incorrect digit
+        RuntimeVariables.VisitScore = gainFormula
 
     # add the score for this digit task visit to the overall trial score
     # duringtrial score is used in reportUserScore
@@ -1155,7 +1157,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
             writeOutputDataFile(eventMsg, "-")
 
         RuntimeVariables.VisitEndTime = time.time()
-        ApplyPenaltyForTypingTaskScores()
+        ApplyPenaltyAndRewardForTypingTaskScores()
 
         if (time.time() - RuntimeVariables.StartTimeCurrentTrial) >= ExperimentSettings.MaxTrialTimeDual:
             writeOutputDataFile("trialStopTooMuchTime", "-", True)
@@ -1210,14 +1212,14 @@ def initializeOutputFiles():
         "EventMessage2" + "\n"
 
     timestamp = time.strftime("%Y-%m-%d_%H-%M")
-    dataFileName = "participant_" + str(RuntimeVariables.SubjectNumber) + "_data_" + timestamp + ".csv"
+    dataFileName = "participant_" + str(RuntimeVariables.ParticipantNumber) + "_data_" + timestamp + ".csv"
     RuntimeVariables.OutputDataFile = open(dataFileName, 'w')  # contains the user data
     RuntimeVariables.OutputDataFile.write(outputText)
     RuntimeVariables.OutputDataFile.flush()
     # typically the above line would do. however this is used to ensure that the file is written
     os.fsync(RuntimeVariables.OutputDataFile.fileno())
 
-    summaryFileName = "participant_" + str(RuntimeVariables.SubjectNumber) + "_data_lastTrialEntry_" + timestamp + ".csv"
+    summaryFileName = "participant_" + str(RuntimeVariables.ParticipantNumber) + "_data_lastTrialEntry_" + timestamp + ".csv"
     RuntimeVariables.OutputDataFileTrialEnd = open(summaryFileName, 'w')  # contains the user data
     RuntimeVariables.OutputDataFileTrialEnd.write(outputText)
     RuntimeVariables.OutputDataFileTrialEnd.flush()
@@ -1235,21 +1237,22 @@ def readCsvFile(filePath):
     return list(map(lambda x: x.split(';'), individualLines))  # split all elements
 
 
-def readConditionFile():
+def readParticipantFile():
     """
-    Load the participant file
+    Loads the conditions from the participant csv file.
+    :returns A list of dictionaries
     """
-    lines = readCsvFile('participantConditions.csv')
-    subjectLine = []
+    lines = readCsvFile(f'participant_{RuntimeVariables.ParticipantNumber}.csv')
+    conditions = []
     for line in lines:
-        if line[0] == str(RuntimeVariables.SubjectNumber):
-            if not subjectLine:
-                subjectLine = line[1:]
-            else:
-                raise Exception("Duplicate subject number")
-    if not subjectLine:
-        raise Exception("Invalid subject number")
-    RuntimeVariables.Conditions = subjectLine
+        if line[0] == "StandardDeviationOfNoise":
+            continue
+        standardDeviationOfNoise = line[0]
+        circleSize = line[1]
+        penalty = line[2]
+        conditions.append({'standardDeviationOfNoise': standardDeviationOfNoise, 'circleSize': circleSize, 'penalty': penalty})
+    return conditions
+
 
 
 def ShowStartExperimentScreen():
@@ -1272,7 +1275,7 @@ def StartExperiment():
     RuntimeVariables.CirclesPractice.sort(key=lambda circle: circle.Radius, reverse=False)
 
     ValidateExperimentSettings()
-    readConditionFile()
+    conditions = readParticipantFile()
     initializeOutputFiles()
     RuntimeVariables.StartTimeOfFirstExperiment = time.time()
 
@@ -1284,53 +1287,50 @@ def StartExperiment():
     pygame.display.set_caption(Constants.Title)
     RuntimeVariables.EnvironmentIsRunning = True
 
-    ShowStartExperimentScreen()
-    RuntimeVariables.StartTime = time.time()
-
-    # verify all RuntimeVariables.Conditions before the experiment starts so that the program would crash at the start if it does
+    # verify all conditions before the experiment starts so that the program would crash at the start if it does
     conditionsVerified = []
-    for pos in range(0, len(RuntimeVariables.Conditions)):
-        currentCondition = RuntimeVariables.Conditions[pos]
-        numDigits = len(currentCondition)
-        if numDigits != 3:
-            raise Exception("Current Condition" + currentCondition + " has invalid length " + str(len(currentCondition)))
-
+    for currentCondition in conditions:
+        conditionStandardDeviationOfNoise = currentCondition['standardDeviationOfNoise']
+        conditionCircleSize = currentCondition['circleSize']
+        conditionPenalty = currentCondition['penalty']
+        
         # noise values are h (high), m (medium) or l (low)
-        if currentCondition[0] == "h":
+        if conditionStandardDeviationOfNoise == "high":
             standardDeviationOfNoise = ExperimentSettings.CursorNoises["high"]
             noiseMsg = "hoher"
-        elif currentCondition[0] == "m":
+        elif conditionStandardDeviationOfNoise == "medium":
             standardDeviationOfNoise = ExperimentSettings.CursorNoises["medium"]
             noiseMsg = "mittlerer"
-        elif currentCondition[0] == "l":
+        elif conditionStandardDeviationOfNoise == "low":
             standardDeviationOfNoise = ExperimentSettings.CursorNoises["low"]
             noiseMsg = "niedriger"
         else:
-            raise Exception("Invalid noise " + currentCondition[0])
+            raise Exception("Invalid noise: " + conditionStandardDeviationOfNoise)
 
         # radius is S (small) or B (big)
-        if currentCondition[1] == "S":  # small radius
+        if conditionCircleSize == "small":  # small radius
             radiusCircle = RuntimeVariables.CirclesSmall
-        elif currentCondition[1] == "B":
+        elif conditionCircleSize == "big":
             radiusCircle = RuntimeVariables.CirclesBig
         else:
-            raise Exception("Invalid radius " + currentCondition[1])
+            raise Exception("Invalid circle size: " + conditionCircleSize)
 
-        # only if the fourth digit is specified, define RuntimeVariables.Penalty
-        if currentCondition[2] == "a":
+        # only if the fourth digit is specified, define penalty
+        if conditionPenalty == "all":
             penalty = Penalty.LoseAll
             penaltyMsg = "alle"
-        elif currentCondition[2] == "h":
+        elif conditionPenalty == "half":
             penalty = Penalty.LoseHalf
             penaltyMsg = "die Hälfte deiner"
-        elif currentCondition[2] == "n":
-            penalty = Penalty.Lose500
-            penaltyMsg = "500"
-        elif currentCondition[2] == "-":  # No penalty (don't change score on leaving circle)
+        elif conditionPenalty == "none":  # No penalty (don't change score on leaving circle)
             penalty = Penalty.NoPenalty
-            penaltyMsg = "-"
-        else:
-            raise Exception("Invalid RuntimeVariables.Penalty " + currentCondition[2])
+            penaltyMsg = "-"  # won't be shown in this case
+        else:  # else penalty must be a number, e.g. 500 for lose 500
+            try:
+                RuntimeVariables.PenaltyAmount = int(conditionPenalty)
+                RuntimeVariables.Penalty = Penalty.LoseAmount
+            except:
+                raise Exception("Invalid penalty: " + conditionPenalty)
 
         conditionsVerified.append({
             "standardDeviationOfNoise": standardDeviationOfNoise,
@@ -1339,6 +1339,9 @@ def StartExperiment():
             "penalty": penalty,
             "penaltyMsg": penaltyMsg
         })
+
+    ShowStartExperimentScreen()
+    RuntimeVariables.StartTime = time.time()
 
     if RuntimeVariables.RunPracticeTrials == "yes":
         DisplayMessage("Willkommen zum Experiment!\n\n\n"
@@ -1358,7 +1361,7 @@ def StartExperiment():
                        "gerade geübt hast.\n"
                        "Versuche im Laufe des Experiments so viele Punkte wie möglich zu gewinnen!", 10)
 
-    # main experiment loop with verified RuntimeVariables.Conditions
+    # main experiment loop with verified conditions
     for condition in conditionsVerified:
         print("condition: " + str(condition))
         # set global and local variables
@@ -1688,14 +1691,14 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
             RuntimeVariables.CirclesPractice.append(Circle(radius, typingTaskNumbers, innerCircleColor, borderColor))
 
     try:
-        RuntimeVariables.SubjectNumber = int(txPersonNumber.get("1.0", END).strip())
+        RuntimeVariables.ParticipantNumber = str(int(txPersonNumber.get("1.0", END).strip()))
     except:
         print("No Subject number entered")
         return
 
     if typingTaskInCursor.get() == 1:
         RuntimeVariables.DisplayTypingTaskWithinCursor = True
-        RuntimeVariables.ParallelDualTasks = True
+        RuntimeVariables.ParallelDualTasks = True  # also required
     else:
         RuntimeVariables.DisplayTypingTaskWithinCursor = False
 
