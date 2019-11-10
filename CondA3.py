@@ -158,6 +158,8 @@ class RuntimeVariables:
     DisplayTypingTaskWithinCursor = False
     EnteredDigitsStr = ""
     EnvironmentIsRunning = False
+    GainCorrectDigit = 0
+    GainIncorrectDigit = 5
     IncorrectlyTypedDigitsTrial = 0
     IncorrectlyTypedDigitsVisit = 0
     IsOutsideRadius = False
@@ -263,6 +265,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         str(RuntimeVariables.IncorrectlyTypedDigitsVisit) + ";" + \
         str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + ";" + \
         str(RuntimeVariables.IsOutsideRadius) + ";" + \
+        str(RuntimeVariables.GainCorrectDigit) + ";" + \
         str(eventMessage1) + ";" + \
         str(eventMessage2) + "\n"
 
@@ -844,13 +847,13 @@ def ApplyPenaltyAndRewardForTypingTaskScores():
     This function is called at the end of a dual task trial or when switching from tracking to typing window.
     """
     print("FUNCTION: " + getFunctionName())
-    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit + 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit - 5) # gain is 10 for correct digit and -5 for incorrect digit
+    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit + RuntimeVariables.GainCorrectDigit) + (RuntimeVariables.IncorrectlyTypedDigitsVisit - RuntimeVariables.GainIncorrectDigit) # gain is 10 for correct digit and -5 for incorrect digit
 
     # If Cursor is outside of the circle
     if RuntimeVariables.IsOutsideRadius:
         RuntimeVariables.NumberOfCircleExits += 1
         if RuntimeVariables.Penalty == Penalty.LoseAmount:
-            # lose an amount
+            # lose an amount, e.g. lose500
             RuntimeVariables.VisitScore = gainFormula - RuntimeVariables.PenaltyAmount
         elif RuntimeVariables.Penalty == Penalty.LoseAll:
             # lose all
@@ -866,7 +869,7 @@ def ApplyPenaltyAndRewardForTypingTaskScores():
         RuntimeVariables.VisitScore = gainFormula
 
     # add the score for this digit task visit to the overall trial score
-    # duringtrial score is used in reportUserScore
+    # trial score is used in reportUserScore
     RuntimeVariables.TrialScore += RuntimeVariables.VisitScore
     writeOutputDataFile("updatedVisitScore", str(RuntimeVariables.VisitScore))
     RuntimeVariables.IsOutsideRadius = False
@@ -1208,6 +1211,7 @@ def initializeOutputFiles():
         "IncorrectDigitsVisit" + ";" \
         "IncorrectDigitsTrial" + ";" \
         "OutsideRadius" + ";" \
+        "GainCorrectDigit" + ";" \
         "EventMessage1" + ";" \
         "EventMessage2" + "\n"
 
@@ -1250,7 +1254,13 @@ def readParticipantFile():
         standardDeviationOfNoise = line[0]
         circleSize = line[1]
         penalty = line[2]
-        conditions.append({'standardDeviationOfNoise': standardDeviationOfNoise, 'circleSize': circleSize, 'penalty': penalty})
+        gainCorrectDigit = line[3]
+        conditions.append({
+            'standardDeviationOfNoise': standardDeviationOfNoise,
+            'circleSize': circleSize,
+            'penalty': penalty,
+            'gainCorrectDigit': gainCorrectDigit
+        })
     return conditions
 
 
@@ -1293,7 +1303,8 @@ def StartExperiment():
         conditionStandardDeviationOfNoise = currentCondition['standardDeviationOfNoise']
         conditionCircleSize = currentCondition['circleSize']
         conditionPenalty = currentCondition['penalty']
-        
+        conditionGainCorrectDigit = currentCondition['gainCorrectDigit']
+
         # noise values are h (high), m (medium) or l (low)
         if conditionStandardDeviationOfNoise == "high":
             standardDeviationOfNoise = ExperimentSettings.CursorNoises["high"]
@@ -1337,7 +1348,8 @@ def StartExperiment():
             "noiseMsg": noiseMsg,
             "radiusCircle": radiusCircle,
             "penalty": penalty,
-            "penaltyMsg": penaltyMsg
+            "penaltyMsg": penaltyMsg,
+            "conditionGainCorrectDigit": conditionGainCorrectDigit
         })
 
     ShowStartExperimentScreen()
@@ -1370,6 +1382,7 @@ def StartExperiment():
         RuntimeVariables.CurrentCircles = condition["radiusCircle"]
         RuntimeVariables.Penalty = condition["penalty"]
         penaltyMsg = condition["penaltyMsg"]
+        RuntimeVariables.GainCorrectDigit = condition["conditionGainCorrectDigit"]
 
         for block in RuntimeVariables.RunningOrder:
             if block.TaskType == TaskTypes.SingleTracking:
