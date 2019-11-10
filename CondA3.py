@@ -1141,7 +1141,7 @@ def StartExperiment():
         else:
             raise Exception("Invalid noise: " + conditionStandardDeviationOfNoise)
 
-        # radius is S (small) or B (big)
+        # radius is small or big
         if conditionCircleSize == "small":  # small radius
             radiusCircle = RuntimeVariables.CirclesSmall
         elif conditionCircleSize == "big":
@@ -1160,7 +1160,7 @@ def StartExperiment():
         elif conditionPenalty == "none":  # No penalty (don't change score on leaving circle)
             penalty = Penalty.NoPenalty
             penaltyMsg = "-"  # won't be shown in this case
-        else:  # else penalty must be a number, e.g. 500 for lose 500
+        else:  # else penalty must be a number, e.g. 500 for lose500
             try:
                 penaltyAmount = int(conditionPenalty)
                 penalty = Penalty.LoseAmount
@@ -1201,7 +1201,6 @@ def StartExperiment():
 
     # main experiment loop with verified conditions
     for condition in conditionsVerified:
-        print("condition: " + str(condition))
         # set global and local variables
         RuntimeVariables.StandardDeviationOfNoise = condition["standardDeviationOfNoise"]
         noiseMsg = condition["noiseMsg"]
@@ -1279,17 +1278,24 @@ def readParticipantFile():
     Loads the conditions from the participant csv file.
     :returns A list of dictionaries
     """
-    lines = readCsvFile(f'participant_{RuntimeVariables.ParticipantNumber}.csv')
+    filename = f'participant_{RuntimeVariables.ParticipantNumber}.csv'
+    try:
+        lines = readCsvFile(filename)
+    except:
+        raise Exception(f"Could not read {filename}")
     conditions = []
-    for line in lines:
-        if line[0] == "StandardDeviationOfNoise":
-            continue
-        conditions.append({
-            'standardDeviationOfNoise': line[0],
-            'circleSize': line[1],
-            'penalty': line[2],
-            'gainCorrectDigit': line[3]
-        })
+    try:
+        for line in lines:
+            if line[0] == "StandardDeviationOfNoise":
+                continue
+            conditions.append({
+                'standardDeviationOfNoise': line[0],
+                'circleSize': line[1],
+                'penalty': line[2],
+                'gainCorrectDigit': int(line[3])
+            })
+    except:
+        raise Exception(f"Error in {filename}")
     return conditions
 
 
