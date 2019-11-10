@@ -5,19 +5,20 @@
 #  Based on a script made by Christian P. Janssen, c.janssen@ucl.ac.uk December 2009 - March 2010
 #############################
 import csv
-from tkinter import *
+import datetime
 import inspect
+import math
 import os
 import random
 import time
 import traceback
-import math
+from enum import Enum
+from os import path
+from tkinter import *
+
 import pygame
 import scipy
 import scipy.special
-import datetime
-from enum import Enum
-from os import path
 
 
 class TaskTypes(Enum):
@@ -33,6 +34,17 @@ class TaskTypes(Enum):
     PracticeDualTask = 6
 
 
+class Penalty(Enum):
+    """
+    Used to represent different penalties.
+    Do not modify anything here!
+    """
+    NoPenalty = 1  # Do not change the score
+    Lose500 = 2
+    LoseAll = 3
+    LoseHalf = 4
+
+
 class Block:
     """
     Used to represent a block of trials.
@@ -40,6 +52,7 @@ class Block:
     """
     TaskType = None
     NumberOfTrials = 0
+
     def __init__(self, taskType, numberOfTrials):
         self.TaskType = taskType
         self.NumberOfTrials = numberOfTrials
@@ -52,8 +65,9 @@ class Circle:
     """
     Radius = 0
     TypingTaskNumbersDualTask = ""
-    InnerCircleColor = (255, 204, 102) # orange
-    BorderColor = (255, 0, 0) # red
+    InnerCircleColor = (255, 204, 102)  # orange
+    BorderColor = (255, 0, 0)  # red
+
     def __init__(self, radius, typingTaskNumbersDualTask, innerCircleColor, borderColor):
         self.Radius = radius
         self.TypingTaskNumbersDualTask = typingTaskNumbersDualTask
@@ -68,6 +82,7 @@ class Vector2D:
     """
     X = 0
     Y = 0
+
     def __init__(self, x, y):
         self.X = x
         self.Y = y
@@ -176,7 +191,6 @@ class RuntimeVariables:
     VisitEndTime = 0
     VisitScore = 0
     VisitStartTime = 0
-
 
 
 def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
@@ -834,13 +848,13 @@ def ApplyPenaltyForTypingTaskScores():
     # If Cursor is outside of the circle
     if RuntimeVariables.IsOutsideRadius:
         RuntimeVariables.NumberOfCircleExits += 1
-        if RuntimeVariables.Penalty == "lose500":
+        if RuntimeVariables.Penalty == Penalty.Lose500:
             # loose 500
             RuntimeVariables.VisitScore = ((RuntimeVariables.CorrectlyTypedDigitsVisit + 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit - 5)) - 500
-        elif RuntimeVariables.Penalty == "loseAll":
+        elif RuntimeVariables.Penalty == Penalty.LoseAll:
             # loose all
             RuntimeVariables.VisitScore = 0
-        elif RuntimeVariables.Penalty == "loseHalf":
+        elif RuntimeVariables.Penalty == Penalty.LoseHalf:
             # loose half
             RuntimeVariables.VisitScore = 0.5 * ((RuntimeVariables.CorrectlyTypedDigitsVisit * 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit * -5))  # RuntimeVariables.Penalty for exit is to lose half points
         # Penalty could also be "none", then do not apply any penalty to the score
@@ -1026,17 +1040,25 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
                        "noch innerhalb des Kreises ist.\n" \
                        "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n" \
                        "Du kannst immer nur eine Aufgabe bearbeiten."
-        DisplayMessage("Dein Ziel:\n\n"
-                       "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
-                       "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
-                       "Fehler beim Tippen führen auch zu Punktverlust.", 10)
+        DisplayMessage(message, 10)
+        message = "Dein Ziel:\n\n" \
+                  "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
+                  "Fehler beim Tippen führen zu Punkteverlust.\n"
+        if not RuntimeVariables.Penalty == Penalty.NoPenalty:
+            message += "Aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
+        DisplayMessage(message, 10)
+
+
+    # Normal (no practice) trial
     else:
         RuntimeVariables.CurrentTask = TaskTypes.DualTask
-        DisplayMessage("Tracking + Tippen (MULTITASKING)\n\n"
-                       "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte,\n"
-                       "aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
-                       "Fehler beim Tippen führen auch zu einem Punktverlust.\n\n"
-                       "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl.", 18)
+        message = "Dein Ziel:\n\n" \
+                  "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
+                  "Fehler beim Tippen führen zu Punkteverlust.\n"
+        if not RuntimeVariables.Penalty == Penalty.NoPenalty:
+            message += "Aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
+        message += "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl."
+        DisplayMessage(message, 18)
         if not RuntimeVariables.ParallelDualTasks:
             DisplayMessage("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
                            "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
@@ -1063,7 +1085,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
         elif RuntimeVariables.ParallelDualTasks:
             RuntimeVariables.TrackingWindowVisible = True
             RuntimeVariables.TypingWindowVisible = True
-        else: # normal dual task with switching
+        else:  # normal dual task with switching
             RuntimeVariables.TrackingWindowVisible = False
             RuntimeVariables.TypingWindowVisible = True
 
@@ -1109,10 +1131,8 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
 
         while (time.time() - RuntimeVariables.StartTimeCurrentTrial) < ExperimentSettings.MaxTrialTimeDual and RuntimeVariables.EnvironmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the tracking task and the typingTask and starts relevant display updates
-            #restSleepTime = 0
             restSleepTime = drawCursor(0.02)  # also draws tracking window
             if RuntimeVariables.TrackingTaskPresent and RuntimeVariables.TrackingWindowVisible:
-                #drawTrackingWindow()
                 if not RuntimeVariables.ParallelDualTasks:
                     drawCover("typing")
                 if RuntimeVariables.DisplayTypingTaskWithinCursor and RuntimeVariables.ParallelDualTasks:
@@ -1277,13 +1297,13 @@ def StartExperiment():
 
         # noise values are h (high), m (medium) or l (low)
         if currentCondition[0] == "h":
-            RuntimeVariables.StandardDeviationOfNoise = ExperimentSettings.CursorNoises["high"]
+            standardDeviationOfNoise = ExperimentSettings.CursorNoises["high"]
             noiseMsg = "hoher"
         elif currentCondition[0] == "m":
-            RuntimeVariables.StandardDeviationOfNoise = ExperimentSettings.CursorNoises["medium"]
+            standardDeviationOfNoise = ExperimentSettings.CursorNoises["medium"]
             noiseMsg = "mittlerer"
         elif currentCondition[0] == "l":
-            RuntimeVariables.StandardDeviationOfNoise = ExperimentSettings.CursorNoises["low"]
+            standardDeviationOfNoise = ExperimentSettings.CursorNoises["low"]
             noiseMsg = "niedriger"
         else:
             raise Exception("Invalid noise " + currentCondition[0])
@@ -1298,25 +1318,25 @@ def StartExperiment():
 
         # only if the fourth digit is specified, define RuntimeVariables.Penalty
         if currentCondition[2] == "a":
-            RuntimeVariables.Penalty = "loseAll"
+            penalty = Penalty.LoseAll
             penaltyMsg = "alle"
         elif currentCondition[2] == "h":
-            RuntimeVariables.Penalty = "loseHalf"
+            penalty = Penalty.LoseHalf
             penaltyMsg = "die Hälfte deiner"
         elif currentCondition[2] == "n":
-            RuntimeVariables.Penalty = "lose500"
+            penalty = Penalty.Lose500
             penaltyMsg = "500"
         elif currentCondition[2] == "-":  # No penalty (don't change score on leaving circle)
-            RuntimeVariables.Penalty = "none"
+            penalty = Penalty.NoPenalty
             penaltyMsg = "-"
         else:
             raise Exception("Invalid RuntimeVariables.Penalty " + currentCondition[2])
 
         conditionsVerified.append({
-            "RuntimeVariables.StandardDeviationOfNoise": RuntimeVariables.StandardDeviationOfNoise,
+            "standardDeviationOfNoise": standardDeviationOfNoise,
             "noiseMsg": noiseMsg,
             "radiusCircle": radiusCircle,
-            "RuntimeVariables.Penalty": RuntimeVariables.Penalty,
+            "penalty": penalty,
             "penaltyMsg": penaltyMsg
         })
 
@@ -1342,10 +1362,10 @@ def StartExperiment():
     for condition in conditionsVerified:
         print("condition: " + str(condition))
         # set global and local variables
-        RuntimeVariables.StandardDeviationOfNoise = condition["RuntimeVariables.StandardDeviationOfNoise"]
+        RuntimeVariables.StandardDeviationOfNoise = condition["standardDeviationOfNoise"]
         noiseMsg = condition["noiseMsg"]
         RuntimeVariables.CurrentCircles = condition["radiusCircle"]
-        RuntimeVariables.Penalty = condition["RuntimeVariables.Penalty"]
+        RuntimeVariables.Penalty = condition["penalty"]
         penaltyMsg = condition["penaltyMsg"]
 
         for block in RuntimeVariables.RunningOrder:
@@ -1387,15 +1407,17 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
     if RuntimeVariables.ShowPenaltyRewardNoise == "yes":
         if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
             message += "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n"
-        if trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask:
+        if (trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask) and RuntimeVariables.Penalty != Penalty.NoPenalty:
             message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
     elif RuntimeVariables.ShowPenaltyRewardNoise == "no":
-        if trialType == TaskTypes.DualTask:
+        if trialType == TaskTypes.DualTask and RuntimeVariables.Penalty != Penalty.NoPenalty:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
+        if trialType == TaskTypes.DualTask:
+            message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
+        elif trialType == TaskTypes.SingleTracking and RuntimeVariables.Penalty != Penalty.NoPenalty:
+            message += "Achtung: Du verlierst Punkte wenn der Punkt den Kreis verlässt."
         elif trialType == TaskTypes.SingleTyping:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
-        elif trialType == TaskTypes.SingleTracking:
-            message += "Achtung: Du verlierst Punkte wenn der Punkt den Kreis verlässt."
     return message
 
 
@@ -1421,7 +1443,6 @@ def getFunctionName():
 
 def DrawGui():
     tkWindow = Tk()
-    #tkWindow.geometry("500x500")
     tkWindow.title(Constants.Title)
 
     ### Frames for input of Blocks consisting of tasks and trials
@@ -1539,11 +1560,12 @@ def DrawGui():
             listBoxCirclesPractice = listBoxCircles
 
     # Bottom Frame
-    btnStart = Button(frameBottom, text="Starten", command=lambda parallelDualTasks=parallelDualTasks,
-                                                                  typingTaskInCursor=typingTaskInCursor,
-                                                                  runPracticeTrials=runPracticeTrials,
-                                                                  showPenaltyRewardNoise=showPenaltyRewardNoise: ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice,
-                                                                                                                                    txPersonNumber, parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise))
+    btnStart = Button(frameBottom, text="Starten",
+                      command=lambda parallelDualTasks=parallelDualTasks,
+                                     typingTaskInCursor=typingTaskInCursor,
+                                     runPracticeTrials=runPracticeTrials,
+                                     showPenaltyRewardNoise=showPenaltyRewardNoise: ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice,
+                                                                                                       txPersonNumber, parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise))
     btnStart.grid(row=5, column=0)
 
     # Finally load settings from file if present
@@ -1554,7 +1576,7 @@ def DrawGui():
         for circle in settings.Circles:
             circleIdentifier = circle[0]
             if circleIdentifier == "circleBig":
-                listBoxCircles= listBoxCirclesBig
+                listBoxCircles = listBoxCirclesBig
             elif circleIdentifier == "circleSmall":
                 listBoxCircles = listBoxCirclesSmall
             elif circleIdentifier == "circlePractice":
@@ -1691,9 +1713,11 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
 
 
 def WriteLinesToCzvFile(filename, lines):
+    """Expectes lines to be a list of lists"""
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f, delimiter=";")
         writer.writerows(lines)
+
 
 if __name__ == '__main__':
     try:
