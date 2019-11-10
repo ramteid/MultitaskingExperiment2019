@@ -195,92 +195,6 @@ class RuntimeVariables:
     VisitStartTime = 0
 
 
-def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
-    currentTime = time.time() - RuntimeVariables.StartTimeOfFirstExperiment  # this is an absolute time, that always increases (necessary to syncronize with eye-tracking)
-    currentTime = scipy.special.round(currentTime * 10000) / 10000
-
-    trialTime = time.time() - RuntimeVariables.StartTimeCurrentTrial  # this is a local time (reset at the start of each trial) in seconds
-    trialTime = scipy.special.round(trialTime * 10000) / 10000
-
-    if not RuntimeVariables.TrackingTaskPresent:
-        outputCursorCoordinateX = "-"
-        outputCursorCoordinateY = "-"
-        outputJoystickAxisX = "-"
-        outputJoystickAxisY = "-"
-    else:
-        outputCursorCoordinateX = scipy.special.round(RuntimeVariables.CursorCoordinates.X * 100) / 100
-        outputCursorCoordinateY = scipy.special.round(RuntimeVariables.CursorCoordinates.Y * 100) / 100
-        outputJoystickAxisX = scipy.special.round(RuntimeVariables.JoystickAxis.X * 1000) / 1000
-        outputJoystickAxisY = scipy.special.round(RuntimeVariables.JoystickAxis.Y * 1000) / 1000
-
-    if RuntimeVariables.TypingTaskPresent:
-        outputEnteredDigitsStr = RuntimeVariables.EnteredDigitsStr
-        outputEnteredDigitsLength = len(RuntimeVariables.EnteredDigitsStr)
-        outputGeneratedTypingTaskNumbers = RuntimeVariables.CurrentTypingTaskNumbers
-        outputGeneratedTypingTaskNumbersLength = len(RuntimeVariables.CurrentTypingTaskNumbers)
-    else:
-        outputEnteredDigitsStr = "-"
-        outputEnteredDigitsLength = "-"
-        outputGeneratedTypingTaskNumbers = "-"
-        outputGeneratedTypingTaskNumbersLength = "-"
-
-    if RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask:
-        visitTime = time.time() - RuntimeVariables.VisitStartTime
-    else:
-        visitTime = "-"
-
-    circleRadii = list(map(lambda circle: circle.Radius, RuntimeVariables.CurrentCircles))
-    currentTask = str(RuntimeVariables.CurrentTask)
-
-    outputText = \
-        str(RuntimeVariables.ParticipantNumber) + ";" + \
-        str(circleRadii) + ";" + \
-        str(RuntimeVariables.StandardDeviationOfNoise) + ";" + \
-        str(currentTime) + ";" + \
-        str(trialTime) + ";" + \
-        str(visitTime) + ";" + \
-        str(RuntimeVariables.BlockNumber) + ";" + \
-        str(RuntimeVariables.TrialNumber) + ";" + \
-        str(currentTask) + ";" + \
-        str(RuntimeVariables.TrackingTaskPresent) + ";" + \
-        str(RuntimeVariables.TypingTaskPresent) + ";" + \
-        str(RuntimeVariables.TrackingWindowVisible) + ";" + \
-        str(RuntimeVariables.TypingWindowVisible) + ";" + \
-        str(RuntimeVariables.TrackingWindowEntryCounter) + ";" + \
-        str(RuntimeVariables.TypingWindowEntryCounter) + ";" + \
-        str(calculateRmse(clearDistances=endOfTrial)) + ";" + \
-        str(RuntimeVariables.LengthOfPathTracked) + ";" + \
-        str(outputCursorCoordinateX) + ";" + \
-        str(outputCursorCoordinateY) + ";" + \
-        str(outputJoystickAxisX) + ";" + \
-        str(outputJoystickAxisY) + ";" + \
-        str(outputEnteredDigitsStr) + ";" + \
-        str(outputEnteredDigitsLength) + ";" + \
-        str(outputGeneratedTypingTaskNumbers) + ";" + \
-        str(outputGeneratedTypingTaskNumbersLength) + ";" + \
-        str(RuntimeVariables.NumberOfCircleExits) + ";" + \
-        str(RuntimeVariables.TrialScore) + ";" + \
-        str(RuntimeVariables.VisitScore) + ";" + \
-        str(RuntimeVariables.CorrectlyTypedDigitsVisit) + ";" + \
-        str(RuntimeVariables.IncorrectlyTypedDigitsVisit) + ";" + \
-        str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + ";" + \
-        str(RuntimeVariables.IsOutsideRadius) + ";" + \
-        str(RuntimeVariables.GainCorrectDigit) + ";" + \
-        str(eventMessage1) + ";" + \
-        str(eventMessage2) + "\n"
-
-    if endOfTrial:
-        RuntimeVariables.OutputDataFileTrialEnd.write(outputText)
-        RuntimeVariables.OutputDataFileTrialEnd.flush()
-        # typically the above line would do. however this is used to ensure that the file is written
-        os.fsync(RuntimeVariables.OutputDataFileTrialEnd.fileno())
-
-    RuntimeVariables.OutputDataFile.write(outputText)
-    RuntimeVariables.OutputDataFile.flush()
-    # typically the above line would do. however this is used to ensure that the file is written
-    os.fsync(RuntimeVariables.OutputDataFile.fileno())
-
-
 def calculateRmse(clearDistances):
     """
     The distances are collected each time the cursor changes its position.
@@ -1174,97 +1088,6 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
             reportUserScore()
 
 
-def initializeOutputFiles():
-    """
-    Set the participant condition. Initialize the output files
-    """
-    outputText = \
-        "SubjectNr" + ";" \
-        "RadiusCircle" + ";" \
-        "StandardDeviationOfNoise" + ";" \
-        "CurrentTime" + ";" \
-        "TrialTime" + ";" \
-        "VisitTime" + ";" \
-        "BlockNumber" + ";" \
-        "TrialNumber" + ";" \
-        "Experiment" + ";" \
-        "TrackingTaskPresent" + ";" \
-        "TypingTaskPresent" + ";" \
-        "TrackingWindowVisible" + ";" \
-        "TypingWindowVisible" + ";" \
-        "TrackingWindowEntryCounter" + ";" \
-        "TypingWindowEntryCounter" + ";" \
-        "RMSE" + ";" \
-        "LengthPathTrackedPixel" + ";" \
-        "CursorCoordinatesX" + ";" \
-        "CursorCoordinatesY" + ";" \
-        "JoystickAxisX" + ";" \
-        "JoystickAxisY" + ";" \
-        "EnteredDigits" + ";" \
-        "EnteredDigitsLength" + ";" \
-        "RuntimeExperimentVariables.CurrentTypingTaskNumbers" + ";" \
-        "GeneratedTypingTaskNumberLength" + ";" \
-        "NumberOfCircleExits" + ";" \
-        "TrialScore" + ";" \
-        "VisitScore" + ";" \
-        "CorrectDigitsVisit" + ";" \
-        "IncorrectDigitsVisit" + ";" \
-        "IncorrectDigitsTrial" + ";" \
-        "OutsideRadius" + ";" \
-        "GainCorrectDigit" + ";" \
-        "EventMessage1" + ";" \
-        "EventMessage2" + "\n"
-
-    timestamp = time.strftime("%Y-%m-%d_%H-%M")
-    dataFileName = "participant_" + str(RuntimeVariables.ParticipantNumber) + "_data_" + timestamp + ".csv"
-    RuntimeVariables.OutputDataFile = open(dataFileName, 'w')  # contains the user data
-    RuntimeVariables.OutputDataFile.write(outputText)
-    RuntimeVariables.OutputDataFile.flush()
-    # typically the above line would do. however this is used to ensure that the file is written
-    os.fsync(RuntimeVariables.OutputDataFile.fileno())
-
-    summaryFileName = "participant_" + str(RuntimeVariables.ParticipantNumber) + "_data_lastTrialEntry_" + timestamp + ".csv"
-    RuntimeVariables.OutputDataFileTrialEnd = open(summaryFileName, 'w')  # contains the user data
-    RuntimeVariables.OutputDataFileTrialEnd.write(outputText)
-    RuntimeVariables.OutputDataFileTrialEnd.flush()
-    # typically the above line would do. however this is used to ensure that the file is written
-    os.fsync(RuntimeVariables.OutputDataFileTrialEnd.fileno())
-
-
-def readCsvFile(filePath):
-    """
-    Reads a multi-line CSV file separated with ;
-    """
-    f = open(filePath, 'r')
-    individualLines = f.read().split('\n')  ## read by lines
-    f.close()
-    return list(map(lambda x: x.split(';'), individualLines))  # split all elements
-
-
-def readParticipantFile():
-    """
-    Loads the conditions from the participant csv file.
-    :returns A list of dictionaries
-    """
-    lines = readCsvFile(f'participant_{RuntimeVariables.ParticipantNumber}.csv')
-    conditions = []
-    for line in lines:
-        if line[0] == "StandardDeviationOfNoise":
-            continue
-        standardDeviationOfNoise = line[0]
-        circleSize = line[1]
-        penalty = line[2]
-        gainCorrectDigit = line[3]
-        conditions.append({
-            'standardDeviationOfNoise': standardDeviationOfNoise,
-            'circleSize': circleSize,
-            'penalty': penalty,
-            'gainCorrectDigit': gainCorrectDigit
-        })
-    return conditions
-
-
-
 def ShowStartExperimentScreen():
     drawCanvas()
     location = Vector2D(175, 175)
@@ -1435,6 +1258,182 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
         elif trialType == TaskTypes.SingleTyping:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
     return message
+
+
+def readCsvFile(filePath):
+    """
+    Reads a multi-line CSV file separated with ;
+    """
+    f = open(filePath, 'r')
+    individualLines = f.read().split('\n')  ## read by lines
+    f.close()
+    return list(map(lambda x: x.split(';'), individualLines))  # split all elements
+
+
+def readParticipantFile():
+    """
+    Loads the conditions from the participant csv file.
+    :returns A list of dictionaries
+    """
+    lines = readCsvFile(f'participant_{RuntimeVariables.ParticipantNumber}.csv')
+    conditions = []
+    for line in lines:
+        if line[0] == "StandardDeviationOfNoise":
+            continue
+        standardDeviationOfNoise = line[0]
+        circleSize = line[1]
+        penalty = line[2]
+        gainCorrectDigit = line[3]
+        conditions.append({
+            'standardDeviationOfNoise': standardDeviationOfNoise,
+            'circleSize': circleSize,
+            'penalty': penalty,
+            'gainCorrectDigit': gainCorrectDigit
+        })
+    return conditions
+
+
+def initializeOutputFiles():
+    """
+    Set the participant condition. Initialize the output files
+    """
+    outputText = \
+        "SubjectNr" + ";" \
+        "RadiusCircle" + ";" \
+        "StandardDeviationOfNoise" + ";" \
+        "CurrentTime" + ";" \
+        "TrialTime" + ";" \
+        "VisitTime" + ";" \
+        "BlockNumber" + ";" \
+        "TrialNumber" + ";" \
+        "Experiment" + ";" \
+        "TrackingTaskPresent" + ";" \
+        "TypingTaskPresent" + ";" \
+        "TrackingWindowVisible" + ";" \
+        "TypingWindowVisible" + ";" \
+        "TrackingWindowEntryCounter" + ";" \
+        "TypingWindowEntryCounter" + ";" \
+        "RMSE" + ";" \
+        "LengthPathTrackedPixel" + ";" \
+        "CursorCoordinatesX" + ";" \
+        "CursorCoordinatesY" + ";" \
+        "JoystickAxisX" + ";" \
+        "JoystickAxisY" + ";" \
+        "EnteredDigits" + ";" \
+        "EnteredDigitsLength" + ";" \
+        "RuntimeExperimentVariables.CurrentTypingTaskNumbers" + ";" \
+        "GeneratedTypingTaskNumberLength" + ";" \
+        "NumberOfCircleExits" + ";" \
+        "TrialScore" + ";" \
+        "VisitScore" + ";" \
+        "CorrectDigitsVisit" + ";" \
+        "IncorrectDigitsVisit" + ";" \
+        "IncorrectDigitsTrial" + ";" \
+        "OutsideRadius" + ";" \
+        "GainCorrectDigit" + ";" \
+        "EventMessage1" + ";" \
+        "EventMessage2" + "\n"
+
+    timestamp = time.strftime("%Y-%m-%d_%H-%M")
+    dataFileName = "participant_" + str(RuntimeVariables.ParticipantNumber) + "_data_" + timestamp + ".csv"
+    RuntimeVariables.OutputDataFile = open(dataFileName, 'w')  # contains the user data
+    RuntimeVariables.OutputDataFile.write(outputText)
+    RuntimeVariables.OutputDataFile.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(RuntimeVariables.OutputDataFile.fileno())
+
+    summaryFileName = "participant_" + str(RuntimeVariables.ParticipantNumber) + "_data_lastTrialEntry_" + timestamp + ".csv"
+    RuntimeVariables.OutputDataFileTrialEnd = open(summaryFileName, 'w')  # contains the user data
+    RuntimeVariables.OutputDataFileTrialEnd.write(outputText)
+    RuntimeVariables.OutputDataFileTrialEnd.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(RuntimeVariables.OutputDataFileTrialEnd.fileno())
+
+
+def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
+    currentTime = time.time() - RuntimeVariables.StartTimeOfFirstExperiment  # this is an absolute time, that always increases (necessary to syncronize with eye-tracking)
+    currentTime = scipy.special.round(currentTime * 10000) / 10000
+
+    trialTime = time.time() - RuntimeVariables.StartTimeCurrentTrial  # this is a local time (reset at the start of each trial) in seconds
+    trialTime = scipy.special.round(trialTime * 10000) / 10000
+
+    if not RuntimeVariables.TrackingTaskPresent:
+        outputCursorCoordinateX = "-"
+        outputCursorCoordinateY = "-"
+        outputJoystickAxisX = "-"
+        outputJoystickAxisY = "-"
+    else:
+        outputCursorCoordinateX = scipy.special.round(RuntimeVariables.CursorCoordinates.X * 100) / 100
+        outputCursorCoordinateY = scipy.special.round(RuntimeVariables.CursorCoordinates.Y * 100) / 100
+        outputJoystickAxisX = scipy.special.round(RuntimeVariables.JoystickAxis.X * 1000) / 1000
+        outputJoystickAxisY = scipy.special.round(RuntimeVariables.JoystickAxis.Y * 1000) / 1000
+
+    if RuntimeVariables.TypingTaskPresent:
+        outputEnteredDigitsStr = RuntimeVariables.EnteredDigitsStr
+        outputEnteredDigitsLength = len(RuntimeVariables.EnteredDigitsStr)
+        outputGeneratedTypingTaskNumbers = RuntimeVariables.CurrentTypingTaskNumbers
+        outputGeneratedTypingTaskNumbersLength = len(RuntimeVariables.CurrentTypingTaskNumbers)
+    else:
+        outputEnteredDigitsStr = "-"
+        outputEnteredDigitsLength = "-"
+        outputGeneratedTypingTaskNumbers = "-"
+        outputGeneratedTypingTaskNumbersLength = "-"
+
+    if RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask:
+        visitTime = time.time() - RuntimeVariables.VisitStartTime
+    else:
+        visitTime = "-"
+
+    circleRadii = list(map(lambda circle: circle.Radius, RuntimeVariables.CurrentCircles))
+    currentTask = str(RuntimeVariables.CurrentTask)
+
+    outputText = \
+        str(RuntimeVariables.ParticipantNumber) + ";" + \
+        str(circleRadii) + ";" + \
+        str(RuntimeVariables.StandardDeviationOfNoise) + ";" + \
+        str(currentTime) + ";" + \
+        str(trialTime) + ";" + \
+        str(visitTime) + ";" + \
+        str(RuntimeVariables.BlockNumber) + ";" + \
+        str(RuntimeVariables.TrialNumber) + ";" + \
+        str(currentTask) + ";" + \
+        str(RuntimeVariables.TrackingTaskPresent) + ";" + \
+        str(RuntimeVariables.TypingTaskPresent) + ";" + \
+        str(RuntimeVariables.TrackingWindowVisible) + ";" + \
+        str(RuntimeVariables.TypingWindowVisible) + ";" + \
+        str(RuntimeVariables.TrackingWindowEntryCounter) + ";" + \
+        str(RuntimeVariables.TypingWindowEntryCounter) + ";" + \
+        str(calculateRmse(clearDistances=endOfTrial)) + ";" + \
+        str(RuntimeVariables.LengthOfPathTracked) + ";" + \
+        str(outputCursorCoordinateX) + ";" + \
+        str(outputCursorCoordinateY) + ";" + \
+        str(outputJoystickAxisX) + ";" + \
+        str(outputJoystickAxisY) + ";" + \
+        str(outputEnteredDigitsStr) + ";" + \
+        str(outputEnteredDigitsLength) + ";" + \
+        str(outputGeneratedTypingTaskNumbers) + ";" + \
+        str(outputGeneratedTypingTaskNumbersLength) + ";" + \
+        str(RuntimeVariables.NumberOfCircleExits) + ";" + \
+        str(RuntimeVariables.TrialScore) + ";" + \
+        str(RuntimeVariables.VisitScore) + ";" + \
+        str(RuntimeVariables.CorrectlyTypedDigitsVisit) + ";" + \
+        str(RuntimeVariables.IncorrectlyTypedDigitsVisit) + ";" + \
+        str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + ";" + \
+        str(RuntimeVariables.IsOutsideRadius) + ";" + \
+        str(RuntimeVariables.GainCorrectDigit) + ";" + \
+        str(eventMessage1) + ";" + \
+        str(eventMessage2) + "\n"
+
+    if endOfTrial:
+        RuntimeVariables.OutputDataFileTrialEnd.write(outputText)
+        RuntimeVariables.OutputDataFileTrialEnd.flush()
+        # typically the above line would do. however this is used to ensure that the file is written
+        os.fsync(RuntimeVariables.OutputDataFileTrialEnd.fileno())
+
+    RuntimeVariables.OutputDataFile.write(outputText)
+    RuntimeVariables.OutputDataFile.flush()
+    # typically the above line would do. however this is used to ensure that the file is written
+    os.fsync(RuntimeVariables.OutputDataFile.fileno())
 
 
 def quitApp(message=None):
