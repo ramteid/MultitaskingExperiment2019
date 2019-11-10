@@ -1,0 +1,5 @@
+StandardDeviationOfNoise;CircleSize;Penalty;GainCorrectDigit
+high;big;half
+medium;small;all
+low;big;500
+high;small;none

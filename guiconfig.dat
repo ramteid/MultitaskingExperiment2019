@@ -1,0 +1,19 @@
+Block;Übung Tracking;TaskTypes.PracticeSingleTracking;2
+Block;Übung Typing;TaskTypes.PracticeSingleTyping;2
+Block;Übung DualTask;TaskTypes.PracticeDualTask;2
+Block;Tracking;TaskTypes.SingleTracking;1
+Block;Typing;TaskTypes.SingleTyping;1
+Block;DualTask;TaskTypes.DualTask;3
+Circle;circleBig;80;12;(255, 204, 102);(255, 0, 0)
+Circle;circleBig;150;34;(252, 215, 141);(255, 0, 0)
+Circle;circleBig;220;56;(250, 228, 185);(255, 0, 0)
+Circle;circleSmall;40;12;(255, 204, 102);(255, 0, 0)
+Circle;circleSmall;80;34;(252, 215, 141);(255, 0, 0)
+Circle;circleSmall;100;56;(250, 228, 185);(255, 0, 0)
+Circle;circlePractice;40;12;(255, 204, 102);(255, 0, 0)
+Circle;circlePractice;80;34;(252, 215, 141);(255, 0, 0)
+Circle;circlePractice;100;56;(250, 228, 185);(255, 0, 0)
+ParallelDualTasks;0
+DisplayTypingTaskWithinCursor;0
+RunPracticeTrials;1
+ShowPenaltyRewardNoise;1
