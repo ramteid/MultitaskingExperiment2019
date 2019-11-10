@@ -1652,13 +1652,18 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     # Write Circles
     listBoxCirclesEntries = listBoxCirclesBig.get(0, END) + listBoxCirclesSmall.get(0, END) + listBoxCirclesPractice.get(0, END)
     for listEntryText in listBoxCirclesEntries:
-        type = RuntimeVariables.DictTrialListEntries[listEntryText][0]
+        circleType = RuntimeVariables.DictTrialListEntries[listEntryText][0]
         radius = int(RuntimeVariables.DictTrialListEntries[listEntryText][1])
         typingTaskNumbers = RuntimeVariables.DictTrialListEntries[listEntryText][2]
         innerCircleColor = eval(RuntimeVariables.DictTrialListEntries[listEntryText][3])
         borderColor = eval(RuntimeVariables.DictTrialListEntries[listEntryText][4])
-        RuntimeVariables.CirclesBig.append(Circle(radius, typingTaskNumbers, innerCircleColor, borderColor))
-        linesSettingsFile.append(["Circle", type, radius, typingTaskNumbers, innerCircleColor, borderColor])
+        linesSettingsFile.append(["Circle", circleType, radius, typingTaskNumbers, innerCircleColor, borderColor])
+        if circleType == "circleBig":
+            RuntimeVariables.CirclesBig.append(Circle(radius, typingTaskNumbers, innerCircleColor, borderColor))
+        elif circleType == "circleSmall":
+            RuntimeVariables.CirclesSmall.append(Circle(radius, typingTaskNumbers, innerCircleColor, borderColor))
+        elif circleType == "circlePractice":
+            RuntimeVariables.CirclesPractice.append(Circle(radius, typingTaskNumbers, innerCircleColor, borderColor))
 
     try:
         RuntimeVariables.SubjectNumber = int(txPersonNumber.get("1.0", END).strip())
