@@ -312,10 +312,10 @@ def checkKeyPressed():
         elif event.type == pygame.JOYAXISMOTION:
             if RuntimeVariables.TrackingTaskPresent:
                 # values between -1 and 1. (-1,-1) top left corner, (1,-1) top right; (-1,1) bottom left, (1,1) bottom right
-                # prevent the program crashing when no joystick is connected
                 try:
                     RuntimeVariables.JoystickAxis = Vector2D(RuntimeVariables.JoystickObject.get_axis(0), RuntimeVariables.JoystickObject.get_axis(1))
                 except (pygame.error, NameError, AttributeError):
+                    # prevent the program crashing when no joystick is connected
                     pass
         elif event.type == pygame.JOYBUTTONUP and not RuntimeVariables.ParallelDualTasks:
             if event.button == 0:  # only respond to 0 button
@@ -786,7 +786,7 @@ def openTrackingWindow():
     RuntimeVariables.TrackingWindowEntryCounter += 1
 
     if RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask:
-        updateScore()
+        ApplyPenaltyForTypingTaskScores()
 
     RuntimeVariables.TrackingWindowVisible = True
 
@@ -824,23 +824,28 @@ def drawDualTaskScore():
     printTextOverMultipleLines(intermediateMessage, (x, y))
 
 
-def updateScore():
+def ApplyPenaltyForTypingTaskScores():
+    """
+    For dual tasks: If the cursor is outside of the circle, apply penalty if applicable.
+    This function is called at the end of a dual task trial or when switching from tracking to typing window.
+    """
     print("FUNCTION: " + getFunctionName())
-    if RuntimeVariables.Penalty == "none":
-        RuntimeVariables.VisitScore = 0
-    elif RuntimeVariables.IsOutsideRadius:
+
+    # If Cursor is outside of the circle
+    if RuntimeVariables.IsOutsideRadius:
         RuntimeVariables.NumberOfCircleExits += 1
         if RuntimeVariables.Penalty == "lose500":
             # loose 500
             RuntimeVariables.VisitScore = ((RuntimeVariables.CorrectlyTypedDigitsVisit + 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit - 5)) - 500
-
-        if RuntimeVariables.Penalty == "loseAll":
+        elif RuntimeVariables.Penalty == "loseAll":
             # loose all
             RuntimeVariables.VisitScore = 0
-
-        if RuntimeVariables.Penalty == "loseHalf":
+        elif RuntimeVariables.Penalty == "loseHalf":
             # loose half
             RuntimeVariables.VisitScore = 0.5 * ((RuntimeVariables.CorrectlyTypedDigitsVisit * 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit * -5))  # RuntimeVariables.Penalty for exit is to lose half points
+        # Penalty could also be "none", then do not apply any penalty to the score
+
+    # If Cursor is inside the circle
     else:
         RuntimeVariables.VisitScore = (RuntimeVariables.CorrectlyTypedDigitsVisit * 10) + (RuntimeVariables.IncorrectlyTypedDigitsVisit * -5)  # gain is 10 for correct digit and -5 for incorrect digit
 
@@ -1130,7 +1135,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
             writeOutputDataFile(eventMsg, "-")
 
         RuntimeVariables.VisitEndTime = time.time()
-        updateScore()
+        ApplyPenaltyForTypingTaskScores()
 
         if (time.time() - RuntimeVariables.StartTimeCurrentTrial) >= ExperimentSettings.MaxTrialTimeDual:
             writeOutputDataFile("trialStopTooMuchTime", "-", True)
@@ -1301,7 +1306,7 @@ def StartExperiment():
         elif currentCondition[2] == "n":
             RuntimeVariables.Penalty = "lose500"
             penaltyMsg = "500"
-        elif currentCondition[2] == "-":
+        elif currentCondition[2] == "-":  # No penalty (don't change score on leaving circle)
             RuntimeVariables.Penalty = "none"
             penaltyMsg = "-"
         else:
