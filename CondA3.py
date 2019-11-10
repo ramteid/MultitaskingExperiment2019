@@ -1150,6 +1150,7 @@ def StartExperiment():
             raise Exception("Invalid circle size: " + conditionCircleSize)
 
         # only if the fourth digit is specified, define penalty
+        penaltyAmount = 0
         if conditionPenalty == "all":
             penalty = Penalty.LoseAll
             penaltyMsg = "alle"
@@ -1161,8 +1162,9 @@ def StartExperiment():
             penaltyMsg = "-"  # won't be shown in this case
         else:  # else penalty must be a number, e.g. 500 for lose 500
             try:
-                RuntimeVariables.PenaltyAmount = int(conditionPenalty)
-                RuntimeVariables.Penalty = Penalty.LoseAmount
+                penaltyAmount = int(conditionPenalty)
+                penalty = Penalty.LoseAmount
+                penaltyMsg = str(penaltyAmount)
             except:
                 raise Exception("Invalid penalty: " + conditionPenalty)
 
@@ -1172,6 +1174,7 @@ def StartExperiment():
             "radiusCircle": radiusCircle,
             "penalty": penalty,
             "penaltyMsg": penaltyMsg,
+            "penaltyAmount": penaltyAmount,
             "conditionGainCorrectDigit": conditionGainCorrectDigit
         })
 
@@ -1204,6 +1207,7 @@ def StartExperiment():
         noiseMsg = condition["noiseMsg"]
         RuntimeVariables.CurrentCircles = condition["radiusCircle"]
         RuntimeVariables.Penalty = condition["penalty"]
+        RuntimeVariables.PenaltyAmount = condition["penaltyAmount"]
         penaltyMsg = condition["penaltyMsg"]
         RuntimeVariables.GainCorrectDigit = condition["conditionGainCorrectDigit"]
 
