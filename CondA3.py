@@ -113,7 +113,7 @@ class ExperimentSettings:
     CursorColorOutside = (0, 0, 255)  # blue
 
     # General settings
-    CursorNoises = {"high": 5, "medium": 5, "low": 3}  # This is the speed of the cursor movement
+    CursorNoises = {"high": 5, "medium": 4, "low": 3}  # This is the speed of the cursor movement (standard deviation of noise)
     TimeFeedbackIsGiven = 4
     TimeFeedbackIsShown = 4
     BackgroundColorTaskWindows = (255, 255, 255)  # white
@@ -258,48 +258,47 @@ def checkKeyPressed():
                 writeOutputDataFile("ButtonPress", "-")
 
         elif event.type == pygame.KEYDOWN:
+            # F1 key switches windows, alternatively to the joystick button
             if event.key == pygame.K_F1 and RuntimeVariables.TrackingWindowVisible and RuntimeVariables.TypingTaskPresent and not RuntimeVariables.ParallelDualTasks:
-                print("PRESSED F1 CLOSE TRACKING")
                 switchWindows("openTyping")
                 writeOutputDataFile("ButtonRelease", "-")
             elif event.key == pygame.K_F1 and RuntimeVariables.TypingWindowVisible and RuntimeVariables.TrackingTaskPresent and not RuntimeVariables.ParallelDualTasks:
-                print("PRESSED F1 OPEN TRACKING")
                 switchWindows("openTracking")
                 writeOutputDataFile("ButtonPress", "-")
-
-            if event.key == pygame.K_F4:
+            # F4 key closes the program
+            elif event.key == pygame.K_F4:
                 quitApp("F4 was typed to terminate the app")
+            else:
+                # only process keypresses if the digit task is present
+                singleTypingTask = RuntimeVariables.TypingTaskPresent and RuntimeVariables.TypingWindowVisible
+                dualTaskWithSwitching = RuntimeVariables.TypingTaskPresent and RuntimeVariables.TypingWindowVisible
+                dualTaskParallel = RuntimeVariables.TypingTaskPresent and not RuntimeVariables.TypingWindowVisible and RuntimeVariables.ParallelDualTasks
+                if singleTypingTask or dualTaskWithSwitching or dualTaskParallel:
+                    key = event.unicode
+                    RuntimeVariables.DigitPressTimes.append(time.time())
 
-            # only process keypresses if the digit task is present
-            singleTypingTask = RuntimeVariables.TypingTaskPresent and RuntimeVariables.TypingWindowVisible
-            dualTaskWithSwitching = RuntimeVariables.TypingTaskPresent and RuntimeVariables.TypingWindowVisible
-            dualTaskParallel = RuntimeVariables.TypingTaskPresent and not RuntimeVariables.TypingWindowVisible and RuntimeVariables.ParallelDualTasks
-            if singleTypingTask or dualTaskWithSwitching or dualTaskParallel:
-                key = event.unicode
-                RuntimeVariables.DigitPressTimes.append(time.time())
+                    # In parallel dual task, e is to be typed when the cursor was outside the circle. On e, all key presses are neither correct or incorrect.
+                    if RuntimeVariables.CurrentTypingTaskNumbers[0] == "e" and RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask):
+                        RuntimeVariables.EnteredDigitsStr += key
+                        UpdateTypingTaskString(reset=False)  # generate one new character
+                        writeOutputDataFile("keypress", key)
+                        print(f"Neutral key press: {key}")
+                    # If key press is correct ...
+                    elif key == RuntimeVariables.CurrentTypingTaskNumbers[0]:
+                        RuntimeVariables.EnteredDigitsStr += key
+                        UpdateTypingTaskString(reset=False)  # generate one new character
+                        RuntimeVariables.CorrectlyTypedDigitsVisit += 1
+                        writeOutputDataFile("keypress", key)
+                        print(f"Correct key press: {key}")
+                    # If key press is wrong ...
+                    else:
+                        RuntimeVariables.IncorrectlyTypedDigitsTrial += 1
+                        RuntimeVariables.IncorrectlyTypedDigitsVisit += 1
+                        writeOutputDataFile("wrongKeypress", key)
+                        print(f"Incorrect key press: {key}")
 
-                # In parallel dual task, e is to be typed when the cursor was outside the circle. On e, all key presses are neither correct or incorrect.
-                if RuntimeVariables.CurrentTypingTaskNumbers[0] == "e" and RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask):
-                    RuntimeVariables.EnteredDigitsStr += key
-                    UpdateTypingTaskString(reset=False)  # generate one new character
-                    writeOutputDataFile("keypress", key)
-                    print(f"Neutral key press: {key}")
-                # If key press is correct ...
-                elif key == RuntimeVariables.CurrentTypingTaskNumbers[0]:
-                    RuntimeVariables.EnteredDigitsStr += key
-                    UpdateTypingTaskString(reset=False)  # generate one new character
-                    RuntimeVariables.CorrectlyTypedDigitsVisit += 1
-                    writeOutputDataFile("keypress", key)
-                    print(f"Correct key press: {key}")
-                # If key press is wrong ...
-                else:
-                    RuntimeVariables.IncorrectlyTypedDigitsTrial += 1
-                    RuntimeVariables.IncorrectlyTypedDigitsVisit += 1
-                    writeOutputDataFile("wrongKeypress", key)
-                    print(f"Incorrect key press: {key}")
-
-                if RuntimeVariables.CurrentTask in [TaskTypes.SingleTyping, TaskTypes.PracticeSingleTyping] or not RuntimeVariables.DisplayTypingTaskWithinCursor:
-                    drawTypingWindow()
+                    if RuntimeVariables.CurrentTask in [TaskTypes.SingleTyping, TaskTypes.PracticeSingleTyping] or not RuntimeVariables.DisplayTypingTaskWithinCursor:
+                        drawTypingWindow()
 
 
 def switchWindows(taskToOpen):
@@ -717,7 +716,7 @@ def openTrackingWindow():
     RuntimeVariables.TrackingWindowEntryCounter += 1
 
     if RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask:
-        ApplyPenaltyAndRewardForTypingTaskScores()
+        ApplyRewardForTypingTaskScores()
 
     RuntimeVariables.TrackingWindowVisible = True
 
@@ -755,32 +754,30 @@ def drawDualTaskScore():
     printTextOverMultipleLines(intermediateMessage, (x, y))
 
 
-def ApplyPenaltyAndRewardForTypingTaskScores():
+def ApplyRewardForTypingTaskScores():
     """
-    For dual tasks: If the cursor is outside of the circle, apply penalty if applicable.
+    For dual tasks: Calculates a reward for the user score. If the cursor is outside of the circle, the possible reward is reduced.
     This function is called at the end of a dual task trial or when switching from tracking to typing window.
     """
     print("FUNCTION: " + getFunctionName())
-    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit * RuntimeVariables.GainCorrectDigit) - (RuntimeVariables.IncorrectlyTypedDigitsVisit * RuntimeVariables.GainIncorrectDigit) # gain is 10 for correct digit and -5 for incorrect digit
+    # This is the typing reward and the typing penalty
+    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit * RuntimeVariables.GainCorrectDigit) - (RuntimeVariables.IncorrectlyTypedDigitsVisit * RuntimeVariables.GainIncorrectDigit)
 
-    # If Cursor is outside of the circle
-    if RuntimeVariables.IsOutsideRadius:
+    # If Cursor is inside the circle, apply the full reward
+    if not RuntimeVariables.IsOutsideRadius or RuntimeVariables.Penalty == Penalty.NoPenalty:
+        RuntimeVariables.VisitScore = gainFormula
+    # If Cursor is outside of the circle, reduce the reward (tracking penalty)
+    else:
         RuntimeVariables.NumberOfCircleExits += 1
         if RuntimeVariables.Penalty == Penalty.LoseAmount:
-            # lose an amount, e.g. lose500
+            # reduce the reward by an amount, e.g. 500 ("lose500")
             RuntimeVariables.VisitScore = gainFormula - RuntimeVariables.PenaltyAmount
         elif RuntimeVariables.Penalty == Penalty.LoseAll:
-            # lose all
+            # lose all points by setting the score to 0
             RuntimeVariables.VisitScore = 0
         elif RuntimeVariables.Penalty == Penalty.LoseHalf:
-            # lose half
-            RuntimeVariables.VisitScore = 0.5 * gainFormula  # Penalty for exit is to lose half points
-        elif RuntimeVariables.Penalty == Penalty.NoPenalty:
-            pass
-
-    # If Cursor is inside the circle, apply reward
-    else:
-        RuntimeVariables.VisitScore = gainFormula
+            # reduce the reward by the half
+            RuntimeVariables.VisitScore = 0.5 * gainFormula
 
     # add the score for this digit task visit to the overall trial score
     # trial score is used in reportUserScore
@@ -1074,7 +1071,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
             writeOutputDataFile(eventMsg, "-")
 
         RuntimeVariables.VisitEndTime = time.time()
-        ApplyPenaltyAndRewardForTypingTaskScores()
+        ApplyRewardForTypingTaskScores()
 
         if (time.time() - RuntimeVariables.StartTimeCurrentTrial) >= ExperimentSettings.MaxTrialTimeDual:
             writeOutputDataFile("trialStopTooMuchTime", "-", True)

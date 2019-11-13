@@ -1,4 +1,4 @@
-StandardDeviationOfNoise;CircleSize;Penalty;GainCorrectDigit
+StandardDeviationOfNoise;CircleSize;PenaltyTracking;GainCorrectDigit
 high;big;half;10
 medium;small;all;10
 low;big;500;10
