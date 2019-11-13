@@ -761,7 +761,7 @@ def ApplyPenaltyAndRewardForTypingTaskScores():
     This function is called at the end of a dual task trial or when switching from tracking to typing window.
     """
     print("FUNCTION: " + getFunctionName())
-    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit + RuntimeVariables.GainCorrectDigit) + (RuntimeVariables.IncorrectlyTypedDigitsVisit - RuntimeVariables.GainIncorrectDigit) # gain is 10 for correct digit and -5 for incorrect digit
+    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit * RuntimeVariables.GainCorrectDigit) - (RuntimeVariables.IncorrectlyTypedDigitsVisit * RuntimeVariables.GainIncorrectDigit) # gain is 10 for correct digit and -5 for incorrect digit
 
     # If Cursor is outside of the circle
     if RuntimeVariables.IsOutsideRadius:
