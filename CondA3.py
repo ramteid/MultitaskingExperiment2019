@@ -1270,7 +1270,8 @@ def readCsvFile(filePath):
     f = open(filePath, 'r')
     individualLines = f.read().split('\n')  ## read by lines
     f.close()
-    return list(map(lambda x: x.split(';'), individualLines))  # split all elements
+    lines = list(map(lambda x: x.split(';'), individualLines))  # split all elements
+    return [i for i in lines if [j for j in i if j != '']]  # filter out empty lines
 
 
 def readParticipantFile():
@@ -1284,9 +1285,9 @@ def readParticipantFile():
     except:
         raise Exception(f"Could not read {filename}")
     conditions = []
-    try:
-        for line in lines:
-            if line[0] == "StandardDeviationOfNoise":
+    for line in lines:
+        try:
+            if line[0] == "StandardDeviationOfNoise":  # skip column title line
                 continue
             conditions.append({
                 'standardDeviationOfNoise': line[0],
@@ -1294,8 +1295,8 @@ def readParticipantFile():
                 'penalty': line[2],
                 'gainCorrectDigit': int(line[3])
             })
-    except:
-        raise Exception(f"Error in {filename}")
+        except:
+            raise Exception(f"Error in {filename} with line: {line}")
     return conditions
 
 
