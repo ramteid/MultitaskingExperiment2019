@@ -1178,7 +1178,7 @@ def StartExperiment():
     ShowStartExperimentScreen()
     RuntimeVariables.StartTime = time.time()
 
-    if RuntimeVariables.RunPracticeTrials == "yes":
+    if RuntimeVariables.RunPracticeTrials:
         DisplayMessage("Willkommen zum Experiment!\n\n\n"
                        "Wir beginnen mit den Übungsdurchläufen.", 10)
 
@@ -1243,12 +1243,12 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
         message += "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n"
     if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
         message += "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n"
-    if RuntimeVariables.ShowPenaltyRewardNoise == "yes":
+    if RuntimeVariables.ShowPenaltyRewardNoise:
         if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
             message += "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n"
         if (trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask) and RuntimeVariables.Penalty != Penalty.NoPenalty:
             message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
-    elif RuntimeVariables.ShowPenaltyRewardNoise == "no":
+    elif RuntimeVariables.ShowPenaltyRewardNoise:
         if trialType == TaskTypes.DualTask and RuntimeVariables.Penalty != Penalty.NoPenalty:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
         if trialType == TaskTypes.DualTask:
