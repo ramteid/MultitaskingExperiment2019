@@ -362,7 +362,6 @@ def CountdownMessage(displayTime):
 def DisplayMessage(message, displayTime):
     print("FUNCTION: " + getFunctionName())
     # prepare background
-    displayTime=1
     completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
     completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
     RuntimeVariables.Screen.blit(completebg, (0, 0))
@@ -1262,7 +1261,7 @@ def readCsvFile(filePath):
     Reads a multi-line CSV file separated with ;
     """
     f = open(filePath, 'r')
-    individualLines = f.read().split('\n')  ## read by lines
+    individualLines = f.read().split('\n')
     f.close()
     lines = list(map(lambda x: x.split(';'), individualLines))  # split all elements
     return [i for i in lines if [j for j in i if j != '']]  # filter out empty lines
