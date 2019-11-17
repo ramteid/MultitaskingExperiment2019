@@ -121,6 +121,10 @@ class ExperimentSettings:
     CoverColor = (200, 200, 200)  # very light gray
     Fullscreen = True
 
+    # Practice trials settings
+    CursorNoisePracticeTrials = CursorNoises["high"]
+    PenaltyPracticeTrials = Penalty.NoPenalty
+
 
 class Constants:
     Title = "Multitasking 3.0"
@@ -130,8 +134,8 @@ class Constants:
     TopLeftCornerOfTrackingTaskWindow = Vector2D(OffsetLeftRight + ExperimentSettings.TaskWindowSize.X + ExperimentSettings.SpaceBetweenWindows, 50)
     TrackingWindowMiddleX = TopLeftCornerOfTrackingTaskWindow.X + int(ExperimentSettings.TaskWindowSize.X / 2.0)
     TrackingWindowMiddleY = TopLeftCornerOfTrackingTaskWindow.Y + int(ExperimentSettings.TaskWindowSize.Y / 2.0)
-    ScalingJoystickAxis = 5  # how many pixels does the cursor move when joystick is at full angle (value of 1 or -1).
-    StepSizeOfTrackingScreenUpdate = 0.005  # how many seconds does it take for a screen update?
+    ScalingJoystickAxis = 5  # how many pixels the cursor moves when joystick is at full angle (value of 1 or -1).
+    StepSizeOfTrackingScreenUpdate = 0.005  # how many seconds does it take for a screen update
     SettingsFilename = "guiconfig.dat"
 
 
@@ -166,7 +170,6 @@ class RuntimeVariables:
     JoystickAxis = Vector2D(0, 0)  # the motion of the joystick
     JoystickObject = None
     LengthOfPathTracked = 0
-    MaxPayment = 15
     NumberOfCircleExits = 0
     OutputDataFile = None
     OutputDataFileTrialEnd = None
@@ -178,7 +181,7 @@ class RuntimeVariables:
     ShowPenaltyRewardNoise = True
     ScoresForPayment = []
     Screen = None
-    StandardDeviationOfNoise = -1
+    StandardDeviationOfNoise = None
     StartTimeCurrentTrial = time.time()
     StartTimeOfFirstExperiment = time.time()
     ParticipantNumber = "0"
@@ -359,6 +362,7 @@ def CountdownMessage(displayTime):
 def DisplayMessage(message, displayTime):
     print("FUNCTION: " + getFunctionName())
     # prepare background
+    displayTime=1
     completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
     completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
     RuntimeVariables.Screen.blit(completebg, (0, 0))
@@ -1104,7 +1108,6 @@ def StartExperiment():
     RuntimeVariables.CirclesBig.sort(key=lambda circle: circle.Radius, reverse=False)
     RuntimeVariables.CirclesPractice.sort(key=lambda circle: circle.Radius, reverse=False)
 
-    ValidateExperimentSettings()
     conditions = readParticipantFile()
     initializeOutputFiles()
     RuntimeVariables.StartTimeOfFirstExperiment = time.time()
@@ -1165,6 +1168,7 @@ def StartExperiment():
             except:
                 raise Exception("Invalid penalty: " + conditionPenalty)
 
+        # Verifying all conditions before the first condition starts avoids errors in the middle of the trials
         conditionsVerified.append({
             "standardDeviationOfNoise": standardDeviationOfNoise,
             "noiseMsg": noiseMsg,
@@ -1184,6 +1188,8 @@ def StartExperiment():
 
         # do practice trials
         RuntimeVariables.CurrentCircles = RuntimeVariables.CirclesPractice
+        RuntimeVariables.Penalty = ExperimentSettings.PenaltyPracticeTrials
+        RuntimeVariables.StandardDeviationOfNoise = ExperimentSettings.CursorNoisePracticeTrials
         for block in RuntimeVariables.RunningOrder:
             if block.TaskType == TaskTypes.PracticeSingleTracking:
                 runSingleTaskTrackingTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
@@ -1226,15 +1232,6 @@ def StartExperiment():
 
     DisplayMessage("Dies ist das Ende der Studie.", 10)
     quitApp()
-
-
-def ValidateExperimentSettings():
-    """Some important consistency checks for certain settings"""
-    for block in RuntimeVariables.RunningOrder:
-        if block.TaskType.name not in TaskTypes._member_names_:
-            quitApp(f"Specified TaskType {block.TaskType} is invalid!")
-    if RuntimeVariables.DisplayTypingTaskWithinCursor and not RuntimeVariables.ParallelDualTasks:
-        quitApp("If you set DisplayTypingTaskWithinCursor to True, you also have to set ParallelDualTasks to True!")
 
 
 def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
@@ -1515,7 +1512,7 @@ def DrawGui():
     chkRunPracticeTrials = Checkbutton(frameOptions, text="Übungs-Trials durchführen", variable=runPracticeTrials)
     chkRunPracticeTrials.grid(row=1, column=0)
     showPenaltyRewardNoise = IntVar()
-    chkShowPenaltyRewardNoise = Checkbutton(frameOptions, text="Penalty, Reward, Noise vor dem Experiment anzeigen", variable=showPenaltyRewardNoise)
+    chkShowPenaltyRewardNoise = Checkbutton(frameOptions, text="Penalty-Info vor dem Experiment anzeigen", variable=showPenaltyRewardNoise)
     chkShowPenaltyRewardNoise.grid(row=2, column=0)
 
     parallelDualTasks = IntVar()
@@ -1621,7 +1618,7 @@ def CreateBlockListEntry(listBox, buttonTitle, taskType, numTrials):
     if not numTrialsParsed > 0:
         return
     listBoxText = f"{buttonTitle}, {numTrialsParsed} Trial(s)"
-    RuntimeVariables.DictTrialListEntries[listBoxText] = (buttonTitle, taskType, numTrialsParsed)
+    RuntimeVariables.DictTrialListEntries[listBoxText] = (buttonTitle, str(taskType), numTrialsParsed)
     listBox.insert(END, listBoxText)
 
 
@@ -1686,7 +1683,8 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     # Write Blocks
     for listEntryText in listBoxBlocks.get(0, END):
         buttonTitle = RuntimeVariables.DictTrialListEntries[listEntryText][0]
-        taskType = eval(RuntimeVariables.DictTrialListEntries[listEntryText][1])  # convert to Enum TaskTypes
+        taskTypeUnparsed = RuntimeVariables.DictTrialListEntries[listEntryText][1]
+        taskType = eval(taskTypeUnparsed)  # convert to Enum TaskTypes
         numTrials = int(RuntimeVariables.DictTrialListEntries[listEntryText][2])
         RuntimeVariables.RunningOrder.append(Block(taskType=taskType, numberOfTrials=numTrials))
         linesSettingsFile.append(["Block", buttonTitle, taskType, numTrials])
@@ -1712,13 +1710,13 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
         print("No Subject number entered")
         return
 
+    RuntimeVariables.ParallelDualTasks = True if parallelDualTasks.get() == 1 else False
     if typingTaskInCursor.get() == 1:
         RuntimeVariables.DisplayTypingTaskWithinCursor = True
         RuntimeVariables.ParallelDualTasks = True  # also required
     else:
         RuntimeVariables.DisplayTypingTaskWithinCursor = False
 
-    RuntimeVariables.ParallelDualTasks = True if parallelDualTasks.get() == 1 else False
     RuntimeVariables.RunPracticeTrials = True if runPracticeTrials.get() == 1 else False
     RuntimeVariables.ShowPenaltyRewardNoise = True if showPenaltyRewardNoise.get() == 1 else False
 
@@ -1745,7 +1743,7 @@ if __name__ == '__main__':
     except Exception as e:
         stack = traceback.format_exc()
         with open("Error_Logfile.txt", "a") as log:
-            log.write(f"{datetime.datetime.now()} {str(e)}   {str(stack)} \n")
+            log.write(f"\n{datetime.datetime.now()} {str(e)}   {str(stack)} \n")
             print(str(e))
             print(str(stack))
             print("PLEASE CHECK Error_Logfile.txt, the error is logged there!")
