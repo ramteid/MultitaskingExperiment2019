@@ -1238,10 +1238,10 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
     if trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask:
         message += "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n"
     if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
-        message += "Für jede korrekt eingegebene Ziffer bekommst du 10 Punkte. \n"
+        message += f"Für jede korrekt eingegebene Ziffer bekommst du {RuntimeVariables.GainCorrectDigit} Punkte. \n"
     if RuntimeVariables.ShowPenaltyRewardNoise:
         if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
-            message += "Bei jeder falsch eingetippten Ziffer verlierst du 5 Punkte. \n"
+            message += f"Bei jeder falsch eingetippten Ziffer verlierst du {RuntimeVariables.GainIncorrectDigit} Punkte. \n"
         if (trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask) and RuntimeVariables.Penalty != Penalty.NoPenalty:
             message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
     elif RuntimeVariables.ShowPenaltyRewardNoise:
