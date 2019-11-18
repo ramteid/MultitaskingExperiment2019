@@ -1246,11 +1246,11 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
             message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
     elif RuntimeVariables.ShowPenaltyRewardNoise:
         if trialType == TaskTypes.DualTask and RuntimeVariables.Penalty != Penalty.NoPenalty:
-            message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Punkt den Kreis verlässt."
+            message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Cursor den Kreis verlässt."
         if trialType == TaskTypes.DualTask:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
         elif trialType == TaskTypes.SingleTracking and RuntimeVariables.Penalty != Penalty.NoPenalty:
-            message += "Achtung: Du verlierst Punkte wenn der Punkt den Kreis verlässt."
+            message += "Achtung: Du verlierst Punkte wenn der Cursor den Kreis verlässt."
         elif trialType == TaskTypes.SingleTyping:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
     return message
