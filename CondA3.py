@@ -42,7 +42,7 @@ class Penalty(Enum):
     NoPenalty = 1  # Do not change the score
     LoseAll = 2
     LoseHalf = 3
-    LoseAmount = 4 # Lose an amount specified in RuntimeVariables.PenaltyAmount
+    LoseAmount = 4  # Lose an amount specified in RuntimeVariables.PenaltyAmount
 
 
 class Block:
@@ -164,8 +164,6 @@ class RuntimeVariables:
     DisplayTypingTaskWithinCursor = False
     EnteredDigitsStr = ""
     EnvironmentIsRunning = False
-    GainCorrectDigit = 0
-    GainIncorrectDigit = 5
     IncorrectlyTypedDigitsTrial = 0
     IncorrectlyTypedDigitsVisit = 0
     IsOutsideRadius = False
@@ -192,6 +190,8 @@ class RuntimeVariables:
     TrackingWindowVisible = False
     TrialNumber = 0
     TrialScore = 0
+    TypingPenaltyIncorrectDigit = 5
+    TypingRewardCorrectDigit = 0
     TypingTaskPresent = False
     TypingWindowEntryCounter = 0
     TypingWindowVisible = False
@@ -759,7 +759,7 @@ def ApplyRewardForTypingTaskScores():
     This function is called at the end of a dual task trial or when switching from tracking to typing window.
     """
     # This is the typing reward and the typing penalty
-    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit * RuntimeVariables.GainCorrectDigit) - (RuntimeVariables.IncorrectlyTypedDigitsVisit * RuntimeVariables.GainIncorrectDigit)
+    gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit * RuntimeVariables.TypingRewardCorrectDigit) - (RuntimeVariables.IncorrectlyTypedDigitsVisit * RuntimeVariables.TypingPenaltyIncorrectDigit)
 
     # If Cursor is inside the circle, apply the full reward
     if not RuntimeVariables.IsOutsideRadius or RuntimeVariables.Penalty == Penalty.NoPenalty:
@@ -1201,7 +1201,7 @@ def StartExperiment():
         RuntimeVariables.CurrentCircles = RuntimeVariables.CirclesPractice
         RuntimeVariables.Penalty = ExperimentSettings.PenaltyPracticeTrials
         RuntimeVariables.StandardDeviationOfNoise = ExperimentSettings.CursorNoisePracticeTrials
-        print(f"Practice Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.GainCorrectDigit}")
+        print(f"Practice Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
 
         for block in RuntimeVariables.RunningOrder:
             if len(RuntimeVariables.CirclesPractice) == 0 and (block.TaskType == TaskTypes.PracticeSingleTracking or block.TaskType == TaskTypes.PracticeDualTask):
@@ -1226,8 +1226,8 @@ def StartExperiment():
         RuntimeVariables.Penalty = condition["penalty"]
         RuntimeVariables.PenaltyAmount = condition["penaltyAmount"]
         penaltyMsg = condition["penaltyMsg"]
-        RuntimeVariables.GainCorrectDigit = condition["conditionGainCorrectDigit"]
-        print(f"Condition Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.GainCorrectDigit}")
+        RuntimeVariables.TypingRewardCorrectDigit = condition["conditionGainCorrectDigit"]
+        print(f"Condition Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
 
         for block in RuntimeVariables.RunningOrder:
             if block.TaskType == TaskTypes.SingleTracking:
@@ -1256,13 +1256,13 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
         message += f"In den folgenden Durchgängen bewegt sich der Cursor mit {noiseMsg} Geschwindigkeit. \n"
     # The number of points to be won by typing should always be shown
     if trialType in [TaskTypes.SingleTyping, TaskTypes.DualTask]:
-        message += f"Für jede korrekt eingegebene Ziffer bekommst du {RuntimeVariables.GainCorrectDigit} Punkte. \n"
+        message += f"Für jede korrekt eingegebene Ziffer bekommst du {RuntimeVariables.TypingRewardCorrectDigit} Punkte. \n"
 
     if RuntimeVariables.ShowPenaltyRewardNoise:
         message2 = "Achtung: "
         append = False
         if trialType in [TaskTypes.DualTask, TaskTypes.SingleTyping]:
-            message2 += f"Bei jeder falsch eingetippten Ziffer verlierst du {RuntimeVariables.GainIncorrectDigit} Punkte. \n"
+            message2 += f"Bei jeder falsch eingetippten Ziffer verlierst du {RuntimeVariables.TypingPenaltyIncorrectDigit} Punkte. \n"
             append = True
         if trialType in [TaskTypes.DualTask, TaskTypes.SingleTracking] and RuntimeVariables.Penalty != Penalty.NoPenalty:
             message2 += f"Wenn der Cursor den Kreis verlässt, verlierst du {penaltyMsg} deiner Punkte."
@@ -1354,7 +1354,7 @@ def initializeOutputFiles():
         "IncorrectDigitsVisit" + ";" \
         "IncorrectDigitsTrial" + ";" \
         "OutsideRadius" + ";" \
-        "GainCorrectDigit" + ";" \
+        "TypingRewardCorrectDigit" + ";" \
         "EventMessage1" + ";" \
         "EventMessage2" + "\n"
 
@@ -1444,7 +1444,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         str(RuntimeVariables.IncorrectlyTypedDigitsVisit) + ";" + \
         str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + ";" + \
         str(RuntimeVariables.IsOutsideRadius) + ";" + \
-        str(RuntimeVariables.GainCorrectDigit) + ";" + \
+        str(RuntimeVariables.TypingRewardCorrectDigit) + ";" + \
         str(eventMessage1) + ";" + \
         str(eventMessage2) + "\n"
 
