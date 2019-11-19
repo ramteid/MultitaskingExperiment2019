@@ -1100,13 +1100,15 @@ def ShowStartExperimentScreen():
 
 
 def SetDebuggingSettings():
-    ExperimentSettings.MaxTrialTimeDual = 5
+    """Set settings which are useful for debugging but should NOT be set for actual testing with participants"""
+    ExperimentSettings.MaxTrialTimeDual = 5  # make trials end faster
     ExperimentSettings.MaxTrialTimeSingleTracking = 5
     ExperimentSettings.MaxTrialTimeSingleTyping = 5
 
 
 def StartExperiment():
-    SetDebuggingSettings()
+    if ExperimentSettings.DebugMode:
+        SetDebuggingSettings()
 
     # Sort the circle lists by radius to make getting the typing task numbers work properly
     RuntimeVariables.CirclesSmall.sort(key=lambda circle: circle.Radius, reverse=False)
