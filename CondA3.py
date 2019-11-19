@@ -1252,24 +1252,31 @@ def StartExperiment():
 
 def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
     message = "NEUER BLOCK: \n\n\n"
-    if trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask:
-        message += "In den folgenden Durchgängen bewegt sich der Cursor mit " + noiseMsg + " Geschwindigkeit. \n"
-    if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
+    if trialType in [TaskTypes.SingleTracking, TaskTypes.DualTask]:
+        message += f"In den folgenden Durchgängen bewegt sich der Cursor mit {noiseMsg} Geschwindigkeit. \n"
+    # The number of points to be won by typing should always be shown
+    if trialType in [TaskTypes.SingleTyping, TaskTypes.DualTask]:
         message += f"Für jede korrekt eingegebene Ziffer bekommst du {RuntimeVariables.GainCorrectDigit} Punkte. \n"
+
     if RuntimeVariables.ShowPenaltyRewardNoise:
-        if trialType == TaskTypes.SingleTyping or trialType == TaskTypes.DualTask:
-            message += f"Bei jeder falsch eingetippten Ziffer verlierst du {RuntimeVariables.GainIncorrectDigit} Punkte. \n"
-        if (trialType == TaskTypes.SingleTracking or trialType == TaskTypes.DualTask) and RuntimeVariables.Penalty != Penalty.NoPenalty:
-            message += "Achtung: Wenn der Cursor den Kreis verlässt, verlierst du " + penaltyMsg + " deiner Punkte."
-    elif RuntimeVariables.ShowPenaltyRewardNoise:
-        if trialType == TaskTypes.DualTask and RuntimeVariables.Penalty != Penalty.NoPenalty:
-            message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Cursor den Kreis verlässt."
-        if trialType == TaskTypes.DualTask:
+        message2 = "Achtung: "
+        append = False
+        if trialType in [TaskTypes.DualTask, TaskTypes.SingleTyping]:
+            message2 += f"Bei jeder falsch eingetippten Ziffer verlierst du {RuntimeVariables.GainIncorrectDigit} Punkte. \n"
+            append = True
+        if trialType in [TaskTypes.DualTask, TaskTypes.SingleTracking] and RuntimeVariables.Penalty != Penalty.NoPenalty:
+            message2 += f"Wenn der Cursor den Kreis verlässt, verlierst du {penaltyMsg} deiner Punkte."
+            append = True
+        if append:
+            message += message2
+
+    elif not RuntimeVariables.ShowPenaltyRewardNoise:
+        if (trialType == TaskTypes.DualTask and RuntimeVariables.Penalty == Penalty.NoPenalty) or trialType == TaskTypes.SingleTyping:
             message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
+        elif trialType == TaskTypes.DualTask:
+            message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern und wenn der Cursor den Kreis verlässt."
         elif trialType == TaskTypes.SingleTracking and RuntimeVariables.Penalty != Penalty.NoPenalty:
             message += "Achtung: Du verlierst Punkte wenn der Cursor den Kreis verlässt."
-        elif trialType == TaskTypes.SingleTyping:
-            message += "Achtung: Du verlierst Punkte für falsch eingegebene Ziffern."
     return message
 
 
