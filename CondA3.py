@@ -159,6 +159,7 @@ class RuntimeVariables:
     CursorDistancesToMiddle = []
     DictTrialListEntries = {}
     DigitPressTimes = []
+    DisableCorrectTypingScoreOutsideCircle = False
     DisplayTypingTaskWithinCursor = False
     EnteredDigitsStr = ""
     EnvironmentIsRunning = False
@@ -166,7 +167,6 @@ class RuntimeVariables:
     GainIncorrectDigit = 5
     IncorrectlyTypedDigitsTrial = 0
     IncorrectlyTypedDigitsVisit = 0
-    IsOutsideRadius = False
     JoystickAxis = Vector2D(0, 0)  # the motion of the joystick
     JoystickObject = None
     LengthOfPathTracked = 0
@@ -196,6 +196,7 @@ class RuntimeVariables:
     VisitEndTime = 0
     VisitScore = 0
     VisitStartTime = 0
+    WasCursorOutsideRadiusBefore = False
 
 
 def calculateRmse(clearDistances):
@@ -280,8 +281,16 @@ def checkKeyPressed():
                     key = event.unicode
                     RuntimeVariables.DigitPressTimes.append(time.time())
 
+                    isNeutralKeyPress = False
                     # In parallel dual task, e is to be typed when the cursor was outside the circle. On e, all key presses are neither correct or incorrect.
                     if RuntimeVariables.CurrentTypingTaskNumbers[0] == "e" and RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask):
+                        isNeutralKeyPress = True
+                    # In non-parallel dual tasks, if the cursor is outside the circle and correct inputs don't count outside, treat it as neutral.
+                    if not RuntimeVariables.ParallelDualTasks and RuntimeVariables.DisableCorrectTypingScoreOutsideCircle and isCursorOutsideCircle():
+                        isNeutralKeyPress = True
+
+                    # Neutral key presses don't count as correct nor incorrect.
+                    if isNeutralKeyPress:
                         RuntimeVariables.EnteredDigitsStr += key
                         UpdateTypingTaskString(reset=False)  # generate one new character
                         writeOutputDataFile("keypress", key)
@@ -588,28 +597,7 @@ def drawCursor(sleepTime):
                 elif y > (Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2):
                     y = Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2
 
-                # always update coordinates
-                RuntimeVariables.CursorCoordinates = Vector2D(x, y)
-
-                if RuntimeVariables.TrackingWindowVisible:  # only update screen when it's visible
-                    distanceCursorMiddle = math.sqrt((abs(Constants.TrackingWindowMiddleX - x)) ** 2 + (abs(Constants.TrackingWindowMiddleY - y)) ** 2)
-                    largestCircleRadius = max(list(map(lambda circle: circle.Radius, RuntimeVariables.CurrentCircles)))
-                    wasCursorOutsideRadiusBefore = RuntimeVariables.IsOutsideRadius
-                    if distanceCursorMiddle > largestCircleRadius:
-                        RuntimeVariables.IsOutsideRadius = True
-                        RuntimeVariables.CurrentCursorColor = ExperimentSettings.CursorColorInside
-                        # When the cursor moves outside the circles, the parallel dual task typing number shall become "e" immediately
-                        if not wasCursorOutsideRadiusBefore and RuntimeVariables.ParallelDualTasks:
-                            RuntimeVariables.CurrentTypingTaskNumbers = "e"
-                    else:
-                        RuntimeVariables.IsOutsideRadius = False
-                        RuntimeVariables.CurrentCursorColor = ExperimentSettings.CursorColorOutside
-                        # When the cursor moves back inside the circles, the parallel dual task typing number shall become a number immediately
-                        if wasCursorOutsideRadiusBefore and RuntimeVariables.ParallelDualTasks and not RuntimeVariables.CurrentTask in [TaskTypes.SingleTracking, TaskTypes.PracticeSingleTracking]:
-                            UpdateTypingTaskString(reset=False)
-
-                    drawTrackingWindow()
-
+                drawTrackingWindow()
             time.sleep(Constants.StepSizeOfTrackingScreenUpdate)
 
         # see if there is additional time to sleep
@@ -645,7 +633,33 @@ def drawCursor(sleepTime):
     # collect cumulatively the distance the cursor has moved
     RuntimeVariables.LengthOfPathTracked += math.sqrt((oldX - x) ** 2 + (oldY - y) ** 2)
 
+    # Detect whether the cursor is outside the circle, also if tracking is not visible.
+    if isCursorOutsideCircle():
+        RuntimeVariables.CurrentCursorColor = ExperimentSettings.CursorColorInside
+    else:
+        RuntimeVariables.CurrentCursorColor = ExperimentSettings.CursorColorOutside
+
+    # For Parallel DualTasks, update the typing task string on cursor leaving/reentering the circle
+    if RuntimeVariables.ParallelDualTasks and RuntimeVariables.TrackingWindowVisible:
+        # When the cursor moves outside the circles, the parallel dual task typing number shall become "e" immediately
+        if isCursorOutsideCircle() and not RuntimeVariables.WasCursorOutsideRadiusBefore:
+            RuntimeVariables.CurrentTypingTaskNumbers = "e"
+        # When the cursor moves back inside the circles, the parallel dual task typing number shall become a number immediately
+        if not isCursorOutsideCircle() and RuntimeVariables.WasCursorOutsideRadiusBefore and RuntimeVariables.CurrentTask not in [TaskTypes.SingleTracking, TaskTypes.PracticeSingleTracking]:
+            UpdateTypingTaskString(reset=False)
+
+    RuntimeVariables.WasCursorOutsideRadiusBefore = isCursorOutsideCircle()
     return restSleepTime
+
+
+def isCursorOutsideCircle():
+    try:
+        position = RuntimeVariables.CursorCoordinates
+        distanceCursorMiddle = math.sqrt((abs(Constants.TrackingWindowMiddleX - position.X)) ** 2 + (abs(Constants.TrackingWindowMiddleY - position.Y)) ** 2)
+        largestCircleRadius = max(list(map(lambda circle: circle.Radius, RuntimeVariables.CurrentCircles)))
+        return distanceCursorMiddle > largestCircleRadius
+    except:
+        return False
 
 
 def drawTypingTaskWithinCursor():
@@ -681,7 +695,6 @@ def drawCover(windowSide):
 def openTypingWindow():
     print("FUNCTION: " + getFunctionName())
     RuntimeVariables.VisitStartTime = time.time()
-    RuntimeVariables.IsOutsideRadius = False
     RuntimeVariables.CorrectlyTypedDigitsVisit = 0
     RuntimeVariables.IncorrectlyTypedDigitsVisit = 0
     RuntimeVariables.TypingWindowEntryCounter = RuntimeVariables.TypingWindowEntryCounter + 1
@@ -767,7 +780,7 @@ def ApplyRewardForTypingTaskScores():
     gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit * RuntimeVariables.GainCorrectDigit) - (RuntimeVariables.IncorrectlyTypedDigitsVisit * RuntimeVariables.GainIncorrectDigit)
 
     # If Cursor is inside the circle, apply the full reward
-    if not RuntimeVariables.IsOutsideRadius or RuntimeVariables.Penalty == Penalty.NoPenalty:
+    if not isCursorOutsideCircle() or RuntimeVariables.Penalty == Penalty.NoPenalty:
         RuntimeVariables.VisitScore = gainFormula
     # If Cursor is outside of the circle, reduce the reward (tracking penalty)
     else:
@@ -786,7 +799,6 @@ def ApplyRewardForTypingTaskScores():
     # trial score is used in reportUserScore
     RuntimeVariables.TrialScore += RuntimeVariables.VisitScore
     writeOutputDataFile("updatedVisitScore", str(RuntimeVariables.VisitScore))
-    RuntimeVariables.IsOutsideRadius = False
 
 
 def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
@@ -988,7 +1000,6 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
     for i in range(0, numberOfTrials):
         RuntimeVariables.NumberOfCircleExits = 0
         RuntimeVariables.TrialScore = 0
-        RuntimeVariables.IsOutsideRadius = False
         RuntimeVariables.CorrectlyTypedDigitsVisit = 0
         RuntimeVariables.IncorrectlyTypedDigitsVisit = 0
         RuntimeVariables.IncorrectlyTypedDigitsTrial = 0
@@ -1117,7 +1128,6 @@ def StartExperiment():
     else:
         RuntimeVariables.Screen = pygame.display.set_mode((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y))
     pygame.display.set_caption(Constants.Title)
-    RuntimeVariables.EnvironmentIsRunning = True
 
     # verify all conditions before the experiment starts so that the program would crash at the start if it does
     conditionsVerified = []
@@ -1419,7 +1429,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         str(RuntimeVariables.CorrectlyTypedDigitsVisit) + ";" + \
         str(RuntimeVariables.IncorrectlyTypedDigitsVisit) + ";" + \
         str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + ";" + \
-        str(RuntimeVariables.IsOutsideRadius) + ";" + \
+        str(isCursorOutsideCircle()) + ";" + \
         str(RuntimeVariables.GainCorrectDigit) + ";" + \
         str(eventMessage1) + ";" + \
         str(eventMessage2) + "\n"
@@ -1521,6 +1531,11 @@ def DrawGui():
     chkTypingTaskInCursor = Checkbutton(frameOptions, text="Typing Task in Cursor", variable=typingTaskInCursor)
     chkTypingTaskInCursor.grid(row=4, column=0)
 
+    disableTypingScoreOutside = IntVar()
+    dtsoTxt = "Wenn sich im DualTask der Cursor ausserhalb des Kreises befindet,\n sollen im TypingTask korrekte Eingaben nicht gezählt werden"
+    chkDisableTypingScoreOutside = Checkbutton(frameOptions, text=dtsoTxt, variable=disableTypingScoreOutside)
+    chkDisableTypingScoreOutside.grid(row=5, column=0)
+
     ### Create three input forms for big, small and practice circles
     currentColumn = 0
     listBoxCirclesBig = Listbox()
@@ -1579,8 +1594,9 @@ def DrawGui():
                       command=lambda parallelDualTasks=parallelDualTasks,
                                      typingTaskInCursor=typingTaskInCursor,
                                      runPracticeTrials=runPracticeTrials,
-                                     showPenaltyRewardNoise=showPenaltyRewardNoise: ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice,
-                                                                                                       txPersonNumber, parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise))
+                                     showPenaltyRewardNoise=showPenaltyRewardNoise:
+                      ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
+                                         parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside))
     btnStart.grid(row=5, column=0)
 
     # Finally load settings from file if present
@@ -1606,6 +1622,8 @@ def DrawGui():
                 chkRunPracticeTrials.select()
             if key == "ShowPenaltyRewardNoise" and value == "1":
                 chkShowPenaltyRewardNoise.select()
+            if key == "DisableTypingScoreOutside" and value == "1":
+                chkDisableTypingScoreOutside.select()
     tkWindow.mainloop()
 
 
@@ -1674,10 +1692,13 @@ def LoadSettingsFromFile():
             settingsFile.Options[key] = line[1]
         if key == "ShowPenaltyRewardNoise":
             settingsFile.Options[key] = line[1]
+        if key == "DisableTypingScoreOutside":
+            settingsFile.Options[key] = line[1]
     return settingsFile
 
 
-def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber, parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise):
+def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
+                       parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside):
     linesSettingsFile = []
     # Write Blocks
     for listEntryText in listBoxBlocks.get(0, END):
@@ -1709,6 +1730,7 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
         print("No Subject number entered")
         return
 
+    # Set Options to RuntimeVariables
     RuntimeVariables.ParallelDualTasks = True if parallelDualTasks.get() == 1 else False
     if typingTaskInCursor.get() == 1:
         RuntimeVariables.DisplayTypingTaskWithinCursor = True
@@ -1718,13 +1740,17 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
 
     RuntimeVariables.RunPracticeTrials = True if runPracticeTrials.get() == 1 else False
     RuntimeVariables.ShowPenaltyRewardNoise = True if showPenaltyRewardNoise.get() == 1 else False
+    RuntimeVariables.DisableCorrectTypingScoreOutsideCircle = True if disableTypingScoreOutside.get() == 1 else False
 
+    # Save Options to file
     linesSettingsFile.append(["ParallelDualTasks", parallelDualTasks.get()])
     linesSettingsFile.append(["DisplayTypingTaskWithinCursor", typingTaskInCursor.get()])
     linesSettingsFile.append(["RunPracticeTrials", runPracticeTrials.get()])
     linesSettingsFile.append(["ShowPenaltyRewardNoise", showPenaltyRewardNoise.get()])
+    linesSettingsFile.append(["DisableTypingScoreOutside", disableTypingScoreOutside.get()])
 
     WriteLinesToCzvFile(Constants.SettingsFilename, linesSettingsFile)
+    RuntimeVariables.EnvironmentIsRunning = True
     tkWindow.quit()
 
 
@@ -1738,7 +1764,8 @@ def WriteLinesToCzvFile(filename, lines):
 if __name__ == '__main__':
     try:
         DrawGui()
-        StartExperiment()
+        if RuntimeVariables.EnvironmentIsRunning:  # check to avoid parsing incomplete form data on closing UI
+            StartExperiment()
     except Exception as e:
         stack = traceback.format_exc()
         with open("Error_Logfile.txt", "a") as log:
