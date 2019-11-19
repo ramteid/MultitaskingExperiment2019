@@ -125,7 +125,7 @@ class ExperimentSettings:
     PenaltyPracticeTrials = Penalty.NoPenalty
 
     # Debug mode will speed up the messages and the trials for debugging. Should be set to False for normal use.
-    DebugMode = True
+    DebugMode = False
 
 
 class Constants:
