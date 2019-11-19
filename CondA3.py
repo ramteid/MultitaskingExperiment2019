@@ -283,12 +283,14 @@ def checkKeyPressed():
                     key = event.unicode
                     RuntimeVariables.DigitPressTimes.append(time.time())
 
+                    isCorrectKeyPress = key == RuntimeVariables.CurrentTypingTaskNumbers[0]
+
                     isNeutralKeyPress = False
                     # In parallel dual task, e is to be typed when the cursor was outside the circle. On e, all key presses are neither correct or incorrect.
                     if RuntimeVariables.CurrentTypingTaskNumbers[0] == "e" and RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask):
                         isNeutralKeyPress = True
-                    # In non-parallel dual tasks, if the cursor is outside the circle and correct inputs don't count outside, treat it as neutral.
-                    if not RuntimeVariables.ParallelDualTasks and RuntimeVariables.DisableCorrectTypingScoreOutsideCircle and isCursorOutsideCircle():
+                    # In non-parallel dual tasks, if the cursor is outside the circle and correct inputs don't count outside, treat correct inputs as neutral.
+                    if not RuntimeVariables.ParallelDualTasks and RuntimeVariables.DisableCorrectTypingScoreOutsideCircle and isCursorOutsideCircle() and isCorrectKeyPress:
                         isNeutralKeyPress = True
 
                     # Neutral key presses don't count as correct nor incorrect.
@@ -298,7 +300,7 @@ def checkKeyPressed():
                         writeOutputDataFile("keypress", key)
                         print(f"Neutral key press: {key}")
                     # If key press is correct ...
-                    elif key == RuntimeVariables.CurrentTypingTaskNumbers[0]:
+                    elif isCorrectKeyPress:
                         RuntimeVariables.EnteredDigitsStr += key
                         UpdateTypingTaskString(reset=False)  # generate one new character
                         RuntimeVariables.CorrectlyTypedDigitsVisit += 1
@@ -645,7 +647,7 @@ def drawCursor(sleepTime):
         if isCursorOutsideCircle() and not RuntimeVariables.WasCursorOutsideRadiusBefore:
             RuntimeVariables.CurrentTypingTaskNumbers = "e"
         # When the cursor moves back inside the circles, the parallel dual task typing number shall become a number immediately
-        if not isCursorOutsideCircle() and RuntimeVariables.WasCursorOutsideRadiusBefore and RuntimeVariables.CurrentTask not in [TaskTypes.SingleTracking, TaskTypes.PracticeSingleTracking]:
+        if not isCursorOutsideCircle() and RuntimeVariables.WasCursorOutsideRadiusBefore and RuntimeVariables.CurrentTaskType not in [TaskTypes.SingleTracking, TaskTypes.PracticeSingleTracking]:
             UpdateTypingTaskString(reset=False)
 
     RuntimeVariables.WasCursorOutsideRadiusBefore = isCursorOutsideCircle()
