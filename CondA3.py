@@ -119,11 +119,13 @@ class ExperimentSettings:
     BackgroundColorTaskWindows = (255, 255, 255)  # white
     BackgroundColorEntireScreen = (50, 50, 50)  # gray
     CoverColor = (200, 200, 200)  # very light gray
-    Fullscreen = True
 
     # Practice trials settings
     CursorNoisePracticeTrials = CursorNoises["high"]
     PenaltyPracticeTrials = Penalty.NoPenalty
+
+    # Debug mode will speed up the messages and the trials for debugging. Should be set to False for normal use.
+    DebugMode = True
 
 
 class Constants:
@@ -151,7 +153,7 @@ class RuntimeVariables:
     CurrentCircles = []  # is set for each condition
     CurrentTypingTaskNumbers = ""
     CurrentTypingTaskNumbersLength = 1
-    CurrentTask = None
+    CurrentTaskType = None
     CurrentCursorColor = ExperimentSettings.CursorColorInside
     CorrectlyTypedDigitsVisit = 0
     CurrentCondition = ""
@@ -281,7 +283,7 @@ def checkKeyPressed():
                     RuntimeVariables.DigitPressTimes.append(time.time())
 
                     # In parallel dual task, e is to be typed when the cursor was outside the circle. On e, all key presses are neither correct or incorrect.
-                    if RuntimeVariables.CurrentTypingTaskNumbers[0] == "e" and RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask):
+                    if RuntimeVariables.CurrentTypingTaskNumbers[0] == "e" and RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask):
                         RuntimeVariables.EnteredDigitsStr += key
                         UpdateTypingTaskString(reset=False)  # generate one new character
                         writeOutputDataFile("keypress", key)
@@ -300,14 +302,13 @@ def checkKeyPressed():
                         writeOutputDataFile("wrongKeypress", key)
                         print(f"Incorrect key press: {key}")
 
-                    if RuntimeVariables.CurrentTask in [TaskTypes.SingleTyping, TaskTypes.PracticeSingleTyping] or not RuntimeVariables.DisplayTypingTaskWithinCursor:
+                    if RuntimeVariables.CurrentTaskType in [TaskTypes.SingleTyping, TaskTypes.PracticeSingleTyping] or not RuntimeVariables.DisplayTypingTaskWithinCursor:
                         drawTypingWindow()
 
 
 def switchWindows(taskToOpen):
-    print("FUNCTION: " + getFunctionName())
     # switching is only done in dual-task
-    if RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask:
+    if RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask:
         if taskToOpen == "openTracking":
             if not RuntimeVariables.TrackingWindowVisible and RuntimeVariables.TrackingTaskPresent:
                 openTrackingWindow()
@@ -337,7 +338,8 @@ def printTextOverMultipleLines(text, location):
 
 
 def CountdownMessage(displayTime):
-    print("FUNCTION: " + getFunctionName())
+    if ExperimentSettings.DebugMode:  # change some settings to facilitate debugging
+        return
     for i in range(0, displayTime):
         # prepare background
         completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
@@ -360,7 +362,8 @@ def CountdownMessage(displayTime):
 
 
 def DisplayMessage(message, displayTime):
-    print("FUNCTION: " + getFunctionName())
+    if ExperimentSettings.DebugMode:  # change some settings to facilitate debugging
+        displayTime = 1
     # prepare background
     completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
     completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
@@ -376,7 +379,6 @@ def DisplayMessage(message, displayTime):
 
 
 def drawCanvas():
-    print("FUNCTION: " + getFunctionName())
     # prepare background
     completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
     completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
@@ -391,7 +393,6 @@ def drawCanvas():
 
 
 def reportUserScore():
-    print("FUNCTION: " + getFunctionName())
     # prepare background
     completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
     completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
@@ -407,7 +408,7 @@ def reportUserScore():
     scoreForLogging = "-"  # score that's logged
     scoresOnThisBlock = []  # stores the scores on the current block. Can be used to report performance each 5th trial
 
-    if RuntimeVariables.CurrentTask == TaskTypes.DualTask:
+    if RuntimeVariables.CurrentTaskType == TaskTypes.DualTask:
         feedbackScore = RuntimeVariables.TrialScore
         if RuntimeVariables.TrialScore > 0:
             feedbackText = "+" + str(feedbackScore) + " Punkte"
@@ -418,7 +419,7 @@ def reportUserScore():
         scoresOnThisBlock.append(RuntimeVariables.TrialScore)  # store score, so average performance can be reported
         scoreForLogging = RuntimeVariables.TrialScore
 
-    elif RuntimeVariables.CurrentTask == TaskTypes.SingleTyping:
+    elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTyping:
         feedbackText = "Anzahl Fehler: \n"
         if RuntimeVariables.TypingTaskPresent:
             digitScore = RuntimeVariables.DigitPressTimes[-1] - RuntimeVariables.DigitPressTimes[0]
@@ -450,11 +451,11 @@ def reportUserScore():
         meanscore = scipy.special.round(scipy.mean(scoresOnThisBlock[-2:]) * 100) / 100  # report meanscore
         feedbackText2 = feedbackText2 + str(meanscore)
 
-        if RuntimeVariables.CurrentTask == TaskTypes.SingleTracking:
+        if RuntimeVariables.CurrentTaskType == TaskTypes.SingleTracking:
             feedbackText2 = feedbackText2 + " pixels"
-        elif RuntimeVariables.CurrentTask == TaskTypes.SingleTyping:
+        elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTyping:
             feedbackText2 = feedbackText2 + " errors"
-        elif RuntimeVariables.CurrentTask == TaskTypes.DualTask:
+        elif RuntimeVariables.CurrentTaskType == TaskTypes.DualTask:
             feedbackText2 = "Block " + str(int(len(scoresOnThisBlock) / 3)) + " von 6 vollständig. Deine durchschnittliche Leistung der letzten 4 Durchgänge:\n\n" + str(meanscore) + " points"
 
         location = Vector2D(topCornerOfMessageArea.X + 50, topCornerOfMessageArea.Y + 50)
@@ -490,11 +491,10 @@ def GetTypingTaskNumbers(count):
     :param count: Specifies how many numbers you want
     :return: A string with <count> numbers
     """
-    print("FUNCTION: " + getFunctionName())
 
     # For single typing task or regular dual task with switching, return the single task string
-    isSwitchingDualTask = RuntimeVariables.CurrentTask in [TaskTypes.DualTask, TaskTypes.PracticeDualTask] and not RuntimeVariables.ParallelDualTasks
-    isSingleTypingTask = RuntimeVariables.CurrentTask in [TaskTypes.SingleTyping, TaskTypes.PracticeSingleTyping]
+    isSwitchingDualTask = RuntimeVariables.CurrentTaskType in [TaskTypes.DualTask, TaskTypes.PracticeDualTask] and not RuntimeVariables.ParallelDualTasks
+    isSingleTypingTask = RuntimeVariables.CurrentTaskType in [TaskTypes.SingleTyping, TaskTypes.PracticeSingleTyping]
     if isSwitchingDualTask or isSingleTypingTask:
         return ''.join([random.choice(ExperimentSettings.SingleTypingTaskNumbers) for _ in range(count)])
 
@@ -605,7 +605,7 @@ def drawCursor(sleepTime):
                         RuntimeVariables.IsOutsideRadius = False
                         RuntimeVariables.CurrentCursorColor = ExperimentSettings.CursorColorOutside
                         # When the cursor moves back inside the circles, the parallel dual task typing number shall become a number immediately
-                        if wasCursorOutsideRadiusBefore and RuntimeVariables.ParallelDualTasks and not RuntimeVariables.CurrentTask in [TaskTypes.SingleTracking, TaskTypes.PracticeSingleTracking]:
+                        if wasCursorOutsideRadiusBefore and RuntimeVariables.ParallelDualTasks and not RuntimeVariables.CurrentTaskType in [TaskTypes.SingleTracking, TaskTypes.PracticeSingleTracking]:
                             UpdateTypingTaskString(reset=False)
 
                     drawTrackingWindow()
@@ -659,7 +659,6 @@ def drawTypingTaskWithinCursor():
 
 
 def closeTypingWindow():
-    print("FUNCTION: " + getFunctionName())
     RuntimeVariables.TypingWindowVisible = False
     RuntimeVariables.VisitEndTime = time.time()
 
@@ -679,7 +678,6 @@ def drawCover(windowSide):
 
 
 def openTypingWindow():
-    print("FUNCTION: " + getFunctionName())
     RuntimeVariables.VisitStartTime = time.time()
     RuntimeVariables.IsOutsideRadius = False
     RuntimeVariables.CorrectlyTypedDigitsVisit = 0
@@ -695,7 +693,7 @@ def drawTypingWindow():
     bg.fill(ExperimentSettings.BackgroundColorTaskWindows)
     RuntimeVariables.Screen.blit(bg, (Constants.TopLeftCornerOfTypingTaskWindow.X, Constants.TopLeftCornerOfTypingTaskWindow.Y))  # make area about 30 away from centre
 
-    if not RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask):
+    if not RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask):
         drawCover("tracking")
 
     fontsize = ExperimentSettings.FontSizeTypingTaskNumberSingleTask
@@ -708,17 +706,15 @@ def drawTypingWindow():
 
 
 def closeTrackingWindow():
-    print("FUNCTION: " + getFunctionName())
     RuntimeVariables.TrackingWindowVisible = False
     RuntimeVariables.VisitEndTime = time.time()
 
 
 def openTrackingWindow():
-    print("FUNCTION: " + getFunctionName())
     RuntimeVariables.VisitStartTime = time.time()
     RuntimeVariables.TrackingWindowEntryCounter += 1
 
-    if RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask:
+    if RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask:
         ApplyRewardForTypingTaskScores()
 
     RuntimeVariables.TrackingWindowVisible = True
@@ -743,7 +739,7 @@ def drawTrackingWindow():
     RuntimeVariables.Screen.blit(newCursor, (newCursorLocation.X, newCursorLocation.Y))  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
-    if RuntimeVariables.Penalty != "none" and (RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask) and not RuntimeVariables.ParallelDualTasks:
+    if RuntimeVariables.Penalty != "none" and (RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask) and not RuntimeVariables.ParallelDualTasks:
         drawDualTaskScore()
 
 
@@ -762,7 +758,6 @@ def ApplyRewardForTypingTaskScores():
     For dual tasks: Calculates a reward for the user score. If the cursor is outside of the circle, the possible reward is reduced.
     This function is called at the end of a dual task trial or when switching from tracking to typing window.
     """
-    print("FUNCTION: " + getFunctionName())
     # This is the typing reward and the typing penalty
     gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit * RuntimeVariables.GainCorrectDigit) - (RuntimeVariables.IncorrectlyTypedDigitsVisit * RuntimeVariables.GainIncorrectDigit)
 
@@ -790,25 +785,26 @@ def ApplyRewardForTypingTaskScores():
 
 
 def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
-    print("FUNCTION: " + getFunctionName())
     RuntimeVariables.BlockNumber += 1
 
     if isPracticeTrial:
-        RuntimeVariables.CurrentTask = TaskTypes.PracticeSingleTyping
+        RuntimeVariables.CurrentTaskType = TaskTypes.PracticeSingleTyping
         DisplayMessage("Nur Tippen\n\n"
                        "In diesen Durchgängen übst du nur die Tippaufgabe.\n"
                        "Kopiere die Ziffern, die dir auf dem Bildschirm angezeigt werden so schnell wie möglich.\n\n"
                        "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n"
                        "(In zukünftigen Durchgängen würdest du dadurch Punkte verlieren.)", 15)
     else:
-        RuntimeVariables.CurrentTask = TaskTypes.SingleTyping
+        RuntimeVariables.CurrentTaskType = TaskTypes.SingleTyping
         DisplayMessage("Nur Tippen\n\n"
                        "Kopiere die Ziffern so schnell wie möglich.\n"
                        "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n", 10)
 
     RuntimeVariables.CurrentTypingTaskNumbersLength = ExperimentSettings.SingleTypingTaskNumbersLength
 
+    print(f"{RuntimeVariables.CurrentTaskType}, total {numberOfTrials} trials")
     for i in range(0, numberOfTrials):
+        print(f"Trial {i}")
         RuntimeVariables.NumberOfCircleExits = 0
         RuntimeVariables.TrialScore = 0
         RuntimeVariables.CorrectlyTypedDigitsVisit = 0
@@ -864,11 +860,10 @@ def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
 
 
 def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
-    print("FUNCTION: " + getFunctionName())
     RuntimeVariables.BlockNumber += 1
 
     if isPracticeTrial:
-        RuntimeVariables.CurrentTask = TaskTypes.PracticeSingleTracking
+        RuntimeVariables.CurrentTaskType = TaskTypes.PracticeSingleTracking
         DisplayMessage(
             "Nur Tracking\n\n"
             "In diesen Durchgängen übst du nur die Trackingaufgabe.\n"
@@ -877,14 +872,16 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
             "Denk daran: deine Aufgabe ist es, zu verhindern, dass der blaue Cursor den Kreis verlässt!",
             15)
     else:
-        RuntimeVariables.CurrentTask = TaskTypes.SingleTracking
+        RuntimeVariables.CurrentTaskType = TaskTypes.SingleTracking
         DisplayMessage(
             "Nur Tracking\n\n"
             "Nutze diesen Durchgang, um dich mit der Geschwindigkeit des Cursors vertraut zu machen, \n"
             "und denk daran den Cursor mit deinem Joystick in der Kreismitte zu halten.",
             10)
 
+    print(f"{RuntimeVariables.CurrentTaskType}, total {numberOfTrials} trials")
     for i in range(0, numberOfTrials):
+        print(f"Trial {i}")
         RuntimeVariables.NumberOfCircleExits = 0
         RuntimeVariables.TrialScore = 0
         CountdownMessage(3)
@@ -946,11 +943,10 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
 
 
 def runDualTaskTrials(isPracticeTrial, numberOfTrials):
-    print("FUNCTION: " + getFunctionName())
     RuntimeVariables.BlockNumber += 1
 
     if isPracticeTrial:
-        RuntimeVariables.CurrentTask = TaskTypes.PracticeDualTask
+        RuntimeVariables.CurrentTaskType = TaskTypes.PracticeDualTask
         message = "Tracking + Tippen (MULTITASKING)\n\n" \
                   "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
         if not RuntimeVariables.ParallelDualTasks:
@@ -970,7 +966,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
 
     # Normal (no practice) trial
     else:
-        RuntimeVariables.CurrentTask = TaskTypes.DualTask
+        RuntimeVariables.CurrentTaskType = TaskTypes.DualTask
         message = "Dein Ziel:\n\n" \
                   "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
                   "Fehler beim Tippen führen zu Punkteverlust.\n"
@@ -985,7 +981,9 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
 
     RuntimeVariables.CurrentTypingTaskNumbersLength = 1 if RuntimeVariables.ParallelDualTasks else ExperimentSettings.SingleTypingTaskNumbersLength
 
+    print(f"{RuntimeVariables.CurrentTaskType}, total {numberOfTrials} trials")
     for i in range(0, numberOfTrials):
+        print(f"Trial {i}")
         RuntimeVariables.NumberOfCircleExits = 0
         RuntimeVariables.TrialScore = 0
         RuntimeVariables.IsOutsideRadius = False
@@ -1101,7 +1099,15 @@ def ShowStartExperimentScreen():
     RuntimeVariables.StartTimeCurrentTrial = time.time()
 
 
+def SetDebuggingSettings():
+    ExperimentSettings.MaxTrialTimeDual = 5
+    ExperimentSettings.MaxTrialTimeSingleTracking = 5
+    ExperimentSettings.MaxTrialTimeSingleTyping = 5
+
+
 def StartExperiment():
+    SetDebuggingSettings()
+
     # Sort the circle lists by radius to make getting the typing task numbers work properly
     RuntimeVariables.CirclesSmall.sort(key=lambda circle: circle.Radius, reverse=False)
     RuntimeVariables.CirclesBig.sort(key=lambda circle: circle.Radius, reverse=False)
@@ -1112,10 +1118,10 @@ def StartExperiment():
     RuntimeVariables.StartTimeOfFirstExperiment = time.time()
 
     pygame.init()
-    if ExperimentSettings.Fullscreen:
-        RuntimeVariables.Screen = pygame.display.set_mode((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y), pygame.FULLSCREEN)
-    else:
+    if ExperimentSettings.DebugMode:  # No fullscreen in debug mode
         RuntimeVariables.Screen = pygame.display.set_mode((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y))
+    else:
+        RuntimeVariables.Screen = pygame.display.set_mode((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y), pygame.FULLSCREEN)
     pygame.display.set_caption(Constants.Title)
     RuntimeVariables.EnvironmentIsRunning = True
 
@@ -1142,8 +1148,12 @@ def StartExperiment():
 
         # radius is small or big
         if conditionCircleSize == "small":  # small radius
+            if len(RuntimeVariables.CirclesSmall) == 0:
+                raise Exception("You tried to run a trial with small circles but you don't have small circle radii defined!")
             radiusCircle = RuntimeVariables.CirclesSmall
         elif conditionCircleSize == "big":
+            if len(RuntimeVariables.CirclesBig) == 0:
+                raise Exception("You tried to run a trial with big circles but you don't have big circle radii defined!")
             radiusCircle = RuntimeVariables.CirclesBig
         else:
             raise Exception("Invalid circle size: " + conditionCircleSize)
@@ -1178,7 +1188,9 @@ def StartExperiment():
             "conditionGainCorrectDigit": conditionGainCorrectDigit
         })
 
-    ShowStartExperimentScreen()
+    if not ExperimentSettings.DebugMode:
+        ShowStartExperimentScreen()
+
     RuntimeVariables.StartTime = time.time()
 
     if RuntimeVariables.RunPracticeTrials:
@@ -1189,7 +1201,11 @@ def StartExperiment():
         RuntimeVariables.CurrentCircles = RuntimeVariables.CirclesPractice
         RuntimeVariables.Penalty = ExperimentSettings.PenaltyPracticeTrials
         RuntimeVariables.StandardDeviationOfNoise = ExperimentSettings.CursorNoisePracticeTrials
+        print(f"Practice Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.GainCorrectDigit}")
+
         for block in RuntimeVariables.RunningOrder:
+            if len(RuntimeVariables.CirclesPractice) == 0 and (block.TaskType == TaskTypes.PracticeSingleTracking or block.TaskType == TaskTypes.PracticeDualTask):
+                raise Exception("You tried to run practice trials but you don't have practice circle radii defined!")
             if block.TaskType == TaskTypes.PracticeSingleTracking:
                 runSingleTaskTrackingTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
             elif block.TaskType == TaskTypes.PracticeSingleTyping:
@@ -1211,6 +1227,7 @@ def StartExperiment():
         RuntimeVariables.PenaltyAmount = condition["penaltyAmount"]
         penaltyMsg = condition["penaltyMsg"]
         RuntimeVariables.GainCorrectDigit = condition["conditionGainCorrectDigit"]
+        print(f"Condition Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.GainCorrectDigit}")
 
         for block in RuntimeVariables.RunningOrder:
             if block.TaskType == TaskTypes.SingleTracking:
@@ -1379,13 +1396,13 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         outputGeneratedTypingTaskNumbers = "-"
         outputGeneratedTypingTaskNumbersLength = "-"
 
-    if RuntimeVariables.CurrentTask == TaskTypes.DualTask or RuntimeVariables.CurrentTask == TaskTypes.PracticeDualTask:
+    if RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask:
         visitTime = time.time() - RuntimeVariables.VisitStartTime
     else:
         visitTime = "-"
 
     circleRadii = list(map(lambda circle: circle.Radius, RuntimeVariables.CurrentCircles))
-    currentTask = str(RuntimeVariables.CurrentTask)
+    currentTask = str(RuntimeVariables.CurrentTaskType).replace("TaskType.", "")
 
     outputText = \
         str(RuntimeVariables.ParticipantNumber) + ";" + \
