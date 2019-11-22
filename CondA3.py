@@ -122,7 +122,6 @@ class ExperimentSettings:
 
     # Practice trials settings
     CursorNoisePracticeTrials = CursorNoises["high"]
-    PenaltyPracticeTrials = Penalty.NoPenalty
 
     # Debug mode will speed up the messages and the trials for debugging. Should be set to False for normal use.
     DebugMode = False
@@ -162,6 +161,8 @@ class RuntimeVariables:
     DictTrialListEntries = {}
     DigitPressTimes = []
     DisableCorrectTypingScoreOutsideCircle = False
+    DisplayScoreNormalTrials = False
+    DisplayScorePracticeTrials = False
     DisplayTypingTaskWithinCursor = False
     EnteredDigitsStr = ""
     EnvironmentIsRunning = False
@@ -175,6 +176,7 @@ class RuntimeVariables:
     OutputDataFileTrialEnd = None
     ParallelDualTasks = False
     Penalty = None
+    PenaltyPracticeTrials = None
     PenaltyAmount = 0
     RunningOrder = []
     RunPracticeTrials = True
@@ -754,11 +756,15 @@ def drawTrackingWindow():
     RuntimeVariables.Screen.blit(newCursor, (newCursorLocation.X, newCursorLocation.Y))  # blit puts something new on the screen
 
     # Show the number of points above the tracking circle
-    if RuntimeVariables.Penalty != "none" and (RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask) and not RuntimeVariables.ParallelDualTasks:
+    scoreIsAllowedAtPenalty = RuntimeVariables.Penalty != Penalty.NoPenalty
+    displayForNormalTasks = RuntimeVariables.CurrentTaskType == TaskTypes.DualTask and RuntimeVariables.DisplayScoreNormalTrials
+    displayForPracticeTasks = RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask and RuntimeVariables.DisplayScorePracticeTrials
+    if scoreIsAllowedAtPenalty and not RuntimeVariables.ParallelDualTasks and (displayForNormalTasks or displayForPracticeTasks):
         drawDualTaskScore()
 
 
 def drawDualTaskScore():
+    """Draws the visit score above the circle"""
     intermediateMessage = str(RuntimeVariables.VisitScore) + " Punkte"
     fontsize = ExperimentSettings.GeneralFontSize
     f = pygame.font.Font(None, fontsize)
@@ -1213,9 +1219,11 @@ def StartExperiment():
 
         # do practice trials
         RuntimeVariables.CurrentCircles = RuntimeVariables.CirclesPractice
-        RuntimeVariables.Penalty = ExperimentSettings.PenaltyPracticeTrials
         RuntimeVariables.StandardDeviationOfNoise = ExperimentSettings.CursorNoisePracticeTrials
-        print(f"Practice Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
+        RuntimeVariables.Penalty = RuntimeVariables.PenaltyPracticeTrials
+        if RuntimeVariables.PenaltyPracticeTrials == Penalty.LoseAmount:
+            RuntimeVariables.PenaltyAmount = 500
+        print(f"Practice {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
 
         for block in RuntimeVariables.RunningOrder:
             if len(RuntimeVariables.CirclesPractice) == 0 and (block.TaskType == TaskTypes.PracticeSingleTracking or block.TaskType == TaskTypes.PracticeDualTask):
@@ -1241,7 +1249,7 @@ def StartExperiment():
         RuntimeVariables.PenaltyAmount = condition["penaltyAmount"]
         penaltyMsg = condition["penaltyMsg"]
         RuntimeVariables.TypingRewardCorrectDigit = condition["conditionGainCorrectDigit"]
-        print(f"Condition Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
+        print(f"Condition {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
 
         for block in RuntimeVariables.RunningOrder:
             if block.TaskType == TaskTypes.SingleTracking:
@@ -1564,6 +1572,25 @@ def DrawGui():
     chkDisableTypingScoreOutside = Checkbutton(frameOptions, text=dtsoTxt, variable=disableTypingScoreOutside)
     chkDisableTypingScoreOutside.grid(row=5, column=0)
 
+    displayScoreNormalTrials = IntVar()
+    txt = "Punktestand über Kreis während normalen Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
+    chkDisplayScoreNormalTrials = Checkbutton(frameOptions, text=txt, variable=displayScoreNormalTrials)
+    chkDisplayScoreNormalTrials.grid(row=6, column=0)
+
+    displayScorePracticeTrials = IntVar()
+    txt = "Punktestand über Kreis während Übungs-Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
+    chkDisplayScorePracticeTrials = Checkbutton(frameOptions, text=txt, variable=displayScorePracticeTrials)
+    chkDisplayScorePracticeTrials.grid(row=7, column=0)
+
+    framePracticePenalty = Frame(frameOptions)
+    framePracticePenalty.grid(row=8, column=0)
+    Label(framePracticePenalty, text="Tracking Penalty für Übungs-Trials \n(bei LoseAmount: 500)").grid(row=0, column=0)
+    practiceTrackingPenaltyOptions = [Penalty.NoPenalty, Penalty.LoseAll, Penalty.LoseHalf, Penalty.LoseAmount]
+    practiceTrackingPenalty = StringVar(framePracticePenalty)
+    practiceTrackingPenalty.set(practiceTrackingPenaltyOptions[0])  # default value
+    drpPracticeTrackingPenalty = OptionMenu(framePracticePenalty, practiceTrackingPenalty, *practiceTrackingPenaltyOptions)
+    drpPracticeTrackingPenalty.grid(row=0, column=1)
+
     ### Create three input forms for big, small and practice circles
     currentColumn = 0
     listBoxCirclesBig = Listbox()
@@ -1624,7 +1651,8 @@ def DrawGui():
                                      runPracticeTrials=runPracticeTrials,
                                      showPenaltyRewardNoise=showPenaltyRewardNoise:
                       ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
-                                         parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside))
+                                         parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside,
+                                         displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty))
     btnStart.grid(row=5, column=0)
 
     # Finally load settings from file if present
@@ -1652,6 +1680,14 @@ def DrawGui():
                 chkShowPenaltyRewardNoise.select()
             if key == "DisableTypingScoreOutside" and value == "1":
                 chkDisableTypingScoreOutside.select()
+            if key == "DisplayScoreNormalTrials" and value == "1":
+                chkDisplayScoreNormalTrials.select()
+            if key == "DisplayScorePracticeTrials" and value == "1":
+                chkDisplayScorePracticeTrials.select()
+            if key == "PracticeTrackingPenalty":
+                for listEntryPenalty in practiceTrackingPenaltyOptions:
+                    if str(listEntryPenalty) == value:
+                        practiceTrackingPenalty.set(listEntryPenalty)
     tkWindow.mainloop()
 
 
@@ -1722,11 +1758,18 @@ def LoadSettingsFromFile():
             settingsFile.Options[key] = line[1]
         if key == "DisableTypingScoreOutside":
             settingsFile.Options[key] = line[1]
+        if key == "DisplayScoreNormalTrials":
+            settingsFile.Options[key] = line[1]
+        if key == "DisplayScorePracticeTrials":
+            settingsFile.Options[key] = line[1]
+        if key == "PracticeTrackingPenalty":
+            settingsFile.Options[key] = line[1]
     return settingsFile
 
 
 def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
-                       parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside):
+                       parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside,
+                       displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty):
     linesSettingsFile = []
     # Write Blocks
     for listEntryText in listBoxBlocks.get(0, END):
@@ -1769,6 +1812,9 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     RuntimeVariables.RunPracticeTrials = True if runPracticeTrials.get() == 1 else False
     RuntimeVariables.ShowPenaltyRewardNoise = True if showPenaltyRewardNoise.get() == 1 else False
     RuntimeVariables.DisableCorrectTypingScoreOutsideCircle = True if disableTypingScoreOutside.get() == 1 else False
+    RuntimeVariables.DisplayScoreNormalTrials = True if displayScoreNormalTrials.get() == 1 else False
+    RuntimeVariables.DisplayScorePracticeTrials = True if displayScorePracticeTrials.get() == 1 else False
+    RuntimeVariables.PenaltyPracticeTrials = practiceTrackingPenalty.get()
 
     # Save Options to file
     linesSettingsFile.append(["ParallelDualTasks", parallelDualTasks.get()])
@@ -1776,6 +1822,9 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     linesSettingsFile.append(["RunPracticeTrials", runPracticeTrials.get()])
     linesSettingsFile.append(["ShowPenaltyRewardNoise", showPenaltyRewardNoise.get()])
     linesSettingsFile.append(["DisableTypingScoreOutside", disableTypingScoreOutside.get()])
+    linesSettingsFile.append(["DisplayScoreNormalTrials", displayScoreNormalTrials.get()])
+    linesSettingsFile.append(["DisplayScorePracticeTrials", displayScorePracticeTrials.get()])
+    linesSettingsFile.append(["PracticeTrackingPenalty", practiceTrackingPenalty.get()])
 
     WriteLinesToCzvFile(Constants.SettingsFilename, linesSettingsFile)
     RuntimeVariables.EnvironmentIsRunning = True

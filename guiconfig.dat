@@ -17,3 +17,7 @@ ParallelDualTasks;0
 DisplayTypingTaskWithinCursor;0
 RunPracticeTrials;1
 ShowPenaltyRewardNoise;1
+DisableTypingScoreOutside;0
+DisplayScoreNormalTrials;1
+DisplayScorePracticeTrials;1
+PracticeTrackingPenalty;Penalty.NoPenalty
