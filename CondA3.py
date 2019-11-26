@@ -555,7 +555,6 @@ def drawCircle(image, colour, radius, width=0):
 
 
 def drawCursor(sleepTime):
-    restSleepTime = 0
     x = RuntimeVariables.CursorCoordinates.X
     y = RuntimeVariables.CursorCoordinates.Y
     oldX = x
@@ -589,7 +588,7 @@ def drawCursor(sleepTime):
             x += delta_x
             y += delta_y
 
-            if (x, y) != RuntimeVariables.CursorCoordinates:
+            if x != RuntimeVariables.CursorCoordinates.X and y != RuntimeVariables.CursorCoordinates.Y:
                 # now check if the cursor is still within screen range
                 if x < (Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2):
                     x = Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2
@@ -601,13 +600,17 @@ def drawCursor(sleepTime):
                 elif y > (Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2):
                     y = Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2
 
-                drawTrackingWindow()
+                drawTrackingWindowAndCursor()
+                if RuntimeVariables.CurrentTaskType in [TaskTypes.DualTask, TaskTypes.PracticeDualTask] and RuntimeVariables.DisplayTypingTaskWithinCursor and RuntimeVariables.ParallelDualTasks:
+                    drawTypingTaskWithinCursor()
+
+            pygame.display.flip()
             time.sleep(Constants.StepSizeOfTrackingScreenUpdate)
 
         # see if there is additional time to sleep
         mods = sleepTime % Constants.StepSizeOfTrackingScreenUpdate
         if mods != 0:
-            restSleepTime = mods
+            time.sleep(mods)
 
     # if tracking window is not visible, just update the values
     else:
@@ -615,7 +618,7 @@ def drawCursor(sleepTime):
         y = final_y
 
         # now check if the cursor is still within screen range
-        if (x, y) != RuntimeVariables.CursorCoordinates:
+        if x != RuntimeVariables.CursorCoordinates.X and y != RuntimeVariables.CursorCoordinates.Y:
             if x < (Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2):
                 x = Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2
             elif x > (Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.TaskWindowSize.X - ExperimentSettings.CursorSize.X / 2):
@@ -626,7 +629,7 @@ def drawCursor(sleepTime):
             elif y > (Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2):
                 y = Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2
         # if display is not updated, sleep for entire time
-        restSleepTime = sleepTime
+        time.sleep(sleepTime)
 
     # always update coordinates
     RuntimeVariables.CursorCoordinates = Vector2D(x, y)
@@ -653,7 +656,6 @@ def drawCursor(sleepTime):
             UpdateTypingTaskString(reset=False)
 
     RuntimeVariables.WasCursorOutsideRadiusBefore = isCursorOutsideCircle()
-    return restSleepTime
 
 
 def isCursorOutsideCircle():
@@ -692,7 +694,7 @@ def drawCover(windowSide):
     # draw background
     bg = pygame.Surface((ExperimentSettings.TaskWindowSize.X, ExperimentSettings.TaskWindowSize.Y)).convert()
     bg.fill(ExperimentSettings.CoverColor)
-    RuntimeVariables.Screen.blit(bg, (location.X, location.Y))  # make area about 30 away from centre
+    RuntimeVariables.Screen.blit(bg, (location.X, location.Y))
 
 
 def openTypingWindow():
