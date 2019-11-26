@@ -1816,7 +1816,7 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     RuntimeVariables.DisableCorrectTypingScoreOutsideCircle = True if disableTypingScoreOutside.get() == 1 else False
     RuntimeVariables.DisplayScoreNormalTrials = True if displayScoreNormalTrials.get() == 1 else False
     RuntimeVariables.DisplayScorePracticeTrials = True if displayScorePracticeTrials.get() == 1 else False
-    RuntimeVariables.PenaltyPracticeTrials = practiceTrackingPenalty.get()
+    RuntimeVariables.PenaltyPracticeTrials = Penalty[practiceTrackingPenalty.get().replace("Penalty.", "")]
 
     # Save Options to file
     linesSettingsFile.append(["ParallelDualTasks", parallelDualTasks.get()])
