@@ -109,7 +109,8 @@ class RuntimeVariables:
     DictTrialListEntries = {}
     DigitPressTimes = []
     DisableCorrectTypingScoreOutsideCircle = False
-    DisplayLiveScorePracticeTrials = False
+    DisplayScoreForNormalTrials = False
+    DisplayScoreForPracticeTrials = False
     DisplayTypingTaskWithinCursor = False
     EnteredDigitsStr = ""
     EnvironmentIsRunning = False
@@ -822,8 +823,8 @@ def drawTrackingWindowAndCursor():
 
     # Show the number of points above the tracking circle
     scoreIsAllowedAtPenalty = RuntimeVariables.Penalty != Penalty.NoPenalty
-    displayForNormalTasks = RuntimeVariables.CurrentTaskType == TaskTypes.DualTask and RuntimeVariables.DisplayLiveScoreNormalTrials
-    displayForPracticeTasks = RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask and RuntimeVariables.DisplayLiveScorePracticeTrials
+    displayForNormalTasks = RuntimeVariables.CurrentTaskType == TaskTypes.DualTask and RuntimeVariables.DisplayScoreForNormalTrials
+    displayForPracticeTasks = RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask and RuntimeVariables.DisplayScoreForPracticeTrials
     if scoreIsAllowedAtPenalty and not RuntimeVariables.ParallelDualTasks and (displayForNormalTasks or displayForPracticeTasks):
         drawDualTaskScoreAboveCircle()
 
@@ -931,14 +932,14 @@ def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
         while (time.time() - RuntimeVariables.StartTimeCurrentTrial) < ExperimentSettings.MaxTrialTimeSingleTyping and RuntimeVariables.EnvironmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the tracking task and the typingTask and starts relevant display updates
             if RuntimeVariables.ParallelDualTasks:
-                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayLiveScorePracticeTrials):
+                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayScoreForPracticeTrials):
                     DisplayLiveFeedbackParallelDualTasks(TaskTypes.SingleTyping)
             pygame.display.flip()
             time.sleep(0.02)
 
         writeOutputDataFile("trialEnd", "-", endOfTrial=True)
 
-        if not isPracticeTrial:
+        if not isPracticeTrial and RuntimeVariables.DisplayScoreForNormalTrials:
             if RuntimeVariables.ParallelDualTasks:
                 if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
                     DisplayFeedbackParallelDualTasks()
@@ -1016,7 +1017,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
 
             if RuntimeVariables.ParallelDualTasks:
-                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayLiveScorePracticeTrials):
+                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayScoreForPracticeTrials):
                     DisplayLiveFeedbackParallelDualTasks(TaskTypes.SingleTracking)
 
             if RuntimeVariables.TrackingTaskPresent and RuntimeVariables.TrackingWindowVisible:
@@ -1026,7 +1027,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
 
         writeOutputDataFile("trialEnd", "-", endOfTrial=True)
 
-        if not isPracticeTrial:
+        if not isPracticeTrial and RuntimeVariables.DisplayScoreForNormalTrials:
             if RuntimeVariables.ParallelDualTasks:
                 if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
                     DisplayFeedbackParallelDualTasks()
@@ -1145,7 +1146,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
             if RuntimeVariables.ParallelDualTasks and RuntimeVariables.TypingTaskPresent and RuntimeVariables.TypingWindowVisible and not RuntimeVariables.DisplayTypingTaskWithinCursor:
                 drawTypingWindow()
             if RuntimeVariables.ParallelDualTasks:
-                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayLiveScorePracticeTrials):
+                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayScoreForPracticeTrials):
                     DisplayLiveFeedbackParallelDualTasks(TaskTypes.DualTask)
             drawCursor(0.02)  # also draws tracking window and typing task in cursor
 
@@ -1173,7 +1174,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
 
         writeOutputDataFile("trialEnd", "-", endOfTrial=True)
 
-        if not isPracticeTrial:
+        if not isPracticeTrial and RuntimeVariables.DisplayScoreForNormalTrials:
             if RuntimeVariables.ParallelDualTasks:
                 if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
                     DisplayFeedbackParallelDualTasks()
@@ -1355,7 +1356,7 @@ def StartExperiment():
                 DisplayMessage(message, 12)
                 runDualTaskTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
 
-        if wasDualTaskInCondition and not RuntimeVariables.ParallelDualTasks:
+        if wasDualTaskInCondition and not RuntimeVariables.ParallelDualTasks and RuntimeVariables.DisplayScoreForNormalTrials:
             DisplayMessage("Bisher hast du: " + str(scipy.sum(RuntimeVariables.DualTaskScoreOverAllConditions)) + " Punkte", 8)
 
     DisplayMessage("Dies ist das Ende der Studie.", 10)
@@ -1679,12 +1680,12 @@ def DrawGui():
     chkDisableTypingScoreOutside.grid(row=3, column=0)
 
     displayScoreNormalTrials = IntVar()
-    txt = "Punktestand live während normalen Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
+    txt = "Punktestand bei normalen Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
     chkDisplayScoreNormalTrials = Checkbutton(frameOptions, text=txt, variable=displayScoreNormalTrials)
     chkDisplayScoreNormalTrials.grid(row=4, column=0)
 
     displayScorePracticeTrials = IntVar()
-    txt = "Punktestand live während Übungs-Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
+    txt = "Punktestand bei Übungs-Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
     chkDisplayScorePracticeTrials = Checkbutton(frameOptions, text=txt, variable=displayScorePracticeTrials)
     chkDisplayScorePracticeTrials.grid(row=5, column=0)
 
@@ -1812,9 +1813,9 @@ def DrawGui():
                 chkShowPenaltyRewardNoise.select()
             if key == "DisableTypingScoreOutside" and value == "1":
                 chkDisableTypingScoreOutside.select()
-            if key == "DisplayLiveScoreNormalTrials" and value == "1":
+            if key == "DisplayScoreForNormalTrials" and value == "1":
                 chkDisplayScoreNormalTrials.select()
-            if key == "DisplayLiveScorePracticeTrials" and value == "1":
+            if key == "DisplayScoreForPracticeTrials" and value == "1":
                 chkDisplayScorePracticeTrials.select()
             if key == "PracticeTrackingPenalty":
                 for listEntryPenalty in practiceTrackingPenaltyOptions:
@@ -1896,9 +1897,9 @@ def LoadSettingsFromFile():
             settingsFile.Options[key] = line[1]
         if key == "DisableTypingScoreOutside":
             settingsFile.Options[key] = line[1]
-        if key == "DisplayLiveScoreNormalTrials":
+        if key == "DisplayScoreForNormalTrials":
             settingsFile.Options[key] = line[1]
-        if key == "DisplayLiveScorePracticeTrials":
+        if key == "DisplayScoreForPracticeTrials":
             settingsFile.Options[key] = line[1]
         if key == "PracticeTrackingPenalty":
             settingsFile.Options[key] = line[1]
@@ -1964,8 +1965,8 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     RuntimeVariables.RunPracticeTrials = True if runPracticeTrials.get() == 1 else False
     RuntimeVariables.ShowPenaltyRewardNoise = True if showPenaltyRewardNoise.get() == 1 else False
     RuntimeVariables.DisableCorrectTypingScoreOutsideCircle = True if disableTypingScoreOutside.get() == 1 else False
-    RuntimeVariables.DisplayLiveScoreNormalTrials = True if displayScoreNormalTrials.get() == 1 else False
-    RuntimeVariables.DisplayLiveScorePracticeTrials = True if displayScorePracticeTrials.get() == 1 else False
+    RuntimeVariables.DisplayScoreForNormalTrials = True if displayScoreNormalTrials.get() == 1 else False
+    RuntimeVariables.DisplayScoreForPracticeTrials = True if displayScorePracticeTrials.get() == 1 else False
     RuntimeVariables.PenaltyPracticeTrials = Penalty[practiceTrackingPenalty.get().replace("Penalty.", "")]
     feedbackMode = FeedbackMode[parallelFeedback.get().replace("FeedbackMode.", "")]
 
@@ -1986,8 +1987,8 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     linesSettingsFile.append(["RunPracticeTrials", runPracticeTrials.get()])
     linesSettingsFile.append(["ShowPenaltyRewardNoise", showPenaltyRewardNoise.get()])
     linesSettingsFile.append(["DisableTypingScoreOutside", disableTypingScoreOutside.get()])
-    linesSettingsFile.append(["DisplayLiveScoreNormalTrials", displayScoreNormalTrials.get()])
-    linesSettingsFile.append(["DisplayLiveScorePracticeTrials", displayScorePracticeTrials.get()])
+    linesSettingsFile.append(["DisplayScoreForNormalTrials", displayScoreNormalTrials.get()])
+    linesSettingsFile.append(["DisplayScoreForPracticeTrials", displayScorePracticeTrials.get()])
     linesSettingsFile.append(["PracticeTrackingPenalty", practiceTrackingPenalty.get()])
     linesSettingsFile.append(["ParallelFeedback", parallelFeedback.get()])
     linesSettingsFile.append(["FeedbackInterval", interval])
