@@ -15,10 +15,141 @@ import traceback
 from enum import Enum
 from os import path
 from tkinter import *
-
 import pygame
 import scipy
 import scipy.special
+
+
+class Vector2D:
+    """
+    Used to represent coordinates or measures with x and y.
+    Do not modify anything here!
+    """
+    X = 0
+    Y = 0
+
+    def __init__(self, x, y):
+        self.X = x
+        self.Y = y
+
+
+class ExperimentSettings:
+    """
+    These settings can be modified by the Experiment supervisor
+    """
+    CircleBorderThickness = 5
+    SingleTypingTaskNumbers = "123"
+    SingleTypingTaskNumbersLength = 27
+
+    MaxTrialTimeDual = 90  # maximum time for dual-task trials
+    MaxTrialTimeSingleTracking = 10  # maximum time for single-task tracking
+    MaxTrialTimeSingleTyping = 20  # maximum time for single-task typing
+
+    TaskWindowSize = Vector2D(550, 550)
+    SpaceBetweenWindows = 128
+
+    # Settings used for displaying Typing Task within Cursor
+    GeneralFontSize = 30
+    FontSizeTypingTaskNumberSingleTask = 30
+    FontSizeTypingTaskNumberWithinCursor = 30
+    FontColorTypingTaskNumberWithinCursor = (255, 255, 255)
+    CursorSize = Vector2D(20, 20)
+    CursorColorInside = (255, 0, 0)  # red
+    CursorColorOutside = (0, 0, 255)  # blue
+
+    # General settings
+    CursorNoises = {"high": 5, "medium": 4, "low": 3}  # This is the speed of the cursor movement (standard deviation of noise)
+    TimeFeedbackIsDisplayed = 4
+    BackgroundColorTaskWindows = (255, 255, 255)  # white
+    BackgroundColorEntireScreen = (50, 50, 50)  # gray
+    CoverColor = (200, 200, 200)  # very light gray
+
+    # Practice trials settings
+    CursorNoisePracticeTrials = CursorNoises["high"]
+
+    # Debug mode will speed up the messages and the trials for debugging. Should be set to False for normal use.
+    DebugMode = False
+
+
+class Constants:
+    Title = "Multitasking 3.0"
+    ExperimentWindowSize = Vector2D(1280, 1024)
+    OffsetTop = 50
+    OffsetTaskWindowsTop = 50  # is overwritten for parallel dual task mode
+    OffsetLeftRight = int((ExperimentWindowSize.X - ExperimentSettings.SpaceBetweenWindows - 2 * ExperimentSettings.TaskWindowSize.X) / 2)
+    TopLeftCornerOfTypingTaskWindow = Vector2D(OffsetLeftRight, OffsetTaskWindowsTop)
+    TopLeftCornerOfTrackingTaskWindow = Vector2D(OffsetLeftRight + ExperimentSettings.TaskWindowSize.X + ExperimentSettings.SpaceBetweenWindows, OffsetTaskWindowsTop)
+    TrackingWindowMiddleX = TopLeftCornerOfTrackingTaskWindow.X + int(ExperimentSettings.TaskWindowSize.X / 2.0)
+    TrackingWindowMiddleY = TopLeftCornerOfTrackingTaskWindow.Y + int(ExperimentSettings.TaskWindowSize.Y / 2.0)
+    ScalingJoystickAxis = 5  # how many pixels the cursor moves when joystick is at full angle (value of 1 or -1).
+    StepSizeOfTrackingScreenUpdate = 0.005  # how many seconds does it take for a screen update
+    SettingsFilename = "guiconfig.dat"
+
+
+class RuntimeVariables:
+    """
+    These variables are managed by the program itself.
+    Do not modify anything here!
+    """
+    BlockNumber = 0
+    CirclesSmall = []
+    CirclesBig = []
+    CirclesPractice = []
+    CumulatedTrackingScoreForParallelDualTasks = 0
+    CurrentCircles = []  # is set for each condition
+    CurrentTypingTaskNumbers = ""
+    CurrentTypingTaskNumbersLength = 1
+    CurrentTaskType = None
+    CurrentCursorColor = ExperimentSettings.CursorColorInside
+    CombinedFeedback = False
+    CorrectlyTypedDigitsVisit = 0
+    CurrentCondition = ""
+    CursorCoordinates = Vector2D(Constants.TrackingWindowMiddleX, Constants.TrackingWindowMiddleY)
+    CursorDistancesToMiddle = []
+    DictTrialListEntries = {}
+    DigitPressTimes = []
+    DisableCorrectTypingScoreOutsideCircle = False
+    DisplayLiveScorePracticeTrials = False
+    DisplayTypingTaskWithinCursor = False
+    EnteredDigitsStr = ""
+    EnvironmentIsRunning = False
+    FeedbackMode = None
+    IncorrectlyTypedDigitsTrial = 0
+    IncorrectlyTypedDigitsVisit = 0
+    JoystickAxis = Vector2D(0, 0)  # the motion of the joystick
+    JoystickObject = None
+    LengthOfPathTracked = 0
+    NumberOfCircleExits = 0
+    OutputDataFile = None
+    OutputDataFileTrialEnd = None
+    ParallelDualTasks = False
+    Penalty = None
+    PenaltyPracticeTrials = None
+    PenaltyAmount = 0
+    RunningOrder = []
+    RunPracticeTrials = True
+    ShowPenaltyRewardNoise = True
+    IntervalForFeedbackAfterTrials = None
+    DualTaskScoreOverAllConditions = []
+    Screen = None
+    StandardDeviationOfNoise = None
+    StartTimeCurrentTrial = time.time()
+    StartTimeOfFirstExperiment = time.time()
+    ParticipantNumber = "0"
+    TrackingTaskPresent = False
+    TrackingWindowEntryCounter = 0
+    TrackingWindowVisible = False
+    TrialNumber = 0
+    TrialScore = 0
+    TypingPenaltyIncorrectDigit = 5
+    TypingRewardCorrectDigit = 0
+    TypingTaskPresent = False
+    TypingWindowEntryCounter = 0
+    TypingWindowVisible = False
+    VisitEndTime = 0
+    VisitScore = 0
+    VisitStartTime = 0
+    WasCursorOutsideRadiusBefore = False
 
 
 class TaskTypes(Enum):
@@ -75,140 +206,156 @@ class Circle:
         self.BorderColor = borderColor
 
 
-class Vector2D:
+def CalculateFeedbackParallelDualTasks():
+    factorTyping = 1.0
+    typingScore = factorTyping * RuntimeVariables.CorrectlyTypedDigitsVisit  # One Visit equals one Trial in parallel dual tasks
+    typingScore = int(typingScore)  # cut all decimal places
+
+    factorTracking = 1.0
+    trackingScore = calculateRmse()
+    if trackingScore > 0:  # avoid division by zero!
+        trackingScore = factorTracking * (1.0 / trackingScore)  # Invert RMSE as a higher score should be better.
+
+    # For live feedback, the tracking score must increase over time. To be compareable, it should be calculated the same way for non-live feedback.
+    RuntimeVariables.CumulatedTrackingScoreForParallelDualTasks += trackingScore
+    cumulatedTrackingScore = int(RuntimeVariables.CumulatedTrackingScoreForParallelDualTasks)
+
+    combinedScore = (typingScore + RuntimeVariables.CumulatedTrackingScoreForParallelDualTasks) / 2.0
+    combinedScore = int(combinedScore)  # cut all decimal places
+
+    return typingScore, cumulatedTrackingScore, combinedScore  # return a three-tuple with all feedback
+
+
+def DisplayLiveFeedbackParallelDualTasks(taskType: TaskTypes):
+    scores = CalculateFeedbackParallelDualTasks()
+    typingScore = scores[0]
+    trackingScore = scores[1]
+    combinedScore = scores[2]
+    boxWidth = 200
+    boxHeight = 50
+    offsetLeft = 0
+    text = ""
+    if taskType == TaskTypes.SingleTyping:
+        text = f"Punkte: {typingScore}"
+        offsetLeft = ((Constants.TopLeftCornerOfTypingTaskWindow.X + ExperimentSettings.TaskWindowSize.X) / 2) - (boxWidth / 2)
+    elif taskType == TaskTypes.SingleTracking:
+        text = f"Punkte: {trackingScore}"
+        offsetLeft = ((Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.TaskWindowSize.X) / 2) - (boxWidth / 2)
+    elif taskType == TaskTypes.DualTask and RuntimeVariables.CombinedFeedback:
+        offsetLeft = (Constants.ExperimentWindowSize.X / 2) - (boxWidth / 2)
+        text = f"Punkte: {combinedScore}"
+    elif taskType == TaskTypes.DualTask and not RuntimeVariables.CombinedFeedback and RuntimeVariables.DisplayTypingTaskWithinCursor:
+        offsetLeft = (Constants.ExperimentWindowSize.X / 2) - (boxWidth / 2)
+        boxWidth += 100
+        boxHeight += 10
+        text = f"Punkte Tippen: {typingScore}\nPunkte Tracking: {trackingScore}"
+    elif taskType == TaskTypes.DualTask and not RuntimeVariables.CombinedFeedback:
+        boxWidth += 100
+        text = [f"Punkte Tippen: {typingScore}", f"Punkte Tracking: {trackingScore}"]
+
+    top = Constants.OffsetTaskWindowsTop - boxHeight - 10
+    if not taskType == TaskTypes.DualTask or RuntimeVariables.CombinedFeedback or RuntimeVariables.DisplayTypingTaskWithinCursor:
+        bg = pygame.Surface((boxWidth, boxHeight)).convert()
+        bg.fill(ExperimentSettings.BackgroundColorTaskWindows)
+        RuntimeVariables.Screen.blit(bg, (offsetLeft, top))
+        printTextOverMultipleLines(text, Vector2D(offsetLeft + 10, top + 10))
+    elif taskType == TaskTypes.DualTask and not RuntimeVariables.CombinedFeedback:
+        # draw typing feedback box
+        offsetLeft = ((Constants.TopLeftCornerOfTypingTaskWindow.X + ExperimentSettings.TaskWindowSize.X) / 2) - (boxWidth / 2)
+        bg = pygame.Surface((boxWidth, boxHeight)).convert()
+        bg.fill(ExperimentSettings.BackgroundColorTaskWindows)
+        RuntimeVariables.Screen.blit(bg, (offsetLeft, top))
+        printTextOverMultipleLines(text[0], Vector2D(offsetLeft + 10, top + 10))
+        # draw tracking feedback box
+        offsetLeft = Constants.TopLeftCornerOfTrackingTaskWindow.X + (ExperimentSettings.TaskWindowSize.X / 2) - (boxWidth / 2)
+        bg = pygame.Surface((boxWidth, boxHeight)).convert()
+        bg.fill(ExperimentSettings.BackgroundColorTaskWindows)
+        RuntimeVariables.Screen.blit(bg, (offsetLeft, top))
+        printTextOverMultipleLines(text[1], Vector2D(offsetLeft + 10, top + 10))
+    else:
+        raise Exception("Unknown parallel dual task live feedback mode")
+
+
+def DisplayFeedbackParallelDualTasks():
     """
-    Used to represent coordinates or measures with x and y.
-    Do not modify anything here!
+    When parallel dual tasks are activated:
+    Displays feedback for dual tasks, and single tasks at the end of a trial
     """
-    X = 0
-    Y = 0
+    if not RuntimeVariables.ParallelDualTasks:
+        raise Exception("Should not display scores for parallel dual task experiments in switching dual task setup")
+    scores = CalculateFeedbackParallelDualTasks()
+    typingScore = scores[0]
+    trackingScore = scores[1]
+    combinedScore = scores[2]
+    message = ""
+    scoreForLogging = ""
+    # For combined feedback ...
+    if RuntimeVariables.CurrentTaskType == TaskTypes.DualTask:
+        RuntimeVariables.DualTaskScoreOverAllConditions.append(combinedScore)  # store dual task score, it will be displayed at the end of each block
+        if RuntimeVariables.CombinedFeedback:
+            message = f"Punktestand: {combinedScore}"
+            scoreForLogging = str(combinedScore)
+        # For separate feedback ...
+        else:
+            message = f"Punktestand:\n\nTippen: {typingScore}          Tracking: {trackingScore}"
+            scoreForLogging = f"{typingScore}, {trackingScore}"
+    elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTyping:
+        message = f"Punktestand:\n\nTippen: {typingScore}"
+        scoreForLogging = f"{typingScore}"
+    elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTracking:
+        message = f"Punktestand:\n\nTracking: {trackingScore}"
+        scoreForLogging = f"{trackingScore}"
+    DisplayMessageAfterTrial(message)
+    writeOutputDataFile("scoreDisplayed", scoreForLogging)
+    time.sleep(ExperimentSettings.TimeFeedbackIsDisplayed)
 
-    def __init__(self, x, y):
-        self.X = x
-        self.Y = y
+
+def DisplayFeedbackSwitchingDualTask():
+    """Displays feedback message after trial. Only used for switching dual task."""
+    if RuntimeVariables.ParallelDualTasks:
+        raise Exception("Should not display scores for switching dual task experiments in parallel dual task setup")
+    scoreForLogging = "-"  # score that's logged
+
+    if RuntimeVariables.CurrentTaskType == TaskTypes.DualTask:
+        feedbackScore = RuntimeVariables.TrialScore
+        if RuntimeVariables.TrialScore > 0:
+            feedbackText = "+" + str(feedbackScore) + " Punkte"
+        else:
+            feedbackText = str(feedbackScore) + " Punkte"
+
+        RuntimeVariables.DualTaskScoreOverAllConditions.append(RuntimeVariables.TrialScore)  # store dual task score, it will be displayed at the end of each block
+        scoreForLogging = RuntimeVariables.TrialScore
+        DisplayMessageAfterTrial(feedbackText)
+
+    elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTyping:
+        feedbackText = "Anzahl Fehler: \n"
+        digitScore = RuntimeVariables.DigitPressTimes[-1] - RuntimeVariables.DigitPressTimes[0]
+        digitScore = scipy.special.round(digitScore * 10) / 10  # round values
+        feedbackText += "\n\n" + str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + " Fehler"
+        scoreForLogging = digitScore
+        DisplayMessageAfterTrial(feedbackText)
+
+    writeOutputDataFile("scoreDisplayed", str(scoreForLogging))
+    time.sleep(ExperimentSettings.TimeFeedbackIsDisplayed)
 
 
-class ExperimentSettings:
+def DisplayMessageAfterTrial(feedbackText):
+    completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
+    completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
+    RuntimeVariables.Screen.blit(completebg, (0, 0))
+    messageAreaObject = pygame.Surface((Constants.ExperimentWindowSize.X - 100, Constants.ExperimentWindowSize.Y - 100)).convert()
+    messageAreaObject.fill((255, 255, 255))
+    topCornerOfMessageArea = Vector2D(Constants.OffsetLeftRight, Constants.OffsetTop)
+    RuntimeVariables.Screen.blit(messageAreaObject, (topCornerOfMessageArea.X, topCornerOfMessageArea.Y))
+    printTextOverMultipleLines(feedbackText, Vector2D(topCornerOfMessageArea.X + Constants.OffsetLeftRight, topCornerOfMessageArea.Y + Constants.OffsetTop))
+    pygame.display.flip()
+
+
+def calculateRmse():
     """
-    These settings can be modified by the Experiment supervisor
-    """
-    CircleBorderThickness = 5
-    SingleTypingTaskNumbers = "123"
-    SingleTypingTaskNumbersLength = 27
-
-    MaxTrialTimeDual = 90  # maximum time for dual-task trials
-    MaxTrialTimeSingleTracking = 10  # maximum time for single-task tracking
-    MaxTrialTimeSingleTyping = 20  # maximum time for single-task typing
-
-    TaskWindowSize = Vector2D(550, 550)
-    SpaceBetweenWindows = 128
-
-    # Settings used for displaying Typing Task within Cursor
-    GeneralFontSize = 30
-    FontSizeTypingTaskNumberSingleTask = 30
-    FontSizeTypingTaskNumberWithinCursor = 30
-    FontColorTypingTaskNumberWithinCursor = (255, 255, 255)
-    CursorSize = Vector2D(20, 20)
-    CursorColorInside = (255, 0, 0)  # red
-    CursorColorOutside = (0, 0, 255)  # blue
-
-    # General settings
-    CursorNoises = {"high": 5, "medium": 4, "low": 3}  # This is the speed of the cursor movement (standard deviation of noise)
-    TimeFeedbackIsGiven = 4
-    TimeFeedbackIsShown = 4
-    BackgroundColorTaskWindows = (255, 255, 255)  # white
-    BackgroundColorEntireScreen = (50, 50, 50)  # gray
-    CoverColor = (200, 200, 200)  # very light gray
-
-    # Practice trials settings
-    CursorNoisePracticeTrials = CursorNoises["high"]
-
-    # Debug mode will speed up the messages and the trials for debugging. Should be set to False for normal use.
-    DebugMode = False
-
-
-class Constants:
-    Title = "Multitasking 3.0"
-    ExperimentWindowSize = Vector2D(1280, 1024)
-    OffsetLeftRight = int((ExperimentWindowSize.X - ExperimentSettings.SpaceBetweenWindows - 2 * ExperimentSettings.TaskWindowSize.X) / 2)
-    TopLeftCornerOfTypingTaskWindow = Vector2D(OffsetLeftRight, 50)
-    TopLeftCornerOfTrackingTaskWindow = Vector2D(OffsetLeftRight + ExperimentSettings.TaskWindowSize.X + ExperimentSettings.SpaceBetweenWindows, 50)
-    TrackingWindowMiddleX = TopLeftCornerOfTrackingTaskWindow.X + int(ExperimentSettings.TaskWindowSize.X / 2.0)
-    TrackingWindowMiddleY = TopLeftCornerOfTrackingTaskWindow.Y + int(ExperimentSettings.TaskWindowSize.Y / 2.0)
-    ScalingJoystickAxis = 5  # how many pixels the cursor moves when joystick is at full angle (value of 1 or -1).
-    StepSizeOfTrackingScreenUpdate = 0.005  # how many seconds does it take for a screen update
-    SettingsFilename = "guiconfig.dat"
-
-
-class RuntimeVariables:
-    """
-    These variables are managed by the program itself.
-    Do not modify anything here!
-    """
-    BlockNumber = 0
-    CirclesSmall = []
-    CirclesBig = []
-    CirclesPractice = []
-    CurrentCircles = []  # is set for each condition
-    CurrentTypingTaskNumbers = ""
-    CurrentTypingTaskNumbersLength = 1
-    CurrentTaskType = None
-    CurrentCursorColor = ExperimentSettings.CursorColorInside
-    CorrectlyTypedDigitsVisit = 0
-    CurrentCondition = ""
-    CursorCoordinates = Vector2D(Constants.TrackingWindowMiddleX, Constants.TrackingWindowMiddleY)
-    CursorDistancesToMiddle = []
-    DictTrialListEntries = {}
-    DigitPressTimes = []
-    DisableCorrectTypingScoreOutsideCircle = False
-    DisplayScoreNormalTrials = False
-    DisplayScorePracticeTrials = False
-    DisplayTypingTaskWithinCursor = False
-    EnteredDigitsStr = ""
-    EnvironmentIsRunning = False
-    IncorrectlyTypedDigitsTrial = 0
-    IncorrectlyTypedDigitsVisit = 0
-    JoystickAxis = Vector2D(0, 0)  # the motion of the joystick
-    JoystickObject = None
-    LengthOfPathTracked = 0
-    NumberOfCircleExits = 0
-    OutputDataFile = None
-    OutputDataFileTrialEnd = None
-    ParallelDualTasks = False
-    Penalty = None
-    PenaltyPracticeTrials = None
-    PenaltyAmount = 0
-    RunningOrder = []
-    RunPracticeTrials = True
-    ShowPenaltyRewardNoise = True
-    ScoresForPayment = []
-    Screen = None
-    StandardDeviationOfNoise = None
-    StartTimeCurrentTrial = time.time()
-    StartTimeOfFirstExperiment = time.time()
-    ParticipantNumber = "0"
-    TrackingTaskPresent = False
-    TrackingWindowEntryCounter = 0
-    TrackingWindowVisible = False
-    TrialNumber = 0
-    TrialScore = 0
-    TypingPenaltyIncorrectDigit = 5
-    TypingRewardCorrectDigit = 0
-    TypingTaskPresent = False
-    TypingWindowEntryCounter = 0
-    TypingWindowVisible = False
-    VisitEndTime = 0
-    VisitScore = 0
-    VisitStartTime = 0
-    WasCursorOutsideRadiusBefore = False
-
-
-def calculateRmse(clearDistances):
-    """
+    The RMSE is calculated from all collected distances in this trial.
     The distances are collected each time the cursor changes its position.
-    The distances are collected until the RMSE is calculated.
     The RMSE is calculated every time the data file is written.
-    The distances are cleared if the parameter is set to True
     """
     n = len(RuntimeVariables.CursorDistancesToMiddle)
     if n == 0:
@@ -216,11 +363,8 @@ def calculateRmse(clearDistances):
     square = 0
 
     # Calculate square
-    for i in range(0, n):
-        square += (RuntimeVariables.CursorDistancesToMiddle[i] ** 2)
-
-    if clearDistances:
-        RuntimeVariables.CursorDistancesToMiddle = []
+    for val in RuntimeVariables.CursorDistancesToMiddle:
+        square += val * val
 
     # Calculate Mean
     mean = (square / float(n))
@@ -334,25 +478,25 @@ def switchWindows(taskToOpen):
                 closeTrackingWindow()
 
 
-def printTextOverMultipleLines(text, location):
+def printTextOverMultipleLines(text, location: Vector2D):
     fontsize = ExperimentSettings.GeneralFontSize
     color = (0, 0, 0)
     pygame.event.pump()
     splittedText = text.split("\n")
     lineDistance = (pygame.font.Font(None, fontsize)).get_linesize()
-    PositionX = location[0]
-    PositionY = location[1]
+    PositionX = location.X
+    PositionY = location.Y
 
     for lines in splittedText:
         f = pygame.font.Font(None, fontsize)
-        feedbackmessage = f.render(lines, True, color)
-        RuntimeVariables.Screen.blit(feedbackmessage, (PositionX, PositionY))
+        msg = f.render(lines, True, color)
+        RuntimeVariables.Screen.blit(msg, (PositionX, PositionY))
         PositionY = PositionY + lineDistance
 
 
 def CountdownMessage(displayTime):
     if ExperimentSettings.DebugMode:  # change some settings to facilitate debugging
-        return
+        displayTime = 1
     for i in range(0, displayTime):
         # prepare background
         completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
@@ -369,7 +513,7 @@ def CountdownMessage(displayTime):
                   "            " + str(displayTime - i)
 
         pygame.display.flip()
-        printTextOverMultipleLines(message, (topCornerOfMessageArea.X + 45, topCornerOfMessageArea.Y + 10))
+        printTextOverMultipleLines(message, Vector2D(topCornerOfMessageArea.X + 45, topCornerOfMessageArea.Y + 10))
         pygame.display.flip()
         time.sleep(1)
 
@@ -377,107 +521,30 @@ def CountdownMessage(displayTime):
 def DisplayMessage(message, displayTime):
     if ExperimentSettings.DebugMode:  # change some settings to facilitate debugging
         displayTime = 1
-    # prepare background
     completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
     completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
     RuntimeVariables.Screen.blit(completebg, (0, 0))
     messageAreaObject = pygame.Surface((Constants.ExperimentWindowSize.X - 100, Constants.ExperimentWindowSize.Y - 100)).convert()
     messageAreaObject.fill((255, 255, 255))
-    topCornerOfMessageArea = Vector2D(50, 50)
-    RuntimeVariables.Screen.blit(messageAreaObject, (topCornerOfMessageArea.X, topCornerOfMessageArea.Y))  # make area 50 pixels away from edges
-    location = Vector2D(topCornerOfMessageArea.X + 75, topCornerOfMessageArea.Y + 75)
-    printTextOverMultipleLines(message, (location.X, location.Y))
+    topCornerOfMessageArea = Vector2D(Constants.OffsetLeftRight, Constants.OffsetTop)
+    RuntimeVariables.Screen.blit(messageAreaObject, (topCornerOfMessageArea.X, topCornerOfMessageArea.Y))
+    location = Vector2D(topCornerOfMessageArea.X + Constants.OffsetLeftRight + 25, topCornerOfMessageArea.Y + Constants.OffsetTop + 25)
+    printTextOverMultipleLines(message, Vector2D(location.X, location.Y))
     pygame.display.flip()
     time.sleep(displayTime)
 
 
 def drawCanvas():
-    # prepare background
     completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
     completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
     RuntimeVariables.Screen.blit(completebg, (0, 0))
     messageAreaObject = pygame.Surface((Constants.ExperimentWindowSize.X - 100, Constants.ExperimentWindowSize.Y - 100)).convert()
     messageAreaObject.fill((255, 255, 255))
-    topCornerOfMessageArea = Vector2D(50, 50)
-    RuntimeVariables.Screen.blit(messageAreaObject, (topCornerOfMessageArea.X, topCornerOfMessageArea.Y))  # make area 50 pixels away from edges
+    topCornerOfMessageArea = Vector2D(Constants.OffsetLeftRight, Constants.OffsetTop)
+    RuntimeVariables.Screen.blit(messageAreaObject, (topCornerOfMessageArea.X, topCornerOfMessageArea.Y))
     buttonAreaObject = pygame.Surface((Constants.ExperimentWindowSize.X - 300, Constants.ExperimentWindowSize.Y - 300)).convert()
     buttonAreaObject.fill((150, 150, 150))
-    RuntimeVariables.Screen.blit(buttonAreaObject, (150, 150))  # make area 50 pixels away from edges
-
-
-def reportUserScore():
-    # prepare background
-    completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
-    completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
-    RuntimeVariables.Screen.blit(completebg, (0, 0))
-
-    messageAreaObject = pygame.Surface((Constants.ExperimentWindowSize.X - 100, Constants.ExperimentWindowSize.Y - 100)).convert()
-    messageAreaObject.fill((255, 255, 255))
-
-    topCornerOfMessageArea = Vector2D(50, 50)
-    RuntimeVariables.Screen.blit(messageAreaObject, (topCornerOfMessageArea.X, topCornerOfMessageArea.Y))  # make area 50 pixels away from edges
-
-    feedbackText = ""
-    scoreForLogging = "-"  # score that's logged
-    scoresOnThisBlock = []  # stores the scores on the current block. Can be used to report performance each 5th trial
-
-    if RuntimeVariables.CurrentTaskType == TaskTypes.DualTask:
-        feedbackScore = RuntimeVariables.TrialScore
-        if RuntimeVariables.TrialScore > 0:
-            feedbackText = "+" + str(feedbackScore) + " Punkte"
-        else:
-            feedbackText = str(feedbackScore) + " Punkte"
-
-        RuntimeVariables.ScoresForPayment.append(RuntimeVariables.TrialScore)
-        scoresOnThisBlock.append(RuntimeVariables.TrialScore)  # store score, so average performance can be reported
-        scoreForLogging = RuntimeVariables.TrialScore
-
-    elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTyping:
-        feedbackText = "Anzahl Fehler: \n"
-        if RuntimeVariables.TypingTaskPresent:
-            digitScore = RuntimeVariables.DigitPressTimes[-1] - RuntimeVariables.DigitPressTimes[0]
-            # round values
-            digitScore = scipy.special.round(digitScore * 10) / 10
-            feedbackText += "\n\n" + str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + " Fehler"
-            scoresOnThisBlock.append(RuntimeVariables.IncorrectlyTypedDigitsTrial)
-            scoreForLogging = digitScore
-
-    if feedbackText != "":
-        location = Vector2D(topCornerOfMessageArea.X + 50, topCornerOfMessageArea.Y + 50)
-        printTextOverMultipleLines(feedbackText, (location.X, location.Y))
-
-    pygame.display.flip()
-    writeOutputDataFile("scoreGiven", str(scoreForLogging))
-    time.sleep(ExperimentSettings.TimeFeedbackIsGiven)
-
-    if len(scoresOnThisBlock) % 5 == 0:  # every fifth trial, report mean score
-        # prepare background
-        completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
-        completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
-        RuntimeVariables.Screen.blit(completebg, (0, 0))
-        messageAreaObject = pygame.Surface((Constants.ExperimentWindowSize.X - 100, Constants.ExperimentWindowSize.Y - 100)).convert()
-        messageAreaObject.fill((255, 255, 255))
-        topCornerOfMessageArea = Vector2D(50, 50)
-        RuntimeVariables.Screen.blit(messageAreaObject, (topCornerOfMessageArea.X, topCornerOfMessageArea.Y))  # make area 50 pixels away from edges
-
-        feedbackText2 = "Deine durchschnittliche Punktzahl der letzten 4 Durchgänge:\n\n"
-        meanscore = scipy.special.round(scipy.mean(scoresOnThisBlock[-2:]) * 100) / 100  # report meanscore
-        feedbackText2 = feedbackText2 + str(meanscore)
-
-        if RuntimeVariables.CurrentTaskType == TaskTypes.SingleTracking:
-            feedbackText2 = feedbackText2 + " pixels"
-        elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTyping:
-            feedbackText2 = feedbackText2 + " errors"
-        elif RuntimeVariables.CurrentTaskType == TaskTypes.DualTask:
-            feedbackText2 = "Block " + str(int(len(scoresOnThisBlock) / 3)) + " von 6 vollständig. Deine durchschnittliche Leistung der letzten 4 Durchgänge:\n\n" + str(meanscore) + " points"
-
-        location = Vector2D(topCornerOfMessageArea.X + 50, topCornerOfMessageArea.Y + 50)
-
-        printTextOverMultipleLines(feedbackText2, (location.X, location.Y))
-        pygame.display.flip()
-
-        writeOutputDataFile("avscoreGiven", str(meanscore))
-        time.sleep(20)
+    RuntimeVariables.Screen.blit(buttonAreaObject, (150, 150))
 
 
 def UpdateTypingTaskString(reset=False):
@@ -706,24 +773,6 @@ def openTypingWindow():
     RuntimeVariables.TypingWindowVisible = True
 
 
-def drawTypingWindow():
-    # draw background
-    bg = pygame.Surface((ExperimentSettings.TaskWindowSize.X, ExperimentSettings.TaskWindowSize.Y)).convert()
-    bg.fill(ExperimentSettings.BackgroundColorTaskWindows)
-    RuntimeVariables.Screen.blit(bg, (Constants.TopLeftCornerOfTypingTaskWindow.X, Constants.TopLeftCornerOfTypingTaskWindow.Y))  # make area about 30 away from centre
-
-    if not RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask):
-        drawCover("tracking")
-
-    fontsize = ExperimentSettings.FontSizeTypingTaskNumberSingleTask
-    f = pygame.font.Font(None, fontsize)
-    typingTaskNumberText = f.render(RuntimeVariables.CurrentTypingTaskNumbers, True, (0, 0, 0))
-    textWidth, textHeight = f.size(RuntimeVariables.CurrentTypingTaskNumbers)
-    x = (Constants.TopLeftCornerOfTypingTaskWindow.X + ExperimentSettings.TaskWindowSize.X / 2) - (textWidth / 2)
-    y = (Constants.TopLeftCornerOfTypingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y / 2) - (textHeight / 2)
-    RuntimeVariables.Screen.blit(typingTaskNumberText, (x, y))
-
-
 def closeTrackingWindow():
     RuntimeVariables.TrackingWindowVisible = False
     RuntimeVariables.VisitEndTime = time.time()
@@ -732,26 +781,40 @@ def closeTrackingWindow():
 def openTrackingWindow():
     RuntimeVariables.VisitStartTime = time.time()
     RuntimeVariables.TrackingWindowEntryCounter += 1
+    RuntimeVariables.TrackingWindowVisible = True
 
     if RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask:
         ApplyRewardForTypingTaskScores()
 
-    RuntimeVariables.TrackingWindowVisible = True
-
     # get the cursor angle
-    # prevent the program crashing when no joystick is connected
     try:
         RuntimeVariables.JoystickAxis = Vector2D(RuntimeVariables.JoystickObject.get_axis(0), RuntimeVariables.JoystickObject.get_axis(1))
     except (pygame.error, NameError, AttributeError):
+        # prevent the program crashing when no joystick is connected
         pass
 
 
-def drawTrackingWindow():
-    # draw background
+def drawTypingWindow():
+    bg = pygame.Surface((ExperimentSettings.TaskWindowSize.X, ExperimentSettings.TaskWindowSize.Y)).convert()
+    bg.fill(ExperimentSettings.BackgroundColorTaskWindows)
+    RuntimeVariables.Screen.blit(bg, (Constants.TopLeftCornerOfTypingTaskWindow.X, Constants.TopLeftCornerOfTypingTaskWindow.Y))
+
+    if not RuntimeVariables.ParallelDualTasks and (RuntimeVariables.CurrentTaskType == TaskTypes.DualTask or RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask):
+        drawCover("tracking")
+
+    f = pygame.font.Font(None, ExperimentSettings.FontSizeTypingTaskNumberSingleTask)
+    typingTaskNumberText = f.render(RuntimeVariables.CurrentTypingTaskNumbers, True, (0, 0, 0))
+    textWidth, textHeight = f.size(RuntimeVariables.CurrentTypingTaskNumbers)
+    x = (Constants.TopLeftCornerOfTypingTaskWindow.X + ExperimentSettings.TaskWindowSize.X / 2) - (textWidth / 2)
+    y = (Constants.TopLeftCornerOfTypingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y / 2) - (textHeight / 2)
+    RuntimeVariables.Screen.blit(typingTaskNumberText, (x, y))
+
+
+def drawTrackingWindowAndCursor():
     bg = pygame.Surface((ExperimentSettings.TaskWindowSize.X, ExperimentSettings.TaskWindowSize.Y)).convert()
     bg.fill(ExperimentSettings.BackgroundColorTaskWindows)
     drawCircles(bg)
-    RuntimeVariables.Screen.blit(bg, (Constants.TopLeftCornerOfTrackingTaskWindow.X, Constants.TopLeftCornerOfTrackingTaskWindow.Y))  # make area about 30 away from centre
+    RuntimeVariables.Screen.blit(bg, (Constants.TopLeftCornerOfTrackingTaskWindow.X, Constants.TopLeftCornerOfTrackingTaskWindow.Y))
     newCursorLocation = Vector2D(RuntimeVariables.CursorCoordinates.X - (ExperimentSettings.CursorSize.X / 2), RuntimeVariables.CursorCoordinates.Y - (ExperimentSettings.CursorSize.Y / 2))
     newCursor = pygame.Surface((ExperimentSettings.CursorSize.X, ExperimentSettings.CursorSize.Y)).convert()
     newCursor.fill(RuntimeVariables.CurrentCursorColor)
@@ -759,26 +822,26 @@ def drawTrackingWindow():
 
     # Show the number of points above the tracking circle
     scoreIsAllowedAtPenalty = RuntimeVariables.Penalty != Penalty.NoPenalty
-    displayForNormalTasks = RuntimeVariables.CurrentTaskType == TaskTypes.DualTask and RuntimeVariables.DisplayScoreNormalTrials
-    displayForPracticeTasks = RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask and RuntimeVariables.DisplayScorePracticeTrials
+    displayForNormalTasks = RuntimeVariables.CurrentTaskType == TaskTypes.DualTask and RuntimeVariables.DisplayLiveScoreNormalTrials
+    displayForPracticeTasks = RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask and RuntimeVariables.DisplayLiveScorePracticeTrials
     if scoreIsAllowedAtPenalty and not RuntimeVariables.ParallelDualTasks and (displayForNormalTasks or displayForPracticeTasks):
-        drawDualTaskScore()
+        drawDualTaskScoreAboveCircle()
 
 
-def drawDualTaskScore():
-    """Draws the visit score above the circle"""
+def drawDualTaskScoreAboveCircle():
+    """Draws the visit score above the circle for switching dual tasks"""
     intermediateMessage = str(RuntimeVariables.VisitScore) + " Punkte"
     fontsize = ExperimentSettings.GeneralFontSize
     f = pygame.font.Font(None, fontsize)
     textWidth, textHeight = f.size(intermediateMessage)
     x = Constants.TopLeftCornerOfTrackingTaskWindow.X + (ExperimentSettings.TaskWindowSize.X / 2) - (textWidth / 2)
     y = Constants.TopLeftCornerOfTrackingTaskWindow.Y + 10
-    printTextOverMultipleLines(intermediateMessage, (x, y))
+    printTextOverMultipleLines(intermediateMessage, Vector2D(x, y))
 
 
 def ApplyRewardForTypingTaskScores():
     """
-    For dual tasks: Calculates a reward for the user score. If the cursor is outside of the circle, the possible reward is reduced.
+    For switching dual tasks: Calculates a reward for the user score. If the cursor is outside of the circle, the possible reward is reduced.
     This function is called at the end of a dual task trial or when switching from tracking to typing window.
     """
     # This is the typing reward and the typing penalty
@@ -834,6 +897,7 @@ def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
         RuntimeVariables.IncorrectlyTypedDigitsTrial = 0
         RuntimeVariables.CursorDistancesToMiddle = []
         RuntimeVariables.LengthOfPathTracked = 0
+        RuntimeVariables.CumulatedTrackingScoreForParallelDualTasks = 0
 
         CountdownMessage(3)
         pygame.event.clear()  # clear all events
@@ -865,20 +929,21 @@ def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
         writeOutputDataFile("trialStart", "-")
 
         while (time.time() - RuntimeVariables.StartTimeCurrentTrial) < ExperimentSettings.MaxTrialTimeSingleTyping and RuntimeVariables.EnvironmentIsRunning:
-            checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
+            checkKeyPressed()  # checks keypresses for both the tracking task and the typingTask and starts relevant display updates
+            if RuntimeVariables.ParallelDualTasks:
+                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayLiveScorePracticeTrials):
+                    DisplayLiveFeedbackParallelDualTasks(TaskTypes.SingleTyping)
             pygame.display.flip()
             time.sleep(0.02)
 
-        if (time.time() - RuntimeVariables.StartTimeCurrentTrial) >= ExperimentSettings.MaxTrialTimeSingleTyping:
-            writeOutputDataFile("trialStopTooMuchTime", "-", True)
-        elif not RuntimeVariables.EnvironmentIsRunning:
-            writeOutputDataFile("trialStopEnvironmentStopped", "-", True)
-        else:
-            writeOutputDataFile("trialStop", "-", True)
+        writeOutputDataFile("trialEnd", "-", endOfTrial=True)
 
         if not isPracticeTrial:
-            # now give feedback
-            reportUserScore()
+            if RuntimeVariables.ParallelDualTasks:
+                if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
+                    DisplayFeedbackParallelDualTasks()
+            else:
+                DisplayFeedbackSwitchingDualTask()
 
 
 def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
@@ -917,6 +982,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
         RuntimeVariables.IncorrectlyTypedDigitsTrial = 0
         RuntimeVariables.CursorDistancesToMiddle = []
         RuntimeVariables.LengthOfPathTracked = 0
+        RuntimeVariables.CumulatedTrackingScoreForParallelDualTasks = 0
 
         RuntimeVariables.TrialNumber = RuntimeVariables.TrialNumber + 1
         bg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
@@ -949,19 +1015,24 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
         while ((time.time() - RuntimeVariables.StartTimeCurrentTrial) < ExperimentSettings.MaxTrialTimeSingleTracking) and RuntimeVariables.EnvironmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the trackingtask and the typingTask and starts relevant display updates
 
-            restSleepTime = 0
+            if RuntimeVariables.ParallelDualTasks:
+                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayLiveScorePracticeTrials):
+                    DisplayLiveFeedbackParallelDualTasks(TaskTypes.SingleTracking)
+
             if RuntimeVariables.TrackingTaskPresent and RuntimeVariables.TrackingWindowVisible:
-                drawTrackingWindow()
-                restSleepTime = drawCursor(0.02)
+                drawTrackingWindowAndCursor()
+                drawCursor(0.02)
                 writeOutputDataFile("trackingVisible", "-")
 
-            pygame.display.flip()
-            time.sleep(restSleepTime)
+        writeOutputDataFile("trialEnd", "-", endOfTrial=True)
 
-        if not RuntimeVariables.EnvironmentIsRunning:
-            writeOutputDataFile("trialEnvironmentRunning", "-", True)
-        else:
-            writeOutputDataFile("trialEnvironmentStopped", "-", True)
+        if not isPracticeTrial:
+            if RuntimeVariables.ParallelDualTasks:
+                if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
+                    DisplayFeedbackParallelDualTasks()
+
+        # At the trial end: clear distances for RMSE
+        RuntimeVariables.CursorDistancesToMiddle = []
 
 
 def runDualTaskTrials(isPracticeTrial, numberOfTrials):
@@ -1013,6 +1084,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
         RuntimeVariables.IncorrectlyTypedDigitsTrial = 0
         RuntimeVariables.CursorDistancesToMiddle = []
         RuntimeVariables.LengthOfPathTracked = 0
+        RuntimeVariables.CumulatedTrackingScoreForParallelDualTasks = 0
 
         CountdownMessage(3)
         pygame.event.clear()  # clear all events
@@ -1069,17 +1141,21 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
 
         while (time.time() - RuntimeVariables.StartTimeCurrentTrial) < ExperimentSettings.MaxTrialTimeDual and RuntimeVariables.EnvironmentIsRunning:
             checkKeyPressed()  # checks keypresses for both the tracking task and the typingTask and starts relevant display updates
-            restSleepTime = drawCursor(0.02)  # also draws tracking window
+
+            if RuntimeVariables.ParallelDualTasks and RuntimeVariables.TypingTaskPresent and RuntimeVariables.TypingWindowVisible and not RuntimeVariables.DisplayTypingTaskWithinCursor:
+                drawTypingWindow()
+            if RuntimeVariables.ParallelDualTasks:
+                if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayLiveScorePracticeTrials):
+                    DisplayLiveFeedbackParallelDualTasks(TaskTypes.DualTask)
+            drawCursor(0.02)  # also draws tracking window and typing task in cursor
+
             if RuntimeVariables.TrackingTaskPresent and RuntimeVariables.TrackingWindowVisible:
                 if not RuntimeVariables.ParallelDualTasks:
                     drawCover("typing")
-                if RuntimeVariables.DisplayTypingTaskWithinCursor and RuntimeVariables.ParallelDualTasks:
-                    drawTypingTaskWithinCursor()
-            if RuntimeVariables.ParallelDualTasks and RuntimeVariables.TypingTaskPresent and RuntimeVariables.TypingWindowVisible and not RuntimeVariables.DisplayTypingTaskWithinCursor:
-                drawTypingWindow()
 
-            pygame.display.flip()
-            time.sleep(restSleepTime)
+            # When drawing the typing task in cursor, the display update is done in drawCursor(). For switching dual tasks, update must be done here.
+            if not (RuntimeVariables.DisplayTypingTaskWithinCursor and RuntimeVariables.ParallelDualTasks):
+                pygame.display.flip()  # update display
 
             if RuntimeVariables.ParallelDualTasks:
                 eventMsg = "trackingAndTypingVisible"
@@ -1095,16 +1171,17 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
         RuntimeVariables.VisitEndTime = time.time()
         ApplyRewardForTypingTaskScores()
 
-        if (time.time() - RuntimeVariables.StartTimeCurrentTrial) >= ExperimentSettings.MaxTrialTimeDual:
-            writeOutputDataFile("trialStopTooMuchTime", "-", True)
-        elif not RuntimeVariables.EnvironmentIsRunning:
-            writeOutputDataFile("trialStopEnvironmentStopped", "-", True)
-        else:
-            writeOutputDataFile("trialStop", "-", True)
+        writeOutputDataFile("trialEnd", "-", endOfTrial=True)
 
         if not isPracticeTrial:
-            # now give feedback
-            reportUserScore()
+            if RuntimeVariables.ParallelDualTasks:
+                if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
+                    DisplayFeedbackParallelDualTasks()
+            else:
+                DisplayFeedbackSwitchingDualTask()
+
+        # At the trial end: clear distances for RMSE
+        RuntimeVariables.CursorDistancesToMiddle = []
 
 
 def ShowStartExperimentScreen():
@@ -1112,7 +1189,7 @@ def ShowStartExperimentScreen():
     location = Vector2D(175, 175)
 
     message = "Experimentalleiter bitte hier drücken."
-    printTextOverMultipleLines(message, (location.X, location.Y))
+    printTextOverMultipleLines(message, Vector2D(location.X, location.Y))
     pygame.display.flip()
 
     while not checkMouseClicked():  # wait for a mouseclick
@@ -1122,14 +1199,23 @@ def ShowStartExperimentScreen():
 
 def SetDebuggingSettings():
     """Set settings which are useful for debugging but should NOT be set for actual testing with participants"""
+    print("DEBUG MODE IS ACTIVE")
     ExperimentSettings.MaxTrialTimeDual = 5  # make trials end faster
     ExperimentSettings.MaxTrialTimeSingleTracking = 5
     ExperimentSettings.MaxTrialTimeSingleTyping = 5
 
 
+def ValidateSettings():
+    # Avoid a program crash by division by zero
+    if RuntimeVariables.IntervalForFeedbackAfterTrials == 0:
+        raise Exception("RuntimeVariables.IntervalForFeedbackAfterTrials cannot be zero!")
+
+
 def StartExperiment():
     if ExperimentSettings.DebugMode:
         SetDebuggingSettings()
+
+    ValidateSettings()
 
     # Sort the circle lists by radius to make getting the typing task numbers work properly
     RuntimeVariables.CirclesSmall.sort(key=lambda circle: circle.Radius, reverse=False)
@@ -1253,6 +1339,7 @@ def StartExperiment():
         RuntimeVariables.TypingRewardCorrectDigit = condition["conditionGainCorrectDigit"]
         print(f"Condition {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
 
+        wasDualTaskInCondition = False
         for block in RuntimeVariables.RunningOrder:
             if block.TaskType == TaskTypes.SingleTracking:
                 message = getMessageBeforeTrial(TaskTypes.SingleTracking, noiseMsg, penaltyMsg)
@@ -1263,12 +1350,13 @@ def StartExperiment():
                 DisplayMessage(message, 12)
                 runSingleTaskTypingTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
             if block.TaskType == TaskTypes.DualTask:
+                wasDualTaskInCondition = True
                 message = getMessageBeforeTrial(TaskTypes.DualTask, noiseMsg, penaltyMsg)
                 DisplayMessage(message, 12)
                 runDualTaskTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
 
-        message = "Bisher hast du: " + str(scipy.sum(RuntimeVariables.ScoresForPayment)) + " Punkte"
-        DisplayMessage(message, 8)
+        if wasDualTaskInCondition and not RuntimeVariables.ParallelDualTasks:
+            DisplayMessage("Bisher hast du: " + str(scipy.sum(RuntimeVariables.DualTaskScoreOverAllConditions)) + " Punkte", 8)
 
     DisplayMessage("Dies ist das Ende der Studie.", 10)
     quitApp()
@@ -1304,6 +1392,13 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
     return message
 
 
+def WriteLinesToCzvFile(filename, lines):
+    """Expects lines to be a list of lists"""
+    with open(filename, "w", newline="") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerows(lines)
+
+
 def readCsvFile(filePath):
     """
     Reads a multi-line CSV file separated with ;
@@ -1328,7 +1423,7 @@ def readParticipantFile():
     conditions = []
     for line in lines:
         try:
-            if line[0] == "StandardDeviationOfNoise":  # skip column title line
+            if line[0] == "StandardDeviationOfNoise":  # skip first column title line
                 continue
             conditions.append({
                 'standardDeviationOfNoise': line[0],
@@ -1379,6 +1474,9 @@ def initializeOutputFiles():
         "IncorrectDigitsTrial" + ";" \
         "OutsideRadius" + ";" \
         "TypingRewardCorrectDigit" + ";" \
+        "TypingScoreParallelSetup" + ";" \
+        "TrackingScoreParallelSetup" + ";" \
+        "CombinedScoreParallelSetup" + ";" \
         "EventMessage1" + ";" \
         "EventMessage2" + "\n"
 
@@ -1435,6 +1533,11 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
     circleRadii = list(map(lambda circle: circle.Radius, RuntimeVariables.CurrentCircles))
     currentTask = str(RuntimeVariables.CurrentTaskType).replace("TaskType.", "")
 
+    scores = CalculateFeedbackParallelDualTasks() if RuntimeVariables.ParallelDualTasks else ["-", "-", "-"]
+    typingScore = scores[0]
+    trackingScore = scores[1]
+    combinedScore = scores[2]
+
     outputText = \
         str(RuntimeVariables.ParticipantNumber) + ";" + \
         str(circleRadii) + ";" + \
@@ -1451,7 +1554,7 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         str(RuntimeVariables.TypingWindowVisible) + ";" + \
         str(RuntimeVariables.TrackingWindowEntryCounter) + ";" + \
         str(RuntimeVariables.TypingWindowEntryCounter) + ";" + \
-        str(calculateRmse(clearDistances=endOfTrial)) + ";" + \
+        str(calculateRmse()) + ";" + \
         str(RuntimeVariables.LengthOfPathTracked) + ";" + \
         str(outputCursorCoordinateX) + ";" + \
         str(outputCursorCoordinateY) + ";" + \
@@ -1469,6 +1572,9 @@ def writeOutputDataFile(eventMessage1, eventMessage2, endOfTrial=False):
         str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + ";" + \
         str(isCursorOutsideCircle()) + ";" + \
         str(RuntimeVariables.TypingRewardCorrectDigit) + ";" + \
+        str(typingScore) + ";" + \
+        str(trackingScore) + ";" + \
+        str(combinedScore) + ";" + \
         str(eventMessage1) + ";" + \
         str(eventMessage2) + "\n"
 
@@ -1502,6 +1608,11 @@ def quitApp(message=None):
 
 def getFunctionName():
     return inspect.stack()[1][3]
+
+
+class FeedbackMode(Enum):
+    Live = 1
+    AfterTrialsInInterval = 2
 
 
 def DrawGui():
@@ -1562,36 +1673,55 @@ def DrawGui():
     chkShowPenaltyRewardNoise = Checkbutton(frameOptions, text="Penalty-Info vor dem Experiment anzeigen", variable=showPenaltyRewardNoise)
     chkShowPenaltyRewardNoise.grid(row=2, column=0)
 
-    parallelDualTasks = IntVar()
-    chkParallelDualTasks = Checkbutton(frameOptions, text="Parallele DualTasks", variable=parallelDualTasks)
-    chkParallelDualTasks.grid(row=3, column=0)
-    typingTaskInCursor = IntVar()
-    chkTypingTaskInCursor = Checkbutton(frameOptions, text="Typing Task in Cursor", variable=typingTaskInCursor)
-    chkTypingTaskInCursor.grid(row=4, column=0)
-
     disableTypingScoreOutside = IntVar()
     dtsoTxt = "Wenn sich im DualTask der Cursor ausserhalb des Kreises befindet,\n sollen im TypingTask korrekte Eingaben nicht gezählt werden"
     chkDisableTypingScoreOutside = Checkbutton(frameOptions, text=dtsoTxt, variable=disableTypingScoreOutside)
-    chkDisableTypingScoreOutside.grid(row=5, column=0)
+    chkDisableTypingScoreOutside.grid(row=3, column=0)
 
     displayScoreNormalTrials = IntVar()
-    txt = "Punktestand über Kreis während normalen Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
+    txt = "Punktestand live während normalen Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
     chkDisplayScoreNormalTrials = Checkbutton(frameOptions, text=txt, variable=displayScoreNormalTrials)
-    chkDisplayScoreNormalTrials.grid(row=6, column=0)
+    chkDisplayScoreNormalTrials.grid(row=4, column=0)
 
     displayScorePracticeTrials = IntVar()
-    txt = "Punktestand über Kreis während Übungs-Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
+    txt = "Punktestand live während Übungs-Trials anzeigen \n(ausser wenn Penalty auf none gesetzt ist)"
     chkDisplayScorePracticeTrials = Checkbutton(frameOptions, text=txt, variable=displayScorePracticeTrials)
-    chkDisplayScorePracticeTrials.grid(row=7, column=0)
+    chkDisplayScorePracticeTrials.grid(row=5, column=0)
 
     framePracticePenalty = Frame(frameOptions)
-    framePracticePenalty.grid(row=8, column=0)
+    framePracticePenalty.grid(row=6, column=0)
     Label(framePracticePenalty, text="Tracking Penalty für Übungs-Trials \n(bei LoseAmount: 500)").grid(row=0, column=0)
     practiceTrackingPenaltyOptions = [Penalty.NoPenalty, Penalty.LoseAll, Penalty.LoseHalf, Penalty.LoseAmount]
     practiceTrackingPenalty = StringVar(framePracticePenalty)
     practiceTrackingPenalty.set(practiceTrackingPenaltyOptions[0])  # default value
     drpPracticeTrackingPenalty = OptionMenu(framePracticePenalty, practiceTrackingPenalty, *practiceTrackingPenaltyOptions)
     drpPracticeTrackingPenalty.grid(row=0, column=1)
+
+    frameParallelSetup = Frame(frameOptions, highlightbackground="black", highlightthickness=1)
+    frameParallelSetup.grid(row=7, column=0)
+
+    parallelDualTasks = IntVar()
+    chkParallelDualTasks = Checkbutton(frameParallelSetup, text="Parallele DualTasks", variable=parallelDualTasks)
+    chkParallelDualTasks.grid(row=0, column=0)
+    typingTaskInCursor = IntVar()
+    chkTypingTaskInCursor = Checkbutton(frameParallelSetup, text="Typing Task in Cursor", variable=typingTaskInCursor)
+    chkTypingTaskInCursor.grid(row=1, column=0)
+
+    frameParallelFeedback = Frame(frameParallelSetup)
+    frameParallelFeedback.grid(row=2, column=0)
+    Label(frameParallelFeedback, text="Anzeige Feedback bei\nparallelem DualTask Setup:").grid(row=0, column=0)
+    parallelFeedbackOptions = [FeedbackMode.Live, FeedbackMode.AfterTrialsInInterval]
+    parallelFeedback = StringVar(frameParallelFeedback)
+    parallelFeedback.set(parallelFeedbackOptions[0])  # default value
+    drpParallelFeedback = OptionMenu(frameParallelFeedback, parallelFeedback, *parallelFeedbackOptions)
+    drpParallelFeedback.grid(row=0, column=1)
+
+    frameInterval = Frame(frameParallelSetup)
+    frameInterval.grid(row=3, column=0)
+    Label(frameInterval, text="Intervall für Feedback nach Trials:").grid(row=0, column=0)
+    txFeedbackInterval = Text(frameInterval, height=1, width=2)
+    txFeedbackInterval.grid(row=0, column=1)
+
 
     ### Create three input forms for big, small and practice circles
     currentColumn = 0
@@ -1654,7 +1784,7 @@ def DrawGui():
                                      showPenaltyRewardNoise=showPenaltyRewardNoise:
                       ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
                                          parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside,
-                                         displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty))
+                                         displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty, parallelFeedback, txFeedbackInterval))
     btnStart.grid(row=5, column=0)
 
     # Finally load settings from file if present
@@ -1682,14 +1812,20 @@ def DrawGui():
                 chkShowPenaltyRewardNoise.select()
             if key == "DisableTypingScoreOutside" and value == "1":
                 chkDisableTypingScoreOutside.select()
-            if key == "DisplayScoreNormalTrials" and value == "1":
+            if key == "DisplayLiveScoreNormalTrials" and value == "1":
                 chkDisplayScoreNormalTrials.select()
-            if key == "DisplayScorePracticeTrials" and value == "1":
+            if key == "DisplayLiveScorePracticeTrials" and value == "1":
                 chkDisplayScorePracticeTrials.select()
             if key == "PracticeTrackingPenalty":
                 for listEntryPenalty in practiceTrackingPenaltyOptions:
                     if str(listEntryPenalty) == value:
                         practiceTrackingPenalty.set(listEntryPenalty)
+            if key == "ParallelFeedback":
+                for listEntryParallelFeedback in parallelFeedbackOptions:
+                    if str(listEntryParallelFeedback) == value:
+                        parallelFeedback.set(listEntryParallelFeedback)
+            if key == "FeedbackInterval":
+                txFeedbackInterval.insert(END, value)
     tkWindow.mainloop()
 
 
@@ -1760,18 +1896,22 @@ def LoadSettingsFromFile():
             settingsFile.Options[key] = line[1]
         if key == "DisableTypingScoreOutside":
             settingsFile.Options[key] = line[1]
-        if key == "DisplayScoreNormalTrials":
+        if key == "DisplayLiveScoreNormalTrials":
             settingsFile.Options[key] = line[1]
-        if key == "DisplayScorePracticeTrials":
+        if key == "DisplayLiveScorePracticeTrials":
             settingsFile.Options[key] = line[1]
         if key == "PracticeTrackingPenalty":
+            settingsFile.Options[key] = line[1]
+        if key == "ParallelFeedback":
+            settingsFile.Options[key] = line[1]
+        if key == "FeedbackInterval":
             settingsFile.Options[key] = line[1]
     return settingsFile
 
 
 def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
                        parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside,
-                       displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty):
+                       displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty, parallelFeedback, txFeedbackInterval):
     linesSettingsFile = []
     # Write Blocks
     for listEntryText in listBoxBlocks.get(0, END):
@@ -1804,40 +1944,57 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
         return
 
     # Set Options to RuntimeVariables
-    RuntimeVariables.ParallelDualTasks = True if parallelDualTasks.get() == 1 else False
+    parallelDualTasksEnabled = parallelDualTasks.get()
+    if parallelDualTasksEnabled == 1:
+        RuntimeVariables.ParallelDualTasks = True
+        Constants.OffsetTaskWindowsTop += 20
+        Constants.TopLeftCornerOfTypingTaskWindow = Vector2D(Constants.OffsetLeftRight, Constants.OffsetTaskWindowsTop)
+        Constants.TopLeftCornerOfTrackingTaskWindow = Vector2D(Constants.OffsetLeftRight + ExperimentSettings.TaskWindowSize.X + ExperimentSettings.SpaceBetweenWindows, Constants.OffsetTaskWindowsTop)
+
     if typingTaskInCursor.get() == 1:
         RuntimeVariables.DisplayTypingTaskWithinCursor = True
         RuntimeVariables.ParallelDualTasks = True  # also required
+        parallelDualTasksEnabled = 1  # save the other option as checked to file
+        Constants.OffsetTaskWindowsTop += 20
+        Constants.TopLeftCornerOfTypingTaskWindow = Vector2D(Constants.OffsetLeftRight, Constants.OffsetTaskWindowsTop)
+        Constants.TopLeftCornerOfTrackingTaskWindow = Vector2D(Constants.OffsetLeftRight + ExperimentSettings.TaskWindowSize.X + ExperimentSettings.SpaceBetweenWindows, Constants.OffsetTaskWindowsTop)
     else:
         RuntimeVariables.DisplayTypingTaskWithinCursor = False
 
     RuntimeVariables.RunPracticeTrials = True if runPracticeTrials.get() == 1 else False
     RuntimeVariables.ShowPenaltyRewardNoise = True if showPenaltyRewardNoise.get() == 1 else False
     RuntimeVariables.DisableCorrectTypingScoreOutsideCircle = True if disableTypingScoreOutside.get() == 1 else False
-    RuntimeVariables.DisplayScoreNormalTrials = True if displayScoreNormalTrials.get() == 1 else False
-    RuntimeVariables.DisplayScorePracticeTrials = True if displayScorePracticeTrials.get() == 1 else False
-    RuntimeVariables.PenaltyPracticeTrials = practiceTrackingPenalty.get()
+    RuntimeVariables.DisplayLiveScoreNormalTrials = True if displayScoreNormalTrials.get() == 1 else False
+    RuntimeVariables.DisplayLiveScorePracticeTrials = True if displayScorePracticeTrials.get() == 1 else False
+    RuntimeVariables.PenaltyPracticeTrials = Penalty[practiceTrackingPenalty.get().replace("Penalty.", "")]
+    feedbackMode = FeedbackMode[parallelFeedback.get().replace("FeedbackMode.", "")]
+
+    RuntimeVariables.FeedbackMode = feedbackMode
+    interval = txFeedbackInterval.get("1.0", END)
+    if feedbackMode == FeedbackMode.AfterTrialsInInterval:
+        RuntimeVariables.IntervalForFeedbackAfterTrials = 1
+        try:
+            interval = int(txFeedbackInterval.get("1.0", END))
+            RuntimeVariables.IntervalForFeedbackAfterTrials = interval
+        except:
+            print("Invalid interval for parallel dual task feedback entered")
+            return
 
     # Save Options to file
-    linesSettingsFile.append(["ParallelDualTasks", parallelDualTasks.get()])
+    linesSettingsFile.append(["ParallelDualTasks", parallelDualTasksEnabled])
     linesSettingsFile.append(["DisplayTypingTaskWithinCursor", typingTaskInCursor.get()])
     linesSettingsFile.append(["RunPracticeTrials", runPracticeTrials.get()])
     linesSettingsFile.append(["ShowPenaltyRewardNoise", showPenaltyRewardNoise.get()])
     linesSettingsFile.append(["DisableTypingScoreOutside", disableTypingScoreOutside.get()])
-    linesSettingsFile.append(["DisplayScoreNormalTrials", displayScoreNormalTrials.get()])
-    linesSettingsFile.append(["DisplayScorePracticeTrials", displayScorePracticeTrials.get()])
+    linesSettingsFile.append(["DisplayLiveScoreNormalTrials", displayScoreNormalTrials.get()])
+    linesSettingsFile.append(["DisplayLiveScorePracticeTrials", displayScorePracticeTrials.get()])
     linesSettingsFile.append(["PracticeTrackingPenalty", practiceTrackingPenalty.get()])
+    linesSettingsFile.append(["ParallelFeedback", parallelFeedback.get()])
+    linesSettingsFile.append(["FeedbackInterval", interval])
 
     WriteLinesToCzvFile(Constants.SettingsFilename, linesSettingsFile)
     RuntimeVariables.EnvironmentIsRunning = True
     tkWindow.quit()
-
-
-def WriteLinesToCzvFile(filename, lines):
-    """Expectes lines to be a list of lists"""
-    with open(filename, "w", newline="") as f:
-        writer = csv.writer(f, delimiter=";")
-        writer.writerows(lines)
 
 
 if __name__ == '__main__':
