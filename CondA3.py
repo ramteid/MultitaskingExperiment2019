@@ -129,6 +129,7 @@ class RuntimeVariables:
     PenaltyAmount = 0
     RunningOrder = []
     RunPracticeTrials = True
+    ShowOnlyGetReadyMessage = False
     ShowPenaltyRewardNoise = True
     IntervalForFeedbackAfterTrials = None
     DualTaskScoreOverAllConditions = []
@@ -306,9 +307,8 @@ def DisplayFeedbackParallelDualTasks():
     elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTracking:
         message = f"Punktestand:\n\nTracking: {trackingScore}"
         scoreForLogging = f"{trackingScore}"
-    DisplayMessageAfterTrial(message)
+    DisplayMessage(message, ExperimentSettings.TimeFeedbackIsDisplayed)
     writeOutputDataFile("scoreDisplayed", scoreForLogging)
-    time.sleep(ExperimentSettings.TimeFeedbackIsDisplayed)
 
 
 def DisplayFeedbackSwitchingDualTask():
@@ -326,7 +326,7 @@ def DisplayFeedbackSwitchingDualTask():
 
         RuntimeVariables.DualTaskScoreOverAllConditions.append(RuntimeVariables.TrialScore)  # store dual task score, it will be displayed at the end of each block
         scoreForLogging = RuntimeVariables.TrialScore
-        DisplayMessageAfterTrial(feedbackText)
+        DisplayMessage(feedbackText, ExperimentSettings.TimeFeedbackIsDisplayed)
 
     elif RuntimeVariables.CurrentTaskType == TaskTypes.SingleTyping:
         feedbackText = "Anzahl Fehler: \n"
@@ -334,22 +334,9 @@ def DisplayFeedbackSwitchingDualTask():
         digitScore = scipy.special.round(digitScore * 10) / 10  # round values
         feedbackText += "\n\n" + str(RuntimeVariables.IncorrectlyTypedDigitsTrial) + " Fehler"
         scoreForLogging = digitScore
-        DisplayMessageAfterTrial(feedbackText)
+        DisplayMessage(feedbackText, ExperimentSettings.TimeFeedbackIsDisplayed)
 
     writeOutputDataFile("scoreDisplayed", str(scoreForLogging))
-    time.sleep(ExperimentSettings.TimeFeedbackIsDisplayed)
-
-
-def DisplayMessageAfterTrial(feedbackText):
-    completebg = pygame.Surface((Constants.ExperimentWindowSize.X, Constants.ExperimentWindowSize.Y)).convert()
-    completebg.fill(ExperimentSettings.BackgroundColorEntireScreen)
-    RuntimeVariables.Screen.blit(completebg, (0, 0))
-    messageAreaObject = pygame.Surface((Constants.ExperimentWindowSize.X - 100, Constants.ExperimentWindowSize.Y - 100)).convert()
-    messageAreaObject.fill((255, 255, 255))
-    topCornerOfMessageArea = Vector2D(Constants.OffsetLeftRight, Constants.OffsetTop)
-    RuntimeVariables.Screen.blit(messageAreaObject, (topCornerOfMessageArea.X, topCornerOfMessageArea.Y))
-    printTextOverMultipleLines(feedbackText, Vector2D(topCornerOfMessageArea.X + Constants.OffsetLeftRight, topCornerOfMessageArea.Y + Constants.OffsetTop))
-    pygame.display.flip()
 
 
 def calculateRmse():
@@ -515,6 +502,7 @@ def CountdownMessage(displayTime):
 
         pygame.display.flip()
         printTextOverMultipleLines(message, Vector2D(topCornerOfMessageArea.X + 45, topCornerOfMessageArea.Y + 10))
+        writeLogFile(message)
         pygame.display.flip()
         time.sleep(1)
 
@@ -532,6 +520,7 @@ def DisplayMessage(message, displayTime):
     location = Vector2D(topCornerOfMessageArea.X + Constants.OffsetLeftRight + 25, topCornerOfMessageArea.Y + Constants.OffsetTop + 25)
     printTextOverMultipleLines(message, Vector2D(location.X, location.Y))
     pygame.display.flip()
+    writeLogFile(message)
     time.sleep(displayTime)
 
 
@@ -588,7 +577,7 @@ def GetTypingTaskNumbers(count):
             break
 
     # If the cursor is outside the outermost circle radius, the tpying task should show an "e"
-    if not possibleCharacters and RuntimeVariables.ParallelDualTasks:
+    if not possibleCharacters and RuntimeVariables.ParallelDualTasks and RuntimeVariables.CurrentTaskType in [TaskTypes.DualTask, TaskTypes.PracticeDualTask]:
         possibleCharacters = "e"
     elif not possibleCharacters:
         raise Exception("Could not get a random typing task number for the current circle radius!")
@@ -871,20 +860,23 @@ def ApplyRewardForTypingTaskScores():
 
 
 def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
+    writeLogFile("--> Practice SingleTyping" if isPracticeTrial else "SingleTyping")
     RuntimeVariables.BlockNumber += 1
 
     if isPracticeTrial:
         RuntimeVariables.CurrentTaskType = TaskTypes.PracticeSingleTyping
-        DisplayMessage("Nur Tippen\n\n"
-                       "In diesen Durchgängen übst du nur die Tippaufgabe.\n"
-                       "Kopiere die Ziffern, die dir auf dem Bildschirm angezeigt werden so schnell wie möglich.\n\n"
-                       "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n"
-                       "(In zukünftigen Durchgängen würdest du dadurch Punkte verlieren.)", 15)
+        if not RuntimeVariables.ShowOnlyGetReadyMessage:
+            DisplayMessage("Nur Tippen\n\n"
+                           "In diesen Durchgängen übst du nur die Tippaufgabe.\n"
+                           "Kopiere die Ziffern, die dir auf dem Bildschirm angezeigt werden so schnell wie möglich.\n\n"
+                           "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n"
+                           "(In zukünftigen Durchgängen würdest du dadurch Punkte verlieren.)", 15)
     else:
         RuntimeVariables.CurrentTaskType = TaskTypes.SingleTyping
-        DisplayMessage("Nur Tippen\n\n"
-                       "Kopiere die Ziffern so schnell wie möglich.\n"
-                       "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n", 10)
+        if not RuntimeVariables.ShowOnlyGetReadyMessage:
+            DisplayMessage("Nur Tippen\n\n"
+                           "Kopiere die Ziffern so schnell wie möglich.\n"
+                           "Wenn du einen Fehler machst, wird die Ziffernfolge nicht fortgesetzt.\n", 10)
 
     RuntimeVariables.CurrentTypingTaskNumbersLength = ExperimentSettings.SingleTypingTaskNumbersLength
 
@@ -948,24 +940,26 @@ def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
 
 
 def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
+    writeLogFile("--> Practice SingleTracking" if isPracticeTrial else "SingleTracking")
     RuntimeVariables.BlockNumber += 1
 
     if isPracticeTrial:
         RuntimeVariables.CurrentTaskType = TaskTypes.PracticeSingleTracking
-        DisplayMessage(
-            "Nur Tracking\n\n"
-            "In diesen Durchgängen übst du nur die Trackingaufgabe.\n"
-            "Du kannst ausprobieren, wie der Joystick funktioniert und sehen, wie schnell der blaue Cursor umherwandert.\n"
-            "Der Cursor bewegt sich so lange frei herum, bis du ihn mit dem Joystick bewegst.\n"
-            "Denk daran: deine Aufgabe ist es, zu verhindern, dass der blaue Cursor den Kreis verlässt!",
-            15)
+        if not RuntimeVariables.ShowOnlyGetReadyMessage:
+            DisplayMessage(
+                "Nur Tracking\n\n"
+                "In diesen Durchgängen übst du nur die Trackingaufgabe.\n"
+                "Du kannst ausprobieren, wie der Joystick funktioniert und sehen, wie schnell der blaue Cursor umherwandert.\n"
+                "Der Cursor bewegt sich so lange frei herum, bis du ihn mit dem Joystick bewegst.\n"
+                "Denk daran: deine Aufgabe ist es, zu verhindern, dass der blaue Cursor den Kreis verlässt!",
+                15)
     else:
         RuntimeVariables.CurrentTaskType = TaskTypes.SingleTracking
-        DisplayMessage(
-            "Nur Tracking\n\n"
-            "Nutze diesen Durchgang, um dich mit der Geschwindigkeit des Cursors vertraut zu machen, \n"
-            "und denk daran den Cursor mit deinem Joystick in der Kreismitte zu halten.",
-            10)
+        if not RuntimeVariables.ShowOnlyGetReadyMessage:
+            DisplayMessage("Nur Tracking\n\n"
+                           "Nutze diesen Durchgang, um dich mit der Geschwindigkeit des Cursors vertraut zu machen, \n"
+                           "und denk daran den Cursor mit deinem Joystick in der Kreismitte zu halten.",
+                           10)
 
     print(f"{RuntimeVariables.CurrentTaskType}, total {numberOfTrials} trials")
     for i in range(0, numberOfTrials):
@@ -1037,41 +1031,45 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
 
 
 def runDualTaskTrials(isPracticeTrial, numberOfTrials):
+    writeLogFile("--> Practice DualTask" if isPracticeTrial else "DualTask")
     RuntimeVariables.BlockNumber += 1
 
     if isPracticeTrial:
         RuntimeVariables.CurrentTaskType = TaskTypes.PracticeDualTask
-        message = "Tracking + Tippen (MULTITASKING)\n\n" \
-                  "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
-        if not RuntimeVariables.ParallelDualTasks:
-            message += "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n" \
-                       "Drücke den Schalter unter deinem Zeigefinger am Joystick, um zu kontrollieren ob der blaue Cursor\n" \
-                       "noch innerhalb des Kreises ist.\n" \
-                       "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n" \
-                       "Du kannst immer nur eine Aufgabe bearbeiten."
-        DisplayMessage(message, 10)
-        message = "Dein Ziel:\n\n" \
-                  "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
-                  "Fehler beim Tippen führen zu Punkteverlust.\n"
-        if not RuntimeVariables.Penalty == Penalty.NoPenalty:
-            message += "Aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
-        DisplayMessage(message, 10)
 
+        if not RuntimeVariables.ShowOnlyGetReadyMessage:
+            message = "Tracking + Tippen (MULTITASKING)\n\n" \
+                      "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
+            if not RuntimeVariables.ParallelDualTasks:
+                message += "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n" \
+                           "Drücke den Schalter unter deinem Zeigefinger am Joystick, um zu kontrollieren ob der blaue Cursor\n" \
+                           "noch innerhalb des Kreises ist.\n" \
+                           "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n" \
+                           "Du kannst immer nur eine Aufgabe bearbeiten."
+            DisplayMessage(message, 10)
 
-    # Normal (no practice) trial
-    else:
-        RuntimeVariables.CurrentTaskType = TaskTypes.DualTask
-        message = "Dein Ziel:\n\n" \
-                  "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
-                  "Fehler beim Tippen führen zu Punkteverlust.\n"
-        if not RuntimeVariables.Penalty == Penalty.NoPenalty:
-            message += "Aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
-        message += "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl."
-        DisplayMessage(message, 18)
-        if not RuntimeVariables.ParallelDualTasks:
-            DisplayMessage("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
-                           "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
-                           "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
+            message = "Dein Ziel:\n\n" \
+                      "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
+                      "Fehler beim Tippen führen zu Punkteverlust.\n"
+            if not RuntimeVariables.Penalty == Penalty.NoPenalty:
+                message += "Aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
+            DisplayMessage(message, 10)
+
+        # Normal (no practice) trial
+        else:
+            RuntimeVariables.CurrentTaskType = TaskTypes.DualTask
+            if not RuntimeVariables.ShowOnlyGetReadyMessage:
+                message = "Dein Ziel:\n\n" \
+                          "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
+                          "Fehler beim Tippen führen zu Punkteverlust.\n"
+                if not RuntimeVariables.Penalty == Penalty.NoPenalty:
+                    message += "Aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
+                message += "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl."
+                DisplayMessage(message, 18)
+                if not RuntimeVariables.ParallelDualTasks:
+                    DisplayMessage("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
+                                   "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
+                                   "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
 
     RuntimeVariables.CurrentTypingTaskNumbersLength = 1 if RuntimeVariables.ParallelDualTasks else ExperimentSettings.SingleTypingTaskNumbersLength
 
@@ -1208,7 +1206,7 @@ def SetDebuggingSettings():
 
 def ValidateSettings():
     # Avoid a program crash by division by zero
-    if RuntimeVariables.IntervalForFeedbackAfterTrials == 0:
+    if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and not RuntimeVariables.IntervalForFeedbackAfterTrials > 0:
         raise Exception("RuntimeVariables.IntervalForFeedbackAfterTrials cannot be zero!")
 
 
@@ -1312,7 +1310,7 @@ def StartExperiment():
         RuntimeVariables.Penalty = RuntimeVariables.PenaltyPracticeTrials
         if RuntimeVariables.PenaltyPracticeTrials == Penalty.LoseAmount:
             RuntimeVariables.PenaltyAmount = 500
-        print(f"Practice {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
+        print(f"Practice trial. Penalty: {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
 
         for block in RuntimeVariables.RunningOrder:
             if len(RuntimeVariables.CirclesPractice) == 0 and (block.TaskType == TaskTypes.PracticeSingleTracking or block.TaskType == TaskTypes.PracticeDualTask):
@@ -1338,22 +1336,27 @@ def StartExperiment():
         RuntimeVariables.PenaltyAmount = condition["penaltyAmount"]
         penaltyMsg = condition["penaltyMsg"]
         RuntimeVariables.TypingRewardCorrectDigit = condition["conditionGainCorrectDigit"]
-        print(f"Condition {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}")
+        logText = f"Participant {RuntimeVariables.ParticipantNumber}, Penalty {RuntimeVariables.Penalty}, Noise: {RuntimeVariables.StandardDeviationOfNoise}, Gain: {RuntimeVariables.TypingRewardCorrectDigit}"
+        print(logText)
+        writeLogFile(logText)
 
         wasDualTaskInCondition = False
         for block in RuntimeVariables.RunningOrder:
             if block.TaskType == TaskTypes.SingleTracking:
                 message = getMessageBeforeTrial(TaskTypes.SingleTracking, noiseMsg, penaltyMsg)
-                DisplayMessage(message, 12)
+                if not RuntimeVariables.ShowOnlyGetReadyMessage:
+                    DisplayMessage(message, 12)
                 runSingleTaskTrackingTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
             if block.TaskType == TaskTypes.SingleTyping:
                 message = getMessageBeforeTrial(TaskTypes.SingleTyping, noiseMsg, penaltyMsg)
-                DisplayMessage(message, 12)
+                if not RuntimeVariables.ShowOnlyGetReadyMessage:
+                    DisplayMessage(message, 12)
                 runSingleTaskTypingTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
             if block.TaskType == TaskTypes.DualTask:
                 wasDualTaskInCondition = True
                 message = getMessageBeforeTrial(TaskTypes.DualTask, noiseMsg, penaltyMsg)
-                DisplayMessage(message, 12)
+                if not RuntimeVariables.ShowOnlyGetReadyMessage:
+                    DisplayMessage(message, 12)
                 runDualTaskTrials(isPracticeTrial=False, numberOfTrials=block.NumberOfTrials)
 
         if wasDualTaskInCondition and not RuntimeVariables.ParallelDualTasks and RuntimeVariables.DisplayScoreForNormalTrials:
@@ -1723,6 +1726,10 @@ def DrawGui():
     txFeedbackInterval = Text(frameInterval, height=1, width=2)
     txFeedbackInterval.grid(row=0, column=1)
 
+    showOnlyGetReadyMessage = IntVar()
+    chkShowOnlyGetReadyMessage = Checkbutton(frameParallelSetup, text="Nur Instruktion zeigen: \"Mach dich bereit\"", variable=showOnlyGetReadyMessage)
+    chkShowOnlyGetReadyMessage.grid(row=4, column=0)
+
 
     ### Create three input forms for big, small and practice circles
     currentColumn = 0
@@ -1779,13 +1786,10 @@ def DrawGui():
 
     # Bottom Frame
     btnStart = Button(frameBottom, text="Starten",
-                      command=lambda parallelDualTasks=parallelDualTasks,
-                                     typingTaskInCursor=typingTaskInCursor,
-                                     runPracticeTrials=runPracticeTrials,
-                                     showPenaltyRewardNoise=showPenaltyRewardNoise:
-                      ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
+                      command=lambda: ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
                                          parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside,
-                                         displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty, parallelFeedback, txFeedbackInterval))
+                                         displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty, parallelFeedback, txFeedbackInterval,
+                                         showOnlyGetReadyMessage))
     btnStart.grid(row=5, column=0)
 
     # Finally load settings from file if present
@@ -1827,6 +1831,8 @@ def DrawGui():
                         parallelFeedback.set(listEntryParallelFeedback)
             if key == "FeedbackInterval":
                 txFeedbackInterval.insert(END, value)
+            if key == "ShowOnlyGetReadyMessage" and value == "1":
+                chkShowOnlyGetReadyMessage.select()
     tkWindow.mainloop()
 
 
@@ -1907,12 +1913,15 @@ def LoadSettingsFromFile():
             settingsFile.Options[key] = line[1]
         if key == "FeedbackInterval":
             settingsFile.Options[key] = line[1]
+        if key == "ShowOnlyGetReadyMessage":
+            settingsFile.Options[key] = line[1]
     return settingsFile
 
 
 def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCirclesSmall, listBoxCirclesPractice, txPersonNumber,
                        parallelDualTasks, typingTaskInCursor, runPracticeTrials, showPenaltyRewardNoise, disableTypingScoreOutside,
-                       displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty, parallelFeedback, txFeedbackInterval):
+                       displayScoreNormalTrials, displayScorePracticeTrials, practiceTrackingPenalty, parallelFeedback, txFeedbackInterval,
+                       showOnlyGetReadyMessage):
     linesSettingsFile = []
     # Write Blocks
     for listEntryText in listBoxBlocks.get(0, END):
@@ -1967,19 +1976,24 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     RuntimeVariables.DisableCorrectTypingScoreOutsideCircle = True if disableTypingScoreOutside.get() == 1 else False
     RuntimeVariables.DisplayScoreForNormalTrials = True if displayScoreNormalTrials.get() == 1 else False
     RuntimeVariables.DisplayScoreForPracticeTrials = True if displayScorePracticeTrials.get() == 1 else False
-    RuntimeVariables.PenaltyPracticeTrials = Penalty[practiceTrackingPenalty.get().replace("Penalty.", "")]
-    feedbackMode = FeedbackMode[parallelFeedback.get().replace("FeedbackMode.", "")]
 
-    RuntimeVariables.FeedbackMode = feedbackMode
-    interval = txFeedbackInterval.get("1.0", END)
-    if feedbackMode == FeedbackMode.AfterTrialsInInterval:
-        RuntimeVariables.IntervalForFeedbackAfterTrials = 1
-        try:
-            interval = int(txFeedbackInterval.get("1.0", END))
+    RuntimeVariables.PenaltyPracticeTrials = Penalty[practiceTrackingPenalty.get().replace("Penalty.", "")]
+    RuntimeVariables.FeedbackMode = FeedbackMode[parallelFeedback.get().replace("FeedbackMode.", "")]
+
+    feedbackInterval = txFeedbackInterval.get("1.0", END).strip()
+    interval = ""
+    try:
+        if RuntimeVariables.FeedbackMode != FeedbackMode.AfterTrialsInInterval and not feedbackInterval:  # interval textbox can be empty if not required
+            leaveIntervalBoxEmpty = True
+        else:
+            interval = int(feedbackInterval)
             RuntimeVariables.IntervalForFeedbackAfterTrials = interval
-        except:
-            print("Invalid interval for parallel dual task feedback entered")
-            return
+            leaveIntervalBoxEmpty = False
+    except:
+        print("Invalid interval for parallel dual task feedback entered")
+        return
+
+    RuntimeVariables.ShowOnlyGetReadyMessage = True if showOnlyGetReadyMessage.get() == 1 else False
 
     # Save Options to file
     linesSettingsFile.append(["ParallelDualTasks", parallelDualTasksEnabled])
@@ -1991,11 +2005,18 @@ def ParseAndSaveInputs(tkWindow, listBoxBlocks, listBoxCirclesBig, listBoxCircle
     linesSettingsFile.append(["DisplayScoreForPracticeTrials", displayScorePracticeTrials.get()])
     linesSettingsFile.append(["PracticeTrackingPenalty", practiceTrackingPenalty.get()])
     linesSettingsFile.append(["ParallelFeedback", parallelFeedback.get()])
-    linesSettingsFile.append(["FeedbackInterval", interval])
+    linesSettingsFile.append(["FeedbackInterval", interval if not leaveIntervalBoxEmpty else ""])
+    linesSettingsFile.append(["ShowOnlyGetReadyMessage", showOnlyGetReadyMessage.get()])
 
     WriteLinesToCzvFile(Constants.SettingsFilename, linesSettingsFile)
     RuntimeVariables.EnvironmentIsRunning = True
     tkWindow.quit()
+
+
+def writeLogFile(text):
+    f = open("messageLog.txt", "a+")
+    f.write("################################\n\n" + text + "\n\n")
+    f.close()
 
 
 if __name__ == '__main__':

@@ -18,8 +18,9 @@ DisplayTypingTaskWithinCursor;1
 RunPracticeTrials;1
 ShowPenaltyRewardNoise;1
 DisableTypingScoreOutside;0
-DisplayLiveScoreNormalTrials;1
-DisplayLiveScorePracticeTrials;1
+DisplayScoreForNormalTrials;1
+DisplayScoreForPracticeTrials;0
 PracticeTrackingPenalty;Penalty.NoPenalty
 ParallelFeedback;FeedbackMode.AfterTrialsInInterval
 FeedbackInterval;5
+ShowOnlyGetReadyMessage;0
