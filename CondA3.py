@@ -1372,7 +1372,10 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
         message += f"In den folgenden Durchgängen bewegt sich der Cursor mit {noiseMsg} Geschwindigkeit. \n"
     # The number of points to be won by typing should always be shown
     if trialType in [TaskTypes.SingleTyping, TaskTypes.DualTask]:
-        message += f"Für jede korrekt eingegebene Ziffer bekommst du {RuntimeVariables.TypingRewardCorrectDigit} Punkte. \n"
+        if RuntimeVariables.DisplayScoreForNormalTrials:
+            message += f"Für jede korrekt eingegebene Ziffer bekommst du {RuntimeVariables.TypingRewardCorrectDigit} Punkte. \n"
+        else:
+            message += f"Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n"
 
     if RuntimeVariables.ShowPenaltyRewardNoise:
         message2 = "Achtung: "
