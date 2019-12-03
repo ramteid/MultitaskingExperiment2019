@@ -1048,17 +1048,21 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
                            "Du kannst immer nur eine Aufgabe bearbeiten."
             DisplayMessage(message, 10)
 
-            message = "Dein Ziel:\n\n" \
-                      "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
-                      "Fehler beim Tippen führen zu Punkteverlust.\n"
+            message = ""
+            if RuntimeVariables.DisplayScoreForPracticeTrials:
+                message += "Dein Ziel:\n\n" \
+                           "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
+                           "Fehler beim Tippen führen zu Punkteverlust.\n"
             if not RuntimeVariables.Penalty == Penalty.NoPenalty:
-                message += "Aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
-            DisplayMessage(message, 10)
+                message += "Pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
+            if message:
+                DisplayMessage(message, 10)
 
-        # Normal (no practice) trial
-        else:
-            RuntimeVariables.CurrentTaskType = TaskTypes.DualTask
-            if not RuntimeVariables.ShowOnlyGetReadyMessage:
+    # Normal (no practice) trial
+    else:
+        RuntimeVariables.CurrentTaskType = TaskTypes.DualTask
+        if not RuntimeVariables.ShowOnlyGetReadyMessage:
+            if RuntimeVariables.DisplayScoreForNormalTrials:
                 message = "Dein Ziel:\n\n" \
                           "Kopiere die Ziffern so schnell wie möglich, dadurch gewinnst du Punkte.\n" \
                           "Fehler beim Tippen führen zu Punkteverlust.\n"
@@ -1066,10 +1070,10 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
                     message += "Aber pass auf, dass der Cursor den Kreis nicht verlässt, sonst verlierst du Punkte.\n"
                 message += "Wichtig: Deine Leistung in diesen Durchgängen zählt für deine Gesamtpunktzahl."
                 DisplayMessage(message, 18)
-                if not RuntimeVariables.ParallelDualTasks:
-                    DisplayMessage("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
-                                   "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
-                                   "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
+            if not RuntimeVariables.ParallelDualTasks:
+                DisplayMessage("Drücke den Schalter unter deinem Zeigefinger, um das Trackingfenster zu öffnen.\n"
+                               "Um wieder zurück zur Tippaufgabe zu gelangen, lässt du den Schalter wieder los.\n"
+                               "Du kannst immer nur eine Aufgabe bearbeiten.", 15)
 
     RuntimeVariables.CurrentTypingTaskNumbersLength = 1 if RuntimeVariables.ParallelDualTasks else ExperimentSettings.SingleTypingTaskNumbersLength
 
@@ -1370,12 +1374,20 @@ def getMessageBeforeTrial(trialType, noiseMsg, penaltyMsg):
     message = "NEUER BLOCK: \n\n\n"
     if trialType in [TaskTypes.SingleTracking, TaskTypes.DualTask]:
         message += f"In den folgenden Durchgängen bewegt sich der Cursor mit {noiseMsg} Geschwindigkeit. \n"
+
+    # If the GUI option about showing messages is deactivated, no information about points shall be displayed
+    if not RuntimeVariables.DisplayScoreForNormalTrials:
+        if trialType == TaskTypes.DualTask:
+            message += "Tippe mit deiner linken Hand so viele Ziffern wie möglich, aber achte darauf, \ndass der Cursor den Kreis nicht verlässt.\n"
+        elif trialType == TaskTypes.SingleTracking:
+            message += "Achte darauf, dass der Cursor den Kreis nicht verlässt.\n"
+        elif trialType == TaskTypes.SingleTyping:
+            message += "Tippe mit deiner linken Hand so viele Ziffern wie möglich.\n"
+        return message
+
     # The number of points to be won by typing should always be shown
     if trialType in [TaskTypes.SingleTyping, TaskTypes.DualTask]:
-        if RuntimeVariables.DisplayScoreForNormalTrials:
-            message += f"Für jede korrekt eingegebene Ziffer bekommst du {RuntimeVariables.TypingRewardCorrectDigit} Punkte. \n"
-        else:
-            message += f"Für jede korrekt eingegebene Ziffer bekommst du Punkte. \n"
+        message += f"Für jede korrekt eingegebene Ziffer bekommst du {RuntimeVariables.TypingRewardCorrectDigit} Punkte. \n"
 
     if RuntimeVariables.ShowPenaltyRewardNoise:
         message2 = "Achtung: "
