@@ -74,6 +74,7 @@ class ExperimentSettings:
 class Constants:
     Title = "Multitasking 3.0"
     ExperimentWindowSize = Vector2D(1280, 1024)
+    MotionTolerance = 0.08
     OffsetTop = 50
     OffsetTaskWindowsTop = 50  # is overwritten for parallel dual task mode
     OffsetLeftRight = int((ExperimentWindowSize.X - ExperimentSettings.SpaceBetweenWindows - 2 * ExperimentSettings.TaskWindowSize.X) / 2)
@@ -614,24 +615,26 @@ def drawCircle(image, colour, radius, width=0):
 def updateCursor(sleepTime):
     x = RuntimeVariables.CursorCoordinates.X
     y = RuntimeVariables.CursorCoordinates.Y
-    oldX = x
-    oldY = y
-    final_x = x
-    final_y = y
+    oldX = RuntimeVariables.CursorCoordinates.X
+    oldY = RuntimeVariables.CursorCoordinates.Y
 
-    # only add noise if tracking is not moving
-    motionThreshold = 0.08
+    # only add noise if tracking is not moving.
+    # define joystick as moved if one of its axis is in [-1, -0.08] or [0.08, 1]. Joystick precision requires this.
+    joystickIsMoving = RuntimeVariables.JoystickAxis.X > Constants.MotionTolerance or \
+                       RuntimeVariables.JoystickAxis.X < -Constants.MotionTolerance or \
+                       RuntimeVariables.JoystickAxis.Y > Constants.MotionTolerance or \
+                       RuntimeVariables.JoystickAxis.Y < -Constants.MotionTolerance
 
-    joystickAxisWithinThreshold = RuntimeVariables.JoystickAxis.X > motionThreshold or \
-                                  RuntimeVariables.JoystickAxis.X < -motionThreshold or \
-                                  RuntimeVariables.JoystickAxis.Y > motionThreshold or \
-                                  RuntimeVariables.JoystickAxis.Y < -motionThreshold
-
-    if not (RuntimeVariables.TrackingWindowVisible and joystickAxisWithinThreshold):
+    # Always add random noise, except when the tracking window is visible and the joystick is moved
+    if not (RuntimeVariables.TrackingWindowVisible and joystickIsMoving):
         final_x = x + random.gauss(0, RuntimeVariables.StandardDeviationOfNoise)
         final_y = y + random.gauss(0, RuntimeVariables.StandardDeviationOfNoise)
+    else:
+        final_x = x
+        final_y = y
 
-    if RuntimeVariables.TrackingWindowVisible:  # only add joystickAxis if the window is open (i.e., if the participant sees what way cursor moves!)
+    # Apply the joystick movement to the cursor, but only if the tracking window is open (i.e. when the participant sees what way the cursor moves!)
+    if RuntimeVariables.TrackingWindowVisible:
         final_x += RuntimeVariables.JoystickAxis.X * Constants.ScalingJoystickAxis
         final_y += RuntimeVariables.JoystickAxis.Y * Constants.ScalingJoystickAxis
 
@@ -674,20 +677,25 @@ def updateCursor(sleepTime):
 
     # if tracking window is not visible, just update the values
     else:
+        # Apply random noise and joystick movement if present
         x = final_x
         y = final_y
 
         # now check if the cursor is still within screen range
         if x != RuntimeVariables.CursorCoordinates.X and y != RuntimeVariables.CursorCoordinates.Y:
-            if x < (Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2):
-                x = Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2
-            elif x > (Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.TaskWindowSize.X - ExperimentSettings.CursorSize.X / 2):
-                x = Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.TaskWindowSize.X - ExperimentSettings.CursorSize.X / 2
+            limitLeftX = Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.CursorSize.X / 2
+            limitLeftY = Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.CursorSize.Y / 2
+            limitRightX = Constants.TopLeftCornerOfTrackingTaskWindow.X + ExperimentSettings.TaskWindowSize.X - ExperimentSettings.CursorSize.X / 2
+            limitRightY = Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2
+            if x < limitLeftX:
+                x = limitLeftX
+            elif x > limitRightX:
+                x = limitRightX
+            if y < limitLeftY:
+                y = limitLeftX
+            elif y > limitRightY:
+                y = limitRightY
 
-            if y < (Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.CursorSize.Y / 2):
-                y = Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.CursorSize.Y / 2
-            elif y > (Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2):
-                y = Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2
         # if display is not updated, sleep for entire time
         time.sleep(sleepTime)
 
