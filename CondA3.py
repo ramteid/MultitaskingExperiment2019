@@ -1330,9 +1330,11 @@ def StartExperiment():
             elif block.TaskType == TaskTypes.PracticeDualTask:
                 runDualTaskTrials(isPracticeTrial=True, numberOfTrials=block.NumberOfTrials)
 
-        DisplayMessage("Nun beginnt der Hauppteil und wir testen deine Leistung in den Aufgaben, die du \n"
-                       "gerade geübt hast.\n"
-                       "Versuche im Laufe des Experiments so viele Punkte wie möglich zu gewinnen!", 10)
+        msg = "Nun beginnt der Hauppteil und wir testen deine Leistung in den Aufgaben, die du \n"\
+              "gerade geübt hast.\n"
+        if RuntimeVariables.DisplayScoreForNormalTrials:
+            msg += "Versuche im Laufe des Experiments so viele Punkte wie möglich zu gewinnen!"
+        DisplayMessage(msg, 10)
 
     # main experiment loop with verified conditions
     for condition in conditionsVerified:
