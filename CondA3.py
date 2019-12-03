@@ -611,7 +611,7 @@ def drawCircle(image, colour, radius, width=0):
         image.blit(circle, [origin.X - (circle.get_width() / 2), origin.Y - (circle.get_height() / 2)])
 
 
-def drawCursor(sleepTime):
+def updateCursor(sleepTime):
     x = RuntimeVariables.CursorCoordinates.X
     y = RuntimeVariables.CursorCoordinates.Y
     oldX = x
@@ -641,6 +641,9 @@ def drawCursor(sleepTime):
     delta_y = (final_y - y) / nrUpdates
 
     if RuntimeVariables.TrackingWindowVisible:
+        drawTrackingWindow()
+        drawCursor()
+
         for i in range(0, nrUpdates):
             x += delta_x
             y += delta_y
@@ -657,7 +660,7 @@ def drawCursor(sleepTime):
                 elif y > (Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2):
                     y = Constants.TopLeftCornerOfTrackingTaskWindow.Y + ExperimentSettings.TaskWindowSize.Y - ExperimentSettings.CursorSize.Y / 2
 
-                drawTrackingWindowAndCursor()
+                drawCursor()
                 if RuntimeVariables.CurrentTaskType in [TaskTypes.DualTask, TaskTypes.PracticeDualTask] and RuntimeVariables.DisplayTypingTaskWithinCursor and RuntimeVariables.ParallelDualTasks:
                     drawTypingTaskWithinCursor()
 
@@ -800,16 +803,11 @@ def drawTypingWindow():
     RuntimeVariables.Screen.blit(typingTaskNumberText, (x, y))
 
 
-def drawTrackingWindowAndCursor():
+def drawTrackingWindow():
     bg = pygame.Surface((ExperimentSettings.TaskWindowSize.X, ExperimentSettings.TaskWindowSize.Y)).convert()
     bg.fill(ExperimentSettings.BackgroundColorTaskWindows)
     drawCircles(bg)
     RuntimeVariables.Screen.blit(bg, (Constants.TopLeftCornerOfTrackingTaskWindow.X, Constants.TopLeftCornerOfTrackingTaskWindow.Y))
-    newCursorLocation = Vector2D(RuntimeVariables.CursorCoordinates.X - (ExperimentSettings.CursorSize.X / 2), RuntimeVariables.CursorCoordinates.Y - (ExperimentSettings.CursorSize.Y / 2))
-    newCursor = pygame.Surface((ExperimentSettings.CursorSize.X, ExperimentSettings.CursorSize.Y)).convert()
-    newCursor.fill(RuntimeVariables.CurrentCursorColor)
-    RuntimeVariables.Screen.blit(newCursor, (newCursorLocation.X, newCursorLocation.Y))  # blit puts something new on the screen
-
     # Show the number of points above the tracking circle
     scoreIsAllowedAtPenalty = RuntimeVariables.Penalty != Penalty.NoPenalty
     displayForNormalTasks = RuntimeVariables.CurrentTaskType == TaskTypes.DualTask and RuntimeVariables.DisplayScoreForNormalTrials
@@ -818,9 +816,16 @@ def drawTrackingWindowAndCursor():
         drawDualTaskScoreAboveCircle()
 
 
+def drawCursor():
+    newCursorLocation = Vector2D(RuntimeVariables.CursorCoordinates.X - (ExperimentSettings.CursorSize.X / 2), RuntimeVariables.CursorCoordinates.Y - (ExperimentSettings.CursorSize.Y / 2))
+    newCursor = pygame.Surface((ExperimentSettings.CursorSize.X, ExperimentSettings.CursorSize.Y)).convert()
+    newCursor.fill(RuntimeVariables.CurrentCursorColor)
+    RuntimeVariables.Screen.blit(newCursor, (newCursorLocation.X, newCursorLocation.Y))  # blit puts something new on the screen
+
+
 def drawDualTaskScoreAboveCircle():
     """Draws the visit score above the circle for switching dual tasks"""
-    intermediateMessage = str(RuntimeVariables.VisitScore) + " Punkte"
+    intermediateMessage = f"{int(RuntimeVariables.VisitScore)} Punkte"
     fontsize = ExperimentSettings.GeneralFontSize
     f = pygame.font.Font(None, fontsize)
     textWidth, textHeight = f.size(intermediateMessage)
@@ -1015,8 +1020,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
                     DisplayLiveFeedbackParallelDualTasks(TaskTypes.SingleTracking)
 
             if RuntimeVariables.TrackingTaskPresent and RuntimeVariables.TrackingWindowVisible:
-                drawTrackingWindowAndCursor()
-                drawCursor(0.02)
+                updateCursor(0.02)  # calls drawTrackingWindow() and drawCursor()
                 writeOutputDataFile("trackingVisible", "-")
 
         writeOutputDataFile("trialEnd", "-", endOfTrial=True)
@@ -1150,13 +1154,13 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
             if RuntimeVariables.ParallelDualTasks:
                 if (not isPracticeTrial and RuntimeVariables.FeedbackMode == FeedbackMode.Live) or (isPracticeTrial and RuntimeVariables.DisplayScoreForPracticeTrials):
                     DisplayLiveFeedbackParallelDualTasks(TaskTypes.DualTask)
-            drawCursor(0.02)  # also draws tracking window and typing task in cursor
+            updateCursor(0.02)  # also draws tracking window and typing task in cursor
 
             if RuntimeVariables.TrackingTaskPresent and RuntimeVariables.TrackingWindowVisible:
                 if not RuntimeVariables.ParallelDualTasks:
                     drawCover("typing")
 
-            # When drawing the typing task in cursor, the display update is done in drawCursor(). For switching dual tasks, update must be done here.
+            # When drawing the typing task in cursor, the display update is done in updateCursor(). For switching dual tasks, update must be done here.
             if not (RuntimeVariables.DisplayTypingTaskWithinCursor and RuntimeVariables.ParallelDualTasks):
                 pygame.display.flip()  # update display
 
