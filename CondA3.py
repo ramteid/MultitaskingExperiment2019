@@ -230,6 +230,8 @@ def CalculateFeedbackParallelDualTasks():
 
 
 def DisplayLiveFeedbackParallelDualTasks(taskType: TaskTypes):
+    if not RuntimeVariables.ParallelDualTasks:
+        raise Exception("Should not display scores for parallel dual task experiments in switching dual task setup")
     scores = CalculateFeedbackParallelDualTasks()
     typingScore = scores[0]
     trackingScore = scores[1]
@@ -279,7 +281,7 @@ def DisplayLiveFeedbackParallelDualTasks(taskType: TaskTypes):
         raise Exception("Unknown parallel dual task live feedback mode")
 
 
-def DisplayFeedbackParallelDualTasks():
+def DisplayFeedbackParallelDualTasksAfterTrial():
     """
     When parallel dual tasks are activated:
     Displays feedback for dual tasks, and single tasks at the end of a trial
@@ -312,7 +314,7 @@ def DisplayFeedbackParallelDualTasks():
     writeOutputDataFile("scoreDisplayed", scoreForLogging)
 
 
-def DisplayFeedbackSwitchingDualTask():
+def DisplayFeedbackSwitchingDualTaskAfterTrial():
     """Displays feedback message after trial. Only used for switching dual task."""
     if RuntimeVariables.ParallelDualTasks:
         raise Exception("Should not display scores for switching dual task experiments in parallel dual task setup")
@@ -950,9 +952,9 @@ def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
         if not isPracticeTrial and RuntimeVariables.DisplayScoreForNormalTrials:
             if RuntimeVariables.ParallelDualTasks:
                 if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
-                    DisplayFeedbackParallelDualTasks()
+                    DisplayFeedbackParallelDualTasksAfterTrial()
             else:
-                DisplayFeedbackSwitchingDualTask()
+                DisplayFeedbackSwitchingDualTaskAfterTrial()
 
 
 def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
@@ -965,9 +967,9 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
             DisplayMessage(
                 "Nur Tracking\n\n"
                 "In diesen Durchgängen übst du nur die Trackingaufgabe.\n"
-                "Du kannst ausprobieren, wie der Joystick funktioniert und sehen, wie schnell der blaue Cursor umherwandert.\n"
+                "Du kannst ausprobieren, wie der Joystick funktioniert und sehen, wie schnell der Cursor umherwandert.\n"
                 "Der Cursor bewegt sich so lange frei herum, bis du ihn mit dem Joystick bewegst.\n"
-                "Denk daran: deine Aufgabe ist es, zu verhindern, dass der blaue Cursor den Kreis verlässt!",
+                "Denk daran: deine Aufgabe ist es, zu verhindern, dass der Cursor den Kreis verlässt!",
                 15)
     else:
         RuntimeVariables.CurrentTaskType = TaskTypes.SingleTracking
@@ -1039,7 +1041,7 @@ def runSingleTaskTrackingTrials(isPracticeTrial, numberOfTrials):
         if not isPracticeTrial and RuntimeVariables.DisplayScoreForNormalTrials:
             if RuntimeVariables.ParallelDualTasks:
                 if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
-                    DisplayFeedbackParallelDualTasks()
+                    DisplayFeedbackParallelDualTasksAfterTrial()
 
         # At the trial end: clear distances for RMSE
         RuntimeVariables.CursorDistancesToMiddle = []
@@ -1057,7 +1059,7 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
                       "Du übst jetzt beide Aufgaben gleichzeitig!\n\n"
             if not RuntimeVariables.ParallelDualTasks:
                 message += "Die Ziffernaufgabe wird dir immer zuerst angezeigt.\n" \
-                           "Drücke den Schalter unter deinem Zeigefinger am Joystick, um zu kontrollieren ob der blaue Cursor\n" \
+                           "Drücke den Schalter unter deinem Zeigefinger am Joystick, um zu kontrollieren ob der Cursor\n" \
                            "noch innerhalb des Kreises ist.\n" \
                            "Lasse den Schalter wieder los, um zur Ziffernaufgabe zurück zu gelangen.\n" \
                            "Du kannst immer nur eine Aufgabe bearbeiten."
@@ -1194,9 +1196,9 @@ def runDualTaskTrials(isPracticeTrial, numberOfTrials):
         if not isPracticeTrial and RuntimeVariables.DisplayScoreForNormalTrials:
             if RuntimeVariables.ParallelDualTasks:
                 if RuntimeVariables.FeedbackMode == FeedbackMode.AfterTrialsInInterval and ((i + 1) % RuntimeVariables.IntervalForFeedbackAfterTrials == 0 or i == numberOfTrials - 1):
-                    DisplayFeedbackParallelDualTasks()
+                    DisplayFeedbackParallelDualTasksAfterTrial()
             else:
-                DisplayFeedbackSwitchingDualTask()
+                DisplayFeedbackSwitchingDualTaskAfterTrial()
 
         # At the trial end: clear distances for RMSE
         RuntimeVariables.CursorDistancesToMiddle = []
