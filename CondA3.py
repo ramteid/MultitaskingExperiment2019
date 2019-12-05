@@ -823,10 +823,9 @@ def drawTrackingWindow():
     drawCircles(bg)
     RuntimeVariables.Screen.blit(bg, (Constants.TopLeftCornerOfTrackingTaskWindow.X, Constants.TopLeftCornerOfTrackingTaskWindow.Y))
     # Show the number of points above the tracking circle
-    scoreIsAllowedAtPenalty = RuntimeVariables.Penalty != Penalty.NoPenalty
     displayForNormalTasks = RuntimeVariables.CurrentTaskType == TaskTypes.DualTask and RuntimeVariables.DisplayScoreForNormalTrials
     displayForPracticeTasks = RuntimeVariables.CurrentTaskType == TaskTypes.PracticeDualTask and RuntimeVariables.DisplayScoreForPracticeTrials
-    if scoreIsAllowedAtPenalty and not RuntimeVariables.ParallelDualTasks and (displayForNormalTasks or displayForPracticeTasks):
+    if not RuntimeVariables.ParallelDualTasks and (displayForNormalTasks or displayForPracticeTasks):
         drawDualTaskScoreAboveCircle()
 
 
@@ -851,13 +850,14 @@ def drawDualTaskScoreAboveCircle():
 def ApplyRewardForTypingTaskScores():
     """
     For switching dual tasks: Calculates a reward for the user score. If the cursor is outside of the circle, the possible reward is reduced.
-    This function is called at the end of a dual task trial or when switching from tracking to typing window.
+    This function is called at the end of a dual task trial or when switching from typing to tracking window.
     """
     # This is the typing reward and the typing penalty
     gainFormula = (RuntimeVariables.CorrectlyTypedDigitsVisit * RuntimeVariables.TypingRewardCorrectDigit) - (RuntimeVariables.IncorrectlyTypedDigitsVisit * RuntimeVariables.TypingPenaltyIncorrectDigit)
 
     # If Cursor is inside the circle, apply the full reward
-    if not isCursorOutsideCircle() or RuntimeVariables.Penalty == Penalty.NoPenalty:
+    applyPenalty = isCursorOutsideCircle() and RuntimeVariables.Penalty != Penalty.NoPenalty
+    if not applyPenalty:
         RuntimeVariables.VisitScore = gainFormula
     # If Cursor is outside of the circle, reduce the reward (tracking penalty)
     else:
@@ -874,7 +874,8 @@ def ApplyRewardForTypingTaskScores():
     # add the score for this digit task visit to the overall trial score
     # trial score is used in reportUserScore
     RuntimeVariables.TrialScore += RuntimeVariables.VisitScore
-    writeOutputDataFile("updatedVisitScore", str(RuntimeVariables.VisitScore))
+
+    writeOutputDataFile("updatedVisitScore", "penaltyApplied" if applyPenalty else "NoPenaltyApplied")
 
 
 def runSingleTaskTypingTrials(isPracticeTrial, numberOfTrials):
