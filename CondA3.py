@@ -709,21 +709,25 @@ def updateCursor(sleepTime):
     RuntimeVariables.LengthOfPathTracked += math.sqrt((oldX - x) ** 2 + (oldY - y) ** 2)
 
     # Detect whether the cursor is outside the circle, also if tracking is not visible.
-    if isCursorOutsideCircle():
+    isCursorOutsideCircleVar = isCursorOutsideCircle()
+    if isCursorOutsideCircleVar:
         RuntimeVariables.CurrentCursorColor = ExperimentSettings.CursorColorInside
     else:
         RuntimeVariables.CurrentCursorColor = ExperimentSettings.CursorColorOutside
 
     # For Parallel DualTasks, update the typing task string on cursor leaving/reentering the circle
-    if RuntimeVariables.ParallelDualTasks and RuntimeVariables.TrackingWindowVisible:
+    if RuntimeVariables.TrackingWindowVisible:
         # When the cursor moves outside the circles, the parallel dual task typing number shall become "e" immediately
-        if isCursorOutsideCircle() and not RuntimeVariables.WasCursorOutsideRadiusBefore:
-            RuntimeVariables.CurrentTypingTaskNumbers = "e"
+        if isCursorOutsideCircleVar and not RuntimeVariables.WasCursorOutsideRadiusBefore:
+            RuntimeVariables.NumberOfCircleExits += 1
+            if RuntimeVariables.ParallelDualTasks:
+                RuntimeVariables.CurrentTypingTaskNumbers = "e"
+
         # When the cursor moves back inside the circles, the parallel dual task typing number shall become a number immediately
-        if not isCursorOutsideCircle() and RuntimeVariables.WasCursorOutsideRadiusBefore and RuntimeVariables.CurrentTaskType not in [TaskTypes.SingleTracking, TaskTypes.PracticeSingleTracking]:
+        if RuntimeVariables.ParallelDualTasks and not isCursorOutsideCircleVar and RuntimeVariables.WasCursorOutsideRadiusBefore and RuntimeVariables.CurrentTaskType not in [TaskTypes.SingleTracking, TaskTypes.PracticeSingleTracking]:
             UpdateTypingTaskString(reset=False)
 
-    RuntimeVariables.WasCursorOutsideRadiusBefore = isCursorOutsideCircle()
+    RuntimeVariables.WasCursorOutsideRadiusBefore = isCursorOutsideCircleVar
 
 
 def isCursorOutsideCircle():
@@ -855,7 +859,6 @@ def ApplyRewardForTypingTaskScores():
         RuntimeVariables.VisitScore = gainFormula
     # If Cursor is outside of the circle, reduce the reward (tracking penalty)
     else:
-        RuntimeVariables.NumberOfCircleExits += 1
         if RuntimeVariables.Penalty == Penalty.LoseAmount:
             # reduce the reward by an amount, e.g. 500 ("lose500")
             RuntimeVariables.VisitScore = gainFormula - RuntimeVariables.PenaltyAmount
@@ -1346,6 +1349,7 @@ def StartExperiment():
 
     # main experiment loop with verified conditions
     for condition in conditionsVerified:
+        RuntimeVariables.BlockNumber = 0
         # set global and local variables
         RuntimeVariables.StandardDeviationOfNoise = condition["standardDeviationOfNoise"]
         noiseMsg = condition["noiseMsg"]
@@ -1497,7 +1501,7 @@ def initializeOutputFiles():
         "JoystickAxisY" + ";" \
         "EnteredDigits" + ";" \
         "EnteredDigitsLength" + ";" \
-        "RuntimeExperimentVariables.CurrentTypingTaskNumbers" + ";" \
+        "CurrentTypingTaskNumbers" + ";" \
         "GeneratedTypingTaskNumberLength" + ";" \
         "NumberOfCircleExits" + ";" \
         "TrialScore" + ";" \
